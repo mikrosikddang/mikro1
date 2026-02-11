@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPresignedPut } from "@/lib/s3";
+import { requireRole } from "@/lib/auth";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth guard: SELLER only
+    const session = await requireRole("SELLER");
+    if (!session) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다 (판매자 전용)" },
+        { status: 401 },
+      );
+    }
+
     const { fileName, contentType } = await req.json();
 
     if (!fileName || !contentType) {
@@ -15,13 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sellerId = process.env.MVP_SELLER_ID;
-    if (!sellerId) {
-      return NextResponse.json(
-        { error: "MVP_SELLER_ID not configured" },
-        { status: 500 },
-      );
-    }
+    const sellerId = session.userId;
 
     // Extract extension from fileName
     const ext = fileName.split(".").pop()?.toLowerCase() || "jpg";

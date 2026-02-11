@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const sellerId = process.env.MVP_SELLER_ID;
-    if (!sellerId) {
+    // Auth guard: SELLER only
+    const session = await requireRole("SELLER");
+    if (!session) {
       return NextResponse.json(
-        { error: "MVP_SELLER_ID not configured" },
-        { status: 500 },
+        { error: "로그인이 필요합니다 (판매자 전용)" },
+        { status: 401 },
       );
     }
+
+    const sellerId = session.userId;
 
     const body = await req.json();
     const { title, priceKrw, stock, category, description, imageUrls } = body as {

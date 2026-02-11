@@ -3,13 +3,20 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "@/components/SessionProvider";
 
 type DrawerProps = {
   open: boolean;
   onClose: () => void;
 };
 
-const sections = [
+type Section = {
+  title: string;
+  links: { label: string; href: string }[];
+  sellerOnly?: boolean;
+};
+
+const sections: Section[] = [
   {
     title: "카테고리",
     links: [
@@ -27,6 +34,7 @@ const sections = [
   {
     title: "판매자",
     links: [{ label: "판매자 센터", href: "/seller" }],
+    sellerOnly: true,
   },
   {
     title: "정책",
@@ -44,6 +52,9 @@ const sections = [
 export default function Drawer({ open, onClose }: DrawerProps) {
   const pathname = usePathname();
   const prevPathname = useRef(pathname);
+  const session = useSession();
+
+  const isSeller = session?.role === "SELLER";
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -64,6 +75,10 @@ export default function Drawer({ open, onClose }: DrawerProps) {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  const visibleSections = sections.filter(
+    (s) => !s.sellerOnly || isSeller,
+  );
 
   return (
     <>
@@ -100,7 +115,25 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
         {/* Content */}
         <nav className="overflow-y-auto h-[calc(100%-52px)] px-5 pb-10">
-          {sections.map((section) => (
+          {/* Login status */}
+          <div className="mt-4 mb-2 px-1">
+            {session ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] text-gray-500">
+                  {session.role === "SELLER" ? "🏪 판매자" : "👤 고객"}
+                </span>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="text-[13px] font-medium text-black underline"
+              >
+                로그인
+              </Link>
+            )}
+          </div>
+
+          {visibleSections.map((section) => (
             <div key={section.title}>
               <h3 className="text-xs uppercase text-gray-400 mt-6 mb-2 tracking-wide">
                 {section.title}

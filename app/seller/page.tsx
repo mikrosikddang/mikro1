@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import ProductCard from "@/components/ProductCard";
 import SellerProductFilter from "@/components/SellerProductFilter";
 
@@ -13,7 +14,8 @@ export default async function SellerDashboardPage({ searchParams }: Props) {
   const showHidden = params.showHidden === "1";
   const showDeleted = params.showDeleted === "1";
 
-  const sellerId = process.env.MVP_SELLER_ID!;
+  const session = await getSession();
+  const sellerId = session!.userId; // layout guard guarantees SELLER
 
   const seller = await prisma.user.findUnique({
     where: { id: sellerId },

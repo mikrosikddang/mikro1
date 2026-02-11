@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -7,17 +8,21 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    const sellerId = process.env.MVP_SELLER_ID;
-    if (!sellerId) {
-      return NextResponse.json({ error: "MVP_SELLER_ID not configured" }, { status: 500 });
+    // Auth guard: SELLER only
+    const session = await requireRole("SELLER");
+    if (!session) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다 (판매자 전용)" },
+        { status: 401 },
+      );
     }
 
+    const sellerId = session.userId;
     const { id } = await params;
+
     const product = await prisma.product.findUnique({
       where: { id },
-      include: {
-        variants: true,
-      },
+      include: { variants: true },
     });
 
     if (!product || product.sellerId !== sellerId) {
@@ -33,11 +38,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const sellerId = process.env.MVP_SELLER_ID;
-    if (!sellerId) {
-      return NextResponse.json({ error: "MVP_SELLER_ID not configured" }, { status: 500 });
+    // Auth guard: SELLER only
+    const session = await requireRole("SELLER");
+    if (!session) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다 (판매자 전용)" },
+        { status: 401 },
+      );
     }
 
+    const sellerId = session.userId;
     const { id } = await params;
     const body = await req.json();
     const { title, priceKrw, description, isActive, isDeleted, stock } = body as {
@@ -49,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       stock?: number;
     };
 
-    // Check product exists and belongs to seller
+    // Check product exists and belongs to this seller
     const existing = await prisma.product.findUnique({ where: { id } });
     if (!existing || existing.sellerId !== sellerId) {
       return NextResponse.json({ error: "상품을 찾을 수 없습니다" }, { status: 404 });

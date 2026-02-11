@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import TopBar from "@/components/TopBar";
 import BottomTab from "@/components/BottomTab";
+import { SessionProvider } from "@/components/SessionProvider";
+import { getSession } from "@/lib/auth";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,19 +22,26 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+  const clientSession = session
+    ? { userId: session.userId, role: session.role }
+    : null;
+
   return (
     <html lang="ko">
       <body className={`${geistSans.variable} font-sans antialiased bg-white text-gray-900`}>
-        <TopBar />
-        <main className="pt-[52px] pb-[52px] min-h-screen">
-          {children}
-        </main>
-        <BottomTab />
+        <SessionProvider session={clientSession}>
+          <TopBar />
+          <main className="pt-[52px] pb-[52px] min-h-screen">
+            {children}
+          </main>
+          <BottomTab />
+        </SessionProvider>
       </body>
     </html>
   );
