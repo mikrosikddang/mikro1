@@ -9,6 +9,7 @@ frontend:
         - npx prisma generate
     build:
       commands:
+        - echo "DATABASE_URL is set = $([ -n \"$DATABASE_URL\" ] && echo YES || echo NO)"
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -8,7 +8,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error("DATABASE_URL is missing at runtime");
+  }
+  const pool = new Pool({ connectionString: dbUrl });
   const adapter = new PrismaPg(pool);
   globalForPrisma.pool = pool;
   return new PrismaClient({ adapter });
