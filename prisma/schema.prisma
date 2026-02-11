@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  SELLER_PENDING
+  SELLER_ACTIVE
+  ADMIN
+}
+
+enum SellerApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductStatus {
+  ACTIVE
+  SOLD_OUT
+  HIDDEN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  SHIPPING
+  DELIVERED
+  CANCEL_REQUESTED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  READY
+  CONFIRMED
+  FAILED
+  CANCELED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  phone     String?  @unique
+  name      String?
+  password  String?  // ID/PW 로그인 쓸 때만(해시 저장)
+  role      UserRole @default(CUSTOMER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sellerProfile SellerProfile?
+  products      Product[]      @relation("SellerProducts")
+  orders        Order[]        @relation("BuyerOrders")
+
+  salesOrders   Order[] @relation("SellerOrders")
+}
+
+model SellerProfile {
+  id             String               @id @default(cuid())
+  userId         String               @unique
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  shopName       String
+  type           String?              // 여성/남성/혼합 (MVP는 string)
+  marketBuilding String?              // 상가명
+  floor          String?              // 층
+  roomNo         String?              // 호수
+
+  managerName    String?
+  managerPhone   String?
+
+  bizRegImageUrl String?              // S3 URL
+  status         SellerApprovalStatus @default(PENDING)
+  rejectedReason String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  sellerId    String
+  seller      User          @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  category    String?       // 바지/아우터 등 (MVP는 string)
+  priceKrw    Int
+  status      ProductStatus @default(ACTIVE)
+  isActive    Boolean       @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images      ProductImage[]
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  url       String
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  color     String? // MVP optional
+  size      String? // MVP optional
+  stock     Int     @default(0)
+
+  orderItems OrderItem[] @relation("VariantOrderItems")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  orderNo      String      @unique // 표시용 주문번호
+  status       OrderStatus @default(PENDING)
+
+  buyerId      String
+  buyer        User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+
+  sellerId     String
+  seller       User        @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
+
+  totalAmountKrw Int
+  shippingFeeKrw Int @default(0)
+
+  shipToName   String
+  shipToPhone  String
+  shipToZip    String?
+  shipToAddr1  String
+  shipToAddr2  String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items        OrderItem[]
+  payment      Payment?
+  shipment     Shipment?
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+    variantId  String?
+  variant    ProductVariant? @relation("VariantOrderItems", fields: [variantId], references: [id], onDelete: SetNull)
+
+  quantity   Int     @default(1)
+  unitPriceKrw Int
+
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String        @unique
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  paymentKey  String?       @unique // Toss paymentKey (확정되면 저장)
+  status      PaymentStatus @default(READY)
+  method      String?
+  amountKrw   Int
+  rawResponse Json?
+
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Shipment {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  courier    String?
+  trackingNo String?
+  shippedAt  DateTime?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
