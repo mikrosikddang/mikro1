@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatKrw } from "@/lib/format";
 import { getProductBadge } from "@/lib/productState";
 import ToggleActiveButton from "@/components/ToggleActiveButton";
+import StockAdjuster from "@/components/StockAdjuster";
 import WishlistButton from "@/components/WishlistButton";
 import ImageCarousel from "@/components/ImageCarousel";
 
@@ -21,6 +22,8 @@ type ProductCardProps = {
   totalStock?: number;
   /** e.g. "S:10 M:8 L:6" */
   variantSummary?: string;
+  /** Variant data for stock adjusters (seller mode only) */
+  variants?: { id: string; sizeLabel: string; stock: number }[];
 };
 
 export default function ProductCard({
@@ -35,6 +38,7 @@ export default function ProductCard({
   isDeleted,
   totalStock,
   variantSummary,
+  variants,
 }: ProductCardProps) {
   const stock = totalStock ?? 0;
   const isSoldOut = stock <= 0;
@@ -107,15 +111,28 @@ export default function ProductCard({
           </Link>
         )}
 
-        {/* Seller mode: stock info + actions */}
+        {/* Seller mode: stock adjusters + actions */}
         {sellerMode && (
           <>
-            <div className="mt-1.5 text-[13px] text-gray-500">
-              재고 {stock}
-              {variantSummary && (
-                <span className="ml-1.5 text-gray-400">({variantSummary})</span>
-              )}
-            </div>
+            {variants && variants.length > 0 && !isDeleted ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {variants.map((v) => (
+                  <StockAdjuster
+                    key={v.id}
+                    variantId={v.id}
+                    sizeLabel={v.sizeLabel}
+                    initialStock={v.stock}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-1.5 text-[13px] text-gray-500">
+                재고 {stock}
+                {variantSummary && (
+                  <span className="ml-1.5 text-gray-400">({variantSummary})</span>
+                )}
+              </div>
+            )}
             <div className="mt-3 flex gap-2">
               {!isDeleted && <ToggleActiveButton productId={id} isActive={isActive ?? true} />}
               <Link

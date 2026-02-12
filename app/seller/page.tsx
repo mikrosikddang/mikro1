@@ -35,7 +35,7 @@ export default async function SellerDashboardPage({ searchParams }: Props) {
     include: {
       images: { where: { kind: "MAIN" }, orderBy: { sortOrder: "asc" } },
       seller: { include: { sellerProfile: true } },
-      variants: true,
+      variants: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -109,6 +109,11 @@ export default async function SellerDashboardPage({ searchParams }: Props) {
             isDeleted={product.isDeleted}
             totalStock={product.totalStock}
             variantSummary={product.variantSummary}
+            variants={product.variants.map((v) => ({
+              id: v.id,
+              sizeLabel: v.sizeLabel,
+              stock: v.stock,
+            }))}
           />
         ))}
 
