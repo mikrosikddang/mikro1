@@ -141,6 +141,12 @@ export default function ProductCard({
               >
                 수정
               </Link>
+              <Link
+                href={`/seller/products/new?cloneFrom=${id}`}
+                className="flex-1 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-[13px] font-medium text-gray-700 active:bg-gray-50 transition-colors"
+              >
+                복제
+              </Link>
             </div>
           </>
         )}
