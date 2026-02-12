@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPresignedPut } from "@/lib/s3";
+import { createPresignedPut, validateUpload, MAX_FILE_SIZE } from "@/lib/s3";
 import { requireRole } from "@/lib/auth";
 import { randomUUID } from "crypto";
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { fileName, contentType } = await req.json();
+    const { fileName, contentType, fileSize } = await req.json();
 
     if (!fileName || !contentType) {
       return NextResponse.json(
@@ -25,9 +25,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ---- Validate file type ----
+    const typeError = validateUpload(fileName, contentType);
+    if (typeError) {
+      return NextResponse.json({ error: typeError }, { status: 400 });
+    }
+
+    // ---- Validate file size (client-reported, defense in depth) ----
+    if (typeof fileSize === "number" && fileSize > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `파일 크기는 ${MAX_FILE_SIZE / 1024 / 1024}MB 이하만 가능합니다` },
+        { status: 400 },
+      );
+    }
+
     const sellerId = session.userId;
 
-    // Extract extension from fileName
+    // Key: products/{sellerId}/{uuid}.{ext} — path-locked to seller
     const ext = fileName.split(".").pop()?.toLowerCase() || "jpg";
     const key = `products/${sellerId}/${randomUUID()}.${ext}`;
 

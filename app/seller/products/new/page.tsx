@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 const CATEGORIES = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
 const MAX_MAIN = 10;
 const MAX_CONTENT = 20;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const DEFAULT_SIZES = [
   { sizeLabel: "S", stock: 0 },
   { sizeLabel: "M", stock: 0 },
@@ -51,6 +53,21 @@ export default function NewProductPage() {
     if (!files) return;
     const remaining = max - current.length;
     const picked = Array.from(files).slice(0, remaining);
+
+    // Client-side validation
+    for (const file of picked) {
+      if (!ALLOWED_TYPES.has(file.type)) {
+        setError(`허용되지 않는 파일 형식: ${file.name} (jpg, png, webp, gif만 가능)`);
+        e.target.value = "";
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`파일이 너무 큽니다: ${file.name} (최대 10MB)`);
+        e.target.value = "";
+        return;
+      }
+    }
+
     const newSlots: ImageSlot[] = picked.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
@@ -104,9 +121,13 @@ export default function NewProductPage() {
       body: JSON.stringify({
         fileName: slot.file.name,
         contentType: slot.file.type,
+        fileSize: slot.file.size,
       }),
     });
-    if (!presignRes.ok) throw new Error("Presign failed");
+    if (!presignRes.ok) {
+      const data = await presignRes.json().catch(() => ({}));
+      throw new Error(data.error || "Presign failed");
+    }
     const { uploadUrl, publicUrl } = await presignRes.json();
 
     setter((prev) => {
@@ -542,7 +563,7 @@ function ImagePickerSection({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         multiple
         onChange={onPick}
         className="hidden"
