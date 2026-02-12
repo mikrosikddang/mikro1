@@ -11,7 +11,9 @@ frontend:
     build:
       commands:
         - env | grep -e DATABASE_URL -e AUTH_SECRET -e MVP_SELLER_ID -eS3_BUCKET >> .env
+        - env | grep -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY >> .env || true
         - env | grep -e NEXT_PUBLIC_ >> .env || true
+        - npx prisma migrate deploy
         - npm run build
   artifacts:
     baseDirectory: .next
