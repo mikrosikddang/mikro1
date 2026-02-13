@@ -1,7 +1,7 @@
 # mikro — 기능 명세서
 
 > 동대문 패션 모바일 마켓플레이스 MVP (Next.js App Router)
-> 최종 업데이트: 2026-02-12
+> 최종 업데이트: 2026-02-13
 
 ---
 
@@ -68,11 +68,20 @@
 | 상품명 | 20px bold |
 | 가격 | 24px extrabold, 원화 포맷 (₩19,000) |
 | 품절 뱃지 | 전체 variant stock 합계 0이면 빨간 "품절" 뱃지 |
-| 사이즈/재고 | 각 variant를 pill로 표시: `S (10)`, `M (8)`, `L (6)` / 재고 0이면 취소선 |
+| 사이즈 선택 | 각 variant를 pill로 표시: `S (10)`, `M (8)`, `L (6)` / 재고 0이면 취소선 |
+| 수량 선택 | +/- 버튼으로 수량 조절 (최소 1, 최대 재고량) |
 | 상품 설명 | `description` 텍스트 (있을 때만 표시) |
 | 상세 이미지 | CONTENT 이미지들 세로 스택 (있을 때만 표시) |
-| 구매 버튼 | "구매하기" (품절 시 비활성화) |
+| 장바구니 담기 | "장바구니 담기" 버튼 (사이즈 선택 필수, CUSTOMER 로그인 필요) |
+| 장바구니 이동 | "장바구니" 버튼 → `/cart` 이동 |
 | 찜 버튼 | 하트 아이콘 (detail variant, 52x52) |
+
+**장바구니 담기 플로우:**
+1. 사이즈/수량 선택 → "장바구니 담기" 클릭
+2. 미로그인 시 → `/login?next=/p/[id]` 리다이렉트
+3. SELLER 역할 시 → 403 에러
+4. 성공 시 → "장바구니에 담았습니다" 메시지 표시
+5. 중복 variant → 수량 증가로 처리
 
 ---
 
@@ -104,7 +113,7 @@
 |------|------|
 | 프로필 | 로그인: 역할(판매자/고객) + userId 일부 표시 + 로그아웃 버튼 |
 | 비로그인 | "게스트" 표시 → 로그인 페이지로 이동 |
-| 메뉴 | 주문내역(미구현), 관심목록, 판매자 센터(판매자만), 이용약관, 개인정보처리방침 |
+| 메뉴 | 주문내역, 관심목록, 판매자 센터(판매자만), 사업자 정보, 이용약관, 개인정보처리방침, 환불·교환·반품 정책 |
 
 ---
 
@@ -139,19 +148,110 @@
 
 ---
 
-### 9. 뉴스 — `/news`
+### 9. 장바구니 — `/cart`
+
+> CUSTOMER 역할 로그인 필수. SELLER 접근 시 403. 미로그인 시 `/login?next=/cart` 리다이렉트.
+
+| 항목 | 설명 |
+|------|------|
+| 저장 방식 | 데이터베이스 (CartItem 테이블), userId + variantId 조합 unique |
+| 자동 정리 | 페이지 로드 시 `isDeleted=true` 또는 `isActive=false` 상품 자동 삭제 (트랜잭션) |
+| 상품 카드 | 이미지 + 상품명 + 사이즈 + 재고 + 단가 + 수량 조절 + 삭제 버튼 |
+| 수량 조절 | +/- 버튼으로 즉시 PATCH 요청, 재고 초과 시 409 에러 + 롤백 |
+| 옵티미스틱 업데이트 | UI 즉시 변경 후 실패 시 이전 상태로 롤백 |
+| 재고 부족 경고 | "재고: N개 (최대 주문 가능)" 표시 |
+| 전체 삭제 | "전체 삭제" 버튼 → DELETE /api/cart 호출 |
+| 결제하기 | "결제하기" 버튼 → `/checkout` 이동 |
+| 빈 상태 | "장바구니가 비어 있습니다" + "쇼핑 계속하기" 버튼 |
+
+---
+
+### 10. 주문/결제 — `/checkout`
+
+> CUSTOMER 역할 로그인 필수. SELLER 접근 시 리다이렉트.
+
+| 섹션 | 설명 |
+|------|------|
+| **배송지** | Address 테이블에서 기본 배송지 로드, "배송지 변경" 버튼 (준비중), 등록된 배송지 없으면 "배송지 추가" 안내 |
+| **주문 상품** | 판매자별로 그룹핑 표시 (각 그룹: 상점명 + 상품 목록 + 소계 + 배송비) |
+| **배송비 계산** | 판매자별 정책 적용: 기본 shippingFeeKrw=3000, freeShippingThreshold=50000, 소계 ≥ threshold이면 배송비 0 |
+| **총 결제 금액** | 상품 합계 + 배송비 합계 = 총 결제 금액 |
+| **배송비 안내** | "배송비는 판매자별 정책이 적용됩니다" + 자세히 보기 링크 → `/policy/returns` |
+| **정책 동의** | 결제 버튼 바로 위에 "결제 진행 시 이용약관, 개인정보처리방침, 환불·교환·반품 정책에 동의한 것으로 간주됩니다" 안내 |
+| **결제하기 버튼** | "결제하기 (테스트)" 클릭 시 → POST /api/orders로 주문 생성 |
+| **결제 모달** | 테스트 환경 안내 + "결제 성공" / "결제 실패" 선택 |
+
+**주문 생성 플로우:**
+1. 배송지 선택 확인 → POST /api/orders (items + address)
+2. 판매자별로 Order 분할 생성 (status=PENDING, expiresAt=now+30분)
+3. 각 Order에 배송지 스냅샷 저장 (shipToName/Phone/Zip/Addr1/Addr2)
+4. 각 Order에 가격 스냅샷 저장 (itemsSubtotalKrw, shippingFeeKrw, totalPayKrw)
+5. 생성된 orderIds 배열 반환
+
+**결제 시뮬레이션 플로우:**
+- **성공**: POST /api/payments/simulate → 원자적 재고 차감 + Order.status=PAID + Payment.status=DONE → 장바구니 삭제 → `/orders/success?ids=...` 리다이렉트
+- **실패**: POST /api/payments/simulate-fail → Payment.status=FAILED, Order.status=PENDING 유지 → 에러 메시지 표시
+- **만료**: 주문 30분 경과 시 410 ORDER_EXPIRED 에러 → "주문 시간이 만료되었습니다" 안내
+
+---
+
+### 11. 주문 내역 — `/orders`
+
+> CUSTOMER 역할 로그인 필수. SELLER 접근 시 "접근 권한이 없습니다" 안내.
+
+| 항목 | 설명 |
+|------|------|
+| 데이터 | buyerId로 필터링, 최신순 정렬 (createdAt desc) |
+| 주문 카드 | 상점명 + 주문번호 + 상태 뱃지 + 결제 금액 + 주문일 + "상세보기" 버튼 |
+| 상태 뱃지 | PAID(초록 결제완료), PENDING(노랑 대기중), CANCELLED/CANCELED(빨강 취소됨), PREPARING(파랑 준비중), SHIPPING(보라 배송중), DELIVERED(회색 배송완료) |
+| 상세보기 | `/orders/[id]` 이동 |
+| 빈 상태 | "주문 내역이 없습니다" + "홈으로 가기" 버튼 |
+
+---
+
+### 12. 주문 상세 — `/orders/[id]`
+
+> CUSTOMER 역할 로그인 필수. 본인 주문만 조회 가능 (buyerId 검증).
+
+| 섹션 | 설명 |
+|------|------|
+| 헤더 | 주문번호 + 상태 뱃지 |
+| 판매자 정보 | 상점명 표시 |
+| 주문 상품 | 각 OrderItem 표시 (상품명 + 사이즈 + 수량 + 단가 + 소계) |
+| 배송지 | shipToName + shipToPhone + shipToZip + shipToAddr1 + shipToAddr2 |
+| 금액 정보 | 상품 합계(itemsSubtotalKrw) + 배송비(shippingFeeKrw) + 총 결제금액(totalPayKrw) |
+| 주문 일시 | createdAt 표시 |
+
+---
+
+### 13. 주문 완료 — `/orders/success`
+
+> CUSTOMER 역할 로그인 필수. 쿼리 파라미터 `?ids=id1,id2,...`로 다중 주문 표시.
+
+| 항목 | 설명 |
+|------|------|
+| 헤더 | "주문이 완료되었습니다" + "판매자별로 주문이 생성되었습니다" 안내 |
+| 주문 카드 | 각 Order별로 카드 표시 (상점명 + 주문번호 + 상태 + 주문 상품 목록 + 가격 정보) |
+| 주문 상품 | 상품명 + 사이즈 + 수량 + 소계 |
+| 가격 정보 | 상품 합계 + 배송비 + 총 결제금액 |
+| 주문 상세 버튼 | `/orders/[id]` 이동 |
+| 홈으로 버튼 | `/` 이동 |
+
+---
+
+### 14. 뉴스 — `/news`
 
 placeholder ("아직 등록된 소식이 없어요")
 
 ---
 
-### 10. 채팅 — `/chat`
+### 15. 채팅 — `/chat`
 
 placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 ---
 
-### 11. 이용약관 — `/policy/terms`
+### 16. 이용약관 — `/policy/terms`
 
 5개 조항: 목적, 정의, 약관의 효력, 서비스의 제공, 면책조항
 
@@ -159,7 +259,50 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 ### 12. 개인정보처리방침 — `/policy/privacy`
 
-5개 항목: 수집 항목, 수집·이용 목적, 보유 기간, 제3자 제공, 보호책임자
+8개 섹션: 수집 항목, 수집·이용 목적, 보유 기간, 제3자 제공, 개인정보 처리의 위탁, 정보주체의 권리·의무 및 행사 방법, 개인정보 보호책임자 및 고충처리, 개인정보처리방침 변경
+
+**주요 내용:**
+- 수집 항목: 회원가입 시(ID/PW/유형), 주문 시(수령인/연락처/주소), 판매자 입점 시(상호/사업자번호), 자동 수집(IP/쿠키)
+- 처리 위탁: AWS (서버 운영), Neon Database (DB 호스팅)
+- 정보주체 권리: 열람/정정/삭제/처리정지 요구 가능, 고객센터 이메일(mikrobrand25@gmail.com) 또는 개인정보보호 이메일(mikrodataprotection@gmail.com)로 행사
+- 고충처리: 개인정보침해신고센터, 개인정보분쟁조정위원회, 대검찰청, 경찰청 연락처 안내
+
+---
+
+### 13. 환불·교환·반품·배송 정책 — `/policy/returns`
+
+7개 섹션: 배송, 배송비 정책, 교환·반품 가능 기간, 교환·반품 불가 사유, 환불 처리, 문의 채널, 정책 적용 기준
+
+**주요 내용:**
+- 배송: 영업일 기준 1~3일 출고, 출고 후 1~2일 배송
+- 배송비: 판매자별 정책 적용 (기본: 50,000원 미만 3,000원, 이상 무료)
+- 교환·반품: 수령 후 7일 이내 신청 가능
+- 불가 사유: 택 제거, 착용 흔적, 포장 훼손, 주문 제작, 수령 후 7일 경과
+- 환불: 취소/반품 승인 후 영업일 3~7일 이내 처리
+- **정책 적용 기준**: 시행일 이후 주문 건부터 적용, 이전 주문은 주문 당시 정책 적용, 불리한 내용 소급 적용 금지
+
+---
+
+### 14. 사업자 정보 — `/info`
+
+**고객센터:**
+- 이메일: mikrobrand25@gmail.com
+- 운영 시간: 평일 10:00 - 18:00 (주말 및 공휴일 휴무)
+
+**개인정보 보호 책임:**
+- 이메일: mikrodataprotection@gmail.com
+
+**사업자 정보:**
+- 상호: 미크로
+- 대표자: 김동현
+- 사업자등록번호: 443-65-00701
+- 통신판매업 신고번호: 2025-서울구로-0131
+- OFFICE: 93, Saemal-ro, Guro-gu, Seoul, Jesangga 2-dong, Basement floor, Unit 111, Republic of Korea
+- HEAD OFFICE: 5F 90, Gyeongin-ro 53-gil, Guro-gu, Seoul, Republic of Korea
+
+**서비스 안내:**
+- 서비스명: mikro
+- 서비스 형태: 동대문 패션 모바일 마켓플레이스(웹앱)
 
 ---
 
@@ -167,7 +310,7 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 > `/seller/*` 경로는 SELLER 역할 로그인 필수. 미로그인 시 `/login?next=/seller`로 리다이렉트.
 
-### 13. 판매자 대시보드 — `/seller`
+### 17. 판매자 대시보드 — `/seller`
 
 | 항목 | 설명 |
 |------|------|
@@ -183,7 +326,7 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 ---
 
-### 14. 상품 올리기 — `/seller/products/new`
+### 18. 상품 올리기 — `/seller/products/new`
 
 | 섹션 | 설명 |
 |------|------|
@@ -209,7 +352,7 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 ---
 
-### 15. 상품 수정 — `/seller/products/[id]/edit`
+### 19. 상품 수정 — `/seller/products/[id]/edit`
 
 | 항목 | 설명 |
 |------|------|
@@ -234,6 +377,30 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 |--------|------|------|
 | POST | `/api/products/by-ids` | `{ids: string[]}` → 상품 배열 (찜 목록용) |
 
+### 장바구니 (고객용)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/cart` | 장바구니 조회 (자동 정리 포함), CUSTOMER 전용 |
+| POST | `/api/cart` | 장바구니 추가 `{variantId, quantity}`, 중복 시 수량 증가 |
+| DELETE | `/api/cart` | 장바구니 전체 삭제 |
+| PATCH | `/api/cart/[id]` | 항목 수량 변경 `{quantity}`, 재고 검증 |
+| DELETE | `/api/cart/[id]` | 항목 삭제 (본인 소유 검증) |
+
+### 배송지 (고객용)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/addresses` | 배송지 목록 조회, CUSTOMER 전용 |
+| POST | `/api/addresses` | 배송지 추가, 첫 배송지는 자동 기본 설정 |
+| PATCH | `/api/addresses/[id]` | 배송지 수정 (본인 소유 검증) |
+| DELETE | `/api/addresses/[id]` | 배송지 삭제, 기본 배송지 삭제 시 최신 배송지가 기본으로 변경 |
+
+### 주문 (고객용)
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | `/api/orders` | 주문 생성 `{items, address}`, 판매자별 분할 생성, 배송지/가격 스냅샷 저장, 30분 만료 설정 |
+| GET | `/api/orders/[id]` | 주문 상세 조회 (본인 주문만) |
+| POST | `/api/orders/by-ids` | 다중 주문 조회 `{ids}` (주문 완료 페이지용) |
+
 ### 상품 (판매자용)
 | Method | Path | 설명 |
 |--------|------|------|
@@ -256,7 +423,9 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 ### 결제
 | Method | Path | 설명 |
 |--------|------|------|
-| POST | `/api/payments/confirm` | 결제 확인 (재고 차감 + 상태 변경, Toss 연동) |
+| POST | `/api/payments/simulate` | 결제 성공 시뮬레이션 `{orderIds}`, 만료 검증 → 원자적 재고 차감 → Order.status=PAID, 이미 결제 시 alreadyPaid=true 반환 |
+| POST | `/api/payments/simulate-fail` | 결제 실패 시뮬레이션 `{orderIds}`, Payment.status=FAILED 설정 (Order는 PENDING 유지) |
+| POST | `/api/payments/confirm` | 실제 결제 확인 (Toss Payments 연동, 향후 구현) |
 
 ### 디버그
 | Method | Path | 설명 |
@@ -272,6 +441,7 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 | `ImageCarousel` | 횡스크롤 이미지 캐러셀, scroll-snap, 도트 인디케이터, 6장+ 카운터 뱃지 |
 | `ProductCard` | 상품 카드 (고객/판매자 모드), 이미지 캐러셀 포함 |
 | `ProductForm` | 판매자 상품 등록 공통 폼 (신규/복제 등록 공용) |
+| `AddToCartSection` | 상품 상세 페이지 장바구니 담기 섹션 (사이즈/수량 선택 + 버튼) |
 | `StockAdjuster` | 판매자 카드에서 사이즈별 재고 `- / +` 즉시 조절 |
 | `WishlistButton` | 찜 토글 버튼 (card/detail 두 가지 variant) |
 | `ToggleActiveButton` | 판매중↔숨김 토글 (PATCH isActive) |
@@ -306,10 +476,34 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 `id`, `email`, `phone`, `name`, `role` (CUSTOMER/SELLER_PENDING/SELLER_ACTIVE/ADMIN)
 
 ### SellerProfile
-`userId`, `shopName`, `type`, `marketBuilding`, `floor`, `roomNo`, `status` (PENDING/APPROVED/REJECTED)
+`userId`, `shopName`, `type`, `marketBuilding`, `floor`, `roomNo`, `status` (PENDING/APPROVED/REJECTED), `shippingFeeKrw` (기본 3000), `freeShippingThreshold` (기본 50000)
 
-### Order / OrderItem / Payment / Shipment
-주문 → 주문아이템 → 결제 → 배송 파이프라인 (결제 확인 API에서 재고 차감 + Toss 연동)
+### CartItem
+`id`, `userId`, `variantId`, `quantity`, `createdAt`, `updatedAt`
+- **Unique constraint**: `[userId, variantId]` — 사용자당 variant 중복 불가
+- CUSTOMER 전용, 상품/variant 삭제 시 cascade delete
+
+### Address
+`id`, `userId`, `name`, `phone`, `zipCode`, `addr1`, `addr2`, `isDefault`, `createdAt`, `updatedAt`
+- CUSTOMER 전용, 첫 번째 배송지 자동 기본 설정
+- 기본 배송지 삭제 시 최신 배송지가 새 기본으로 변경
+
+### Order
+`id`, `orderNo`, `buyerId`, `sellerId`, `status` (PENDING/PAID/CANCELLED/PREPARING/SHIPPING/DELIVERED), `expiresAt` (30분 만료), `createdAt`, `updatedAt`
+
+**가격 스냅샷 (주문 생성 시 저장, 결제 시 재계산 금지):**
+- `itemsSubtotalKrw`: 상품 합계
+- `shippingFeeKrw`: 배송비
+- `totalPayKrw`: 총 결제금액 (= itemsSubtotalKrw + shippingFeeKrw)
+
+**배송지 스냅샷 (주문 생성 시 Address에서 복사):**
+- `shipToName`, `shipToPhone`, `shipToZip`, `shipToAddr1`, `shipToAddr2`, `shipToMemo`
+
+### OrderItem
+`id`, `orderId`, `productId`, `variantId`, `quantity`, `unitPriceKrw` (주문 시점 단가)
+
+### Payment / Shipment
+주문 → 주문아이템 → 결제 → 배송 파이프라인 (결제 시뮬레이션 API에서 원자적 재고 차감)
 
 ---
 
