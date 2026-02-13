@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Container from "@/components/Container";
+import OrderActions from "@/components/OrderActions";
 import { formatKrw } from "@/lib/format";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getStatusLabel, getStatusColor } from "@/lib/orderState";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -46,7 +48,11 @@ export default async function OrderDetailPage({ params }: Props) {
   if (!order) notFound();
 
   // Check permission: buyer or seller only
-  if (order.buyerId !== session.userId && order.sellerId !== session.userId) {
+  const isBuyer = order.buyerId === session.userId;
+  const isSeller = order.sellerId === session.userId;
+  const isAdmin = (session.role as string) === "ADMIN";
+
+  if (!isBuyer && !isSeller && !isAdmin) {
     return (
       <Container>
         <div className="py-8 text-center text-red-500">
@@ -56,22 +62,9 @@ export default async function OrderDetailPage({ params }: Props) {
     );
   }
 
-  const shopName =
-    order.seller.sellerProfile?.shopName ?? "알수없음";
-
-  const statusLabels: Record<string, string> = {
-    PENDING: "주문 대기",
-    PAYMENT_FAILED: "결제 실패",
-    PAID: "결제 완료",
-    PREPARING: "상품 준비중",
-    SHIPPING: "배송중",
-    DELIVERED: "배송 완료",
-    CANCEL_REQUESTED: "취소 요청",
-    CANCELED: "주문 취소",
-    REFUNDED: "환불 완료",
-  };
-
-  const statusLabel = statusLabels[order.status] || order.status;
+  const shopName = order.seller.sellerProfile?.shopName ?? "알수없음";
+  const statusLabel = getStatusLabel(order.status);
+  const statusColor = getStatusColor(order.status);
 
   return (
     <Container>
@@ -98,20 +91,21 @@ export default async function OrderDetailPage({ params }: Props) {
         <div className="mb-6 p-4 bg-gray-50 rounded-xl">
           <div className="flex items-center justify-between">
             <span className="text-[14px] text-gray-600">주문 상태</span>
-            <span
-              className={`px-4 py-2 rounded-full text-[14px] font-bold ${
-                order.status === "PENDING"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : order.status === "PAID"
-                    ? "bg-green-100 text-green-700"
-                    : order.status === "CANCELED"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-gray-100 text-gray-700"
-              }`}
-            >
+            <span className={`px-4 py-2 rounded-full text-[14px] font-bold ${statusColor}`}>
               {statusLabel}
             </span>
           </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="mb-6">
+          <OrderActions
+            orderId={order.id}
+            currentStatus={order.status}
+            userRole={session.role}
+            isBuyer={isBuyer}
+            isSeller={isSeller}
+          />
         </div>
 
         {/* Seller info */}
@@ -218,19 +212,14 @@ export default async function OrderDetailPage({ params }: Props) {
                   {order.shipToAddr1} {order.shipToAddr2}
                 </span>
               </p>
+              {order.shipToMemo && (
+                <p>
+                  <span className="text-gray-600">배송 메모:</span>{" "}
+                  <span className="font-medium text-black">{order.shipToMemo}</span>
+                </p>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Payment button placeholder */}
-        {order.status === "PENDING" && (
-          <button
-            type="button"
-            disabled
-            className="w-full h-[56px] bg-gray-200 text-gray-500 rounded-xl text-[18px] font-bold cursor-not-allowed"
-          >
-            결제하기 (준비중)
-          </button>
         )}
       </div>
     </Container>

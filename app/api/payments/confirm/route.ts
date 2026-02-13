@@ -178,13 +178,13 @@ export async function POST(req: NextRequest) {
         });
 
         if (result.count !== 1) {
-          // Stock insufficient — mark order as PAYMENT_FAILED
+          // Stock insufficient — mark order as FAILED
           failedProductId = item.productId;
           stockFailed = true;
 
           await tx.order.update({
             where: { id: orderId },
-            data: { status: OrderStatus.PAYMENT_FAILED },
+            data: { status: OrderStatus.FAILED },
           });
 
           if (order.payment) {

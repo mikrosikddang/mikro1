@@ -2,7 +2,7 @@
 
 /**
  * Preflight Check Script (Local/CI/Prod)
- * 배포 전 16개 항목을 자동으로 점검합니다.
+ * 배포 전 18개 항목을 자동으로 점검합니다.
  *
  * Usage:
  *   node scripts/preflight.mjs [--mode=dev|ci|prod]
@@ -324,6 +324,32 @@ check('(16) TypeScript compilation', () => {
     throw new Error('TypeScript errors (run `npx tsc --noEmit`)');
   }
 }, { hardFail: mode === 'ci' || mode === 'prod' });
+
+// Check 17: OrderStatus enum values (order state integrity)
+check('(17) OrderStatus enum in schema', () => {
+  const schemaPath = 'prisma/schema.prisma';
+  const requiredStatuses = ['PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED', 'REFUND_REQUESTED', 'REFUNDED', 'FAILED'];
+
+  for (const status of requiredStatuses) {
+    if (!fileContains(schemaPath, status)) {
+      throw new Error(`Missing required status: ${status}`);
+    }
+  }
+
+  return 'All 8 statuses present';
+}, { hardFail: true });
+
+// Check 18: Order status API endpoint exists
+check('(18) PATCH /api/orders/[id]/status exists', () => {
+  const routePath = 'app/api/orders/[id]/status/route.ts';
+  if (!existsSync(join(rootDir, routePath))) {
+    throw new Error('Status update API not found');
+  }
+  if (!fileContains(routePath, 'export async function PATCH')) {
+    throw new Error('PATCH handler not found in status API');
+  }
+  return 'API endpoint exists';
+}, { hardFail: true });
 
 // ============================================================
 // Print Results
