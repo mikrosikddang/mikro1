@@ -78,6 +78,65 @@ export default function AddToCartSection({
     }
   };
 
+  const handleDirectPurchase = async () => {
+    if (!selectedVariantId) {
+      setMessage("사이즈를 선택해주세요");
+      setTimeout(() => setMessage(null), 2000);
+      return;
+    }
+
+    if (!selectedVariant) return;
+
+    if (quantity <= 0) {
+      setMessage("수량을 선택해주세요");
+      setTimeout(() => setMessage(null), 2000);
+      return;
+    }
+
+    if (quantity > selectedVariant.stock) {
+      setMessage(`재고가 부족합니다 (최대 ${selectedVariant.stock}개)`);
+      setTimeout(() => setMessage(null), 2000);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/orders/direct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantId: selectedVariantId, quantity }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 401) {
+        // Not logged in - redirect to login with return URL
+        const currentPath = window.location.pathname;
+        router.push(`/login?next=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          setMessage("재고가 부족합니다");
+        } else {
+          setMessage(data.error || "주문 생성 실패");
+        }
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+
+      // Redirect to checkout with direct order
+      router.push(`/checkout?direct=${data.orderId}`);
+    } catch (err: any) {
+      setMessage(err.message || "오류가 발생했습니다");
+      setTimeout(() => setMessage(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoToCart = () => {
     router.push("/cart");
   };
@@ -164,21 +223,31 @@ export default function AddToCartSection({
       )}
 
       {/* CTA buttons */}
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          disabled={isSoldOut || !selectedVariantId || loading}
-          className="flex-1 h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          {loading ? "처리 중..." : isSoldOut ? "품절" : "장바구니 담기"}
-        </button>
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleDirectPurchase}
+            disabled={isSoldOut || !selectedVariantId || loading}
+            className="flex-1 h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {loading ? "처리 중..." : isSoldOut ? "품절" : "바로구매"}
+          </button>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isSoldOut || !selectedVariantId || loading}
+            className="flex-1 h-[52px] bg-gray-700 text-white rounded-xl text-[16px] font-bold active:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {loading ? "처리 중..." : "장바구니"}
+          </button>
+        </div>
         <button
           type="button"
           onClick={handleGoToCart}
-          className="h-[52px] px-6 bg-gray-100 text-gray-700 rounded-xl text-[16px] font-bold active:bg-gray-200 transition-colors"
+          className="w-full h-[44px] bg-gray-100 text-gray-700 rounded-xl text-[14px] font-medium active:bg-gray-200 transition-colors"
         >
-          장바구니
+          장바구니 보기
         </button>
       </div>
     </div>

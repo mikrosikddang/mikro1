@@ -31,6 +31,11 @@ export async function GET(request: Request, { params }: Props) {
                   orderBy: { sortOrder: "asc" },
                   take: 1,
                 },
+                seller: {
+                  include: {
+                    sellerProfile: true,
+                  },
+                },
               },
             },
             variant: true,

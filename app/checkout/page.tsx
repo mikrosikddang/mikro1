@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
@@ -54,6 +54,9 @@ interface SellerGroup {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const directOrderId = searchParams.get("direct");
+
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -63,10 +66,93 @@ export default function CheckoutPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [orderIds, setOrderIds] = useState<string[]>([]);
+  const [isDirectMode, setIsDirectMode] = useState(false);
 
   useEffect(() => {
-    loadCheckoutData();
-  }, []);
+    if (directOrderId) {
+      loadDirectOrder(directOrderId);
+    } else {
+      loadCheckoutData();
+    }
+  }, [directOrderId]);
+
+  const loadDirectOrder = async (orderId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setIsDirectMode(true);
+
+      // Fetch order
+      const orderRes = await fetch(`/api/orders/${orderId}`);
+      if (orderRes.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (!orderRes.ok) {
+        throw new Error("주문을 불러오는데 실패했습니다");
+      }
+
+      const order = await orderRes.json();
+
+      // Verify ownership
+      // (API already checks this, but double-check client-side)
+      // If we got this far, user is the buyer
+
+      // Load addresses
+      const addressRes = await fetch("/api/addresses");
+      if (!addressRes.ok) {
+        if (addressRes.status === 401) {
+          router.push("/login");
+          return;
+        }
+        throw new Error("Failed to load addresses");
+      }
+
+      const addressesData = await addressRes.json();
+      setAddresses(addressesData);
+
+      const defaultAddr = addressesData.find((a: Address) => a.isDefault);
+      setSelectedAddress(defaultAddr || null);
+
+      // Transform order items to cart-like structure
+      const cartItems: CartItemData[] = order.items.map((item: any) => ({
+        id: item.id,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        variant: {
+          id: item.variant.id,
+          sizeLabel: item.variant.sizeLabel,
+          stock: item.variant.stock,
+          product: item.product,
+        },
+      }));
+
+      setItems(cartItems);
+
+      // Create seller group (single seller in direct mode)
+      const product = order.items[0].product;
+      const shopName = product.seller?.sellerProfile?.shopName || "알수없음";
+
+      const group: SellerGroup = {
+        sellerId: order.sellerId,
+        shopName,
+        items: cartItems,
+        subtotal: order.itemsSubtotalKrw || order.totalAmountKrw,
+        shippingFee: order.shippingFeeKrw,
+        freeShippingThreshold:
+          product.seller?.sellerProfile?.freeShippingThreshold || 50000,
+      };
+
+      setSellerGroups([group]);
+      setOrderIds([orderId]); // Already have order ID
+      setShowPaymentModal(true); // Go directly to payment modal
+    } catch (err: any) {
+      setError(err.message || "주문 정보를 불러오는데 실패했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadCheckoutData = async () => {
     try {
@@ -173,6 +259,12 @@ export default function CheckoutPage() {
   };
 
   const handleCreateOrders = async () => {
+    // In direct mode, order already exists
+    if (isDirectMode) {
+      setShowPaymentModal(true);
+      return;
+    }
+
     if (!selectedAddress) {
       alert("배송지를 선택해주세요");
       return;
@@ -240,13 +332,15 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         if (res.status === 410) {
-          throw new Error("주문 시간이 만료되었습니다. 장바구니로 돌아가서 다시 진행해 주세요.");
+          throw new Error("주문 시간이 만료되었습니다. 다시 진행해 주세요.");
         }
         throw new Error(data.error || "결제 처리 실패");
       }
 
-      // Clear cart via API
-      await fetch("/api/cart", { method: "DELETE" });
+      // Clear cart via API (only in cart mode, not direct mode)
+      if (!isDirectMode) {
+        await fetch("/api/cart", { method: "DELETE" });
+      }
 
       // Redirect to success page with all order IDs
       const idsParam = orderIds.join(",");
@@ -488,14 +582,16 @@ export default function CheckoutPage() {
         </div>
 
         {/* Payment button */}
-        <button
-          type="button"
-          onClick={handleCreateOrders}
-          disabled={processingPayment || !selectedAddress}
-          className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          {processingPayment ? "처리 중..." : "결제하기 (테스트)"}
-        </button>
+        {!isDirectMode && (
+          <button
+            type="button"
+            onClick={handleCreateOrders}
+            disabled={processingPayment || !selectedAddress}
+            className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {processingPayment ? "처리 중..." : "결제하기 (테스트)"}
+          </button>
+        )}
 
         {/* Payment Modal */}
         {showPaymentModal && (
