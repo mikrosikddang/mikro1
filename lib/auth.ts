@@ -24,8 +24,25 @@ export interface Session {
 /* ---------- config ---------- */
 
 const COOKIE_NAME = "mikro_session";
-const AUTH_SECRET =
-  process.env.AUTH_SECRET || "mikro-dev-secret-must-be-32-chars!!";
+
+// Get auth secret with production safety
+function getAuthSecret(): string {
+  const secret = process.env.COOKIE_SECRET || process.env.AUTH_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CRITICAL: COOKIE_SECRET or AUTH_SECRET must be set in production environment"
+      );
+    }
+    // Development fallback
+    return "mikro-dev-secret-must-be-32-chars!!";
+  }
+
+  return secret;
+}
+
+const AUTH_SECRET = getAuthSecret();
 
 /* ---------- sign / verify ---------- */
 
