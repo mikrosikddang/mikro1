@@ -2,7 +2,7 @@
 
 /**
  * Preflight Check Script (Local/CI/Prod)
- * 배포 전 12개 항목을 자동으로 점검합니다.
+ * 배포 전 16개 항목을 자동으로 점검합니다.
  *
  * Usage:
  *   node scripts/preflight.mjs [--mode=dev|ci|prod]
@@ -10,7 +10,9 @@
  * Modes:
  *   dev  - Development (DATABASE_URL optional, warnings allowed)
  *   ci   - CI환경 (DB 체크 SKIP, 타입/빌드 HARD FAIL)
- *   prod - Production준비 (모든 env 필수, DB 실동작 체크)
+ *   prod - Production준비 (모든 env 필수, DB 실동작 체크, .env.local 필수)
+ *
+ * Note: prod 모드는 .env.local에서 환경변수를 로드합니다.
  */
 
 import { execSync } from 'child_process';
@@ -18,16 +20,36 @@ import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// Load .env files for local execution (dev/prod modes)
+// CI mode relies on GitHub Actions env vars
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = join(__dirname, '..');
 
-// ============================================================
-// Parse mode
-// ============================================================
+// Parse mode first to determine env loading
 const args = process.argv.slice(2);
 const modeArg = args.find(a => a.startsWith('--mode='));
 const mode = modeArg ? modeArg.split('=')[1] : 'dev';
+
+// Load .env files in dev/prod modes (skip in CI to avoid conflicts)
+if (mode !== 'ci') {
+  try {
+    // Dynamically import dotenv to load .env.local and .env
+    const { config } = await import('dotenv');
+    config({ path: join(rootDir, '.env.local') });
+    config({ path: join(rootDir, '.env') });
+  } catch (err) {
+    if (mode === 'prod') {
+      console.error('ERROR: dotenv not found. Run: npm install');
+      process.exit(1);
+    }
+    // In dev mode, continue without dotenv (system env vars only)
+  }
+}
+
+// ============================================================
+// Validate mode
+// ============================================================
 
 if (!['dev', 'ci', 'prod'].includes(mode)) {
   console.error(`Invalid mode: ${mode}. Use dev|ci|prod`);
@@ -113,11 +135,11 @@ function exec(cmd) {
 check('(1) DATABASE_URL configured', () => {
   if (!process.env.DATABASE_URL) {
     if (mode === 'prod') {
-      throw new Error('DATABASE_URL missing (CRITICAL)');
+      throw new Error('DATABASE_URL missing - check .env.local (CRITICAL)');
     } else if (mode === 'ci') {
       return 'SKIP';
     } else {
-      throw new Error('DATABASE_URL not set (set in .env.local)');
+      throw new Error('DATABASE_URL not set (add to .env.local)');
     }
   }
   return 'Set';
@@ -127,9 +149,11 @@ check('(1) DATABASE_URL configured', () => {
 check('(2) COOKIE_SECRET configured', () => {
   if (!process.env.COOKIE_SECRET && !process.env.AUTH_SECRET) {
     if (mode === 'prod') {
-      throw new Error('COOKIE_SECRET missing (CRITICAL)');
+      throw new Error('COOKIE_SECRET missing - check .env.local (CRITICAL)');
+    } else if (mode === 'ci') {
+      throw new Error('COOKIE_SECRET not set (OK in CI - uses dev fallback)');
     } else {
-      throw new Error('COOKIE_SECRET not set (fallback to AUTH_SECRET)');
+      throw new Error('COOKIE_SECRET not set (add to .env.local or uses dev fallback)');
     }
   }
   return process.env.COOKIE_SECRET ? 'COOKIE_SECRET set' : 'AUTH_SECRET set (legacy)';

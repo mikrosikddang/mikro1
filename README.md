@@ -41,12 +41,15 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ### 실행 방법
 
+**중요:** prod 모드는 `.env.local` 파일에서 환경변수를 로드합니다. 실행 전에 `.env.local`에 필수 환경변수(`DATABASE_URL`, `COOKIE_SECRET`)를 설정하세요.
+
 #### 1. 개발 모드 (로컬)
 ```bash
 node scripts/preflight.mjs
 # 또는
 node scripts/preflight.mjs --mode=dev
 ```
+- `.env.local` 또는 `.env` 파일에서 환경변수 로드
 - DATABASE_URL 없으면 WARN (FAIL 아님)
 - 코드 구조 위주 검증
 
@@ -54,7 +57,9 @@ node scripts/preflight.mjs --mode=dev
 ```bash
 node scripts/preflight.mjs --mode=ci
 ```
-- DATABASE_URL 체크 SKIP (secrets 없을 수 있음)
+- `.env` 파일 로드하지 않음 (GitHub Actions 환경변수 사용)
+- DATABASE_URL 체크 SKIP (DB 연결 불필요)
+- COOKIE_SECRET 체크 WARN (CI는 auth.ts 개발 fallback 사용)
 - TypeScript/빌드 HARD FAIL
 - 자동으로 GitHub Actions에서 실행됨
 
@@ -62,8 +67,10 @@ node scripts/preflight.mjs --mode=ci
 ```bash
 node scripts/preflight.mjs --mode=prod
 ```
+- **필수:** `.env.local`에 `DATABASE_URL`, `COOKIE_SECRET` 설정
+- `.env.local` 파일에서 환경변수 로드
 - 모든 환경변수 필수 (HARD FAIL)
-- DB 실제 연결 체크
+- DB 실제 연결 체크 (로컬 스크립트에서는 SKIP, `/api/debug/preflight`에서 런타임 체크)
 - 가장 엄격한 검증
 
 #### 4. 프로덕션 운영 점검 (배포 후)
@@ -106,13 +113,30 @@ ADMIN_PREFLIGHT_TOKEN=your-secret-token-here
 # Amplify 환경변수에도 동일하게 설정
 ```
 
+### API 응답 형식
+
+`/api/debug/preflight` 응답의 `checks` 객체는 `boolean | string` 혼합 타입입니다:
+- `boolean`: 명확한 pass/fail 체크 (예: `hasDatabaseUrl`, `dbReachable`)
+- `string`: 설명이 필요한 체크 (예: `cookieFlagsOk: "secure+httpOnly expected"`)
+- 에러 시 `"query_failed"`, `"no_users_with_password"` 등 상태 문자열 반환
+
 ### CI/CD 통합
 
 `.github/workflows/preflight.yml`이 자동으로 실행됩니다:
-- PR/push 시 자동 점검
+
+**코드 변경 시 (PR/push):**
+- CI 모드로 preflight 실행
 - TypeScript 타입 체크
 - 빌드 검증
-- DB 없이도 동작 (CI 모드)
+- DB 없이도 동작
+
+**프로덕션 런타임 검증 (자동):**
+- 매일 00:00 UTC (09:00 KST) 자동 실행
+- `/api/debug/preflight` API 호출하여 실제 프로덕션 환경 점검
+- 수동 실행: GitHub Actions → "Preflight Checks" → "Run workflow"
+- 필수 GitHub Secrets:
+  - `PROD_URL`: 프로덕션 URL (예: `https://main.xxx.amplifyapp.com`)
+  - `ADMIN_PREFLIGHT_TOKEN`: API 인증 토큰
 
 ### 트러블슈팅
 
