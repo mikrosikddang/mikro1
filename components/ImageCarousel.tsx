@@ -24,8 +24,10 @@ export default function ImageCarousel({
     const el = scrollRef.current;
     if (!el) return;
     const idx = Math.round(el.scrollLeft / el.offsetWidth);
-    setCurrent(idx);
-  }, []);
+    // Clamp index to valid range
+    const clampedIdx = Math.max(0, Math.min(idx, images.length - 1));
+    setCurrent(clampedIdx);
+  }, [images.length]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -39,7 +41,7 @@ export default function ImageCarousel({
     const el = scrollRef.current;
     if (!el) return;
 
-    // Clamp index
+    // Clamp index to valid range
     const targetIdx = Math.max(0, Math.min(nextIdx, images.length - 1));
 
     // Calculate scroll position (each image takes full container width)
@@ -50,24 +52,47 @@ export default function ImageCarousel({
   }, [images.length]);
 
   // Navigation handlers
-  const goToPrev = useCallback(() => {
+  const goToPrev = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (current > 0) scrollToIndex(current - 1);
   }, [current, scrollToIndex]);
 
-  const goToNext = useCallback(() => {
+  const goToNext = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (current < images.length - 1) scrollToIndex(current + 1);
   }, [current, images.length, scrollToIndex]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      goToPrev();
+      goToPrev(e);
     } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      goToNext();
+      goToNext(e);
     }
   }, [goToPrev, goToNext]);
+
+  // Handle dot click
+  const handleDotClick = useCallback((e: React.MouseEvent, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    scrollToIndex(idx);
+  }, [scrollToIndex]);
+
+  // Handle resize: re-scroll to current index with new width
+  useEffect(() => {
+    const handleResize = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      // Re-scroll to current index using new width (no animation)
+      const scrollLeft = current * el.offsetWidth;
+      el.scrollTo({ left: scrollLeft, behavior: "auto" });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [current]);
 
   if (images.length === 0) {
     return (
@@ -129,10 +154,11 @@ export default function ImageCarousel({
         <>
           {/* Previous button */}
           <button
+            type="button"
             onClick={goToPrev}
             disabled={current === 0}
             aria-label="Previous image"
-            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0 disabled:cursor-not-allowed z-10"
+            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0 disabled:cursor-not-allowed disabled:pointer-events-none z-10"
           >
             <svg
               className="w-5 h-5"
@@ -151,10 +177,11 @@ export default function ImageCarousel({
 
           {/* Next button */}
           <button
+            type="button"
             onClick={goToNext}
             disabled={current === images.length - 1}
             aria-label="Next image"
-            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0 disabled:cursor-not-allowed z-10"
+            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0 disabled:cursor-not-allowed disabled:pointer-events-none z-10"
           >
             <svg
               className="w-5 h-5"
@@ -173,17 +200,19 @@ export default function ImageCarousel({
 
           {/* Clickable side zones (desktop only) */}
           <button
+            type="button"
             onClick={goToPrev}
             disabled={current === 0}
             aria-label="Previous image"
-            className="hidden md:block absolute left-0 inset-y-0 w-[30%] cursor-pointer disabled:cursor-default"
+            className="hidden md:block absolute left-0 inset-y-0 w-[30%] cursor-pointer disabled:cursor-default disabled:pointer-events-none"
             style={{ background: "transparent" }}
           />
           <button
+            type="button"
             onClick={goToNext}
             disabled={current === images.length - 1}
             aria-label="Next image"
-            className="hidden md:block absolute right-0 inset-y-0 w-[30%] cursor-pointer disabled:cursor-default"
+            className="hidden md:block absolute right-0 inset-y-0 w-[30%] cursor-pointer disabled:cursor-default disabled:pointer-events-none"
             style={{ background: "transparent" }}
           />
         </>
@@ -195,7 +224,8 @@ export default function ImageCarousel({
           {images.map((_, i) => (
             <button
               key={i}
-              onClick={() => scrollToIndex(i)}
+              type="button"
+              onClick={(e) => handleDotClick(e, i)}
               aria-label={`Go to image ${i + 1}`}
               className={`w-[6px] h-[6px] rounded-full transition-all duration-200 ${
                 i === current
