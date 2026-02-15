@@ -1,0 +1,123 @@
+"use client";
+
+import { useState } from "react";
+import { OrderStatus } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import type { Role } from "@/lib/auth";
+
+interface OrderActionsProps {
+  orderId: string;
+  currentStatus: OrderStatus;
+  userRole: Role;
+  isBuyer: boolean;
+  isSeller: boolean;
+}
+
+export default function OrderActions({
+  orderId,
+  currentStatus,
+  userRole,
+  isBuyer,
+  isSeller,
+}: OrderActionsProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (loading) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ to: newStatus }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "상태 변경 실패");
+      }
+
+      // Success - refresh the page to show new status
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "오류가 발생했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Determine which buttons to show based on role and current status
+  let buttons: Array<{ label: string; status: OrderStatus; variant: "danger" | "primary" | "secondary" }> = [];
+
+  // Helper to check if seller role
+  const isSellerRole = (role: Role) => {
+    return role === "SELLER_PENDING" || role === "SELLER_ACTIVE" || role === "ADMIN";
+  };
+
+  if (isBuyer && !isSellerRole(userRole)) {
+    // CUSTOMER buyer view
+    if (currentStatus === "PENDING") {
+      buttons.push({ label: "주문 취소", status: "CANCELLED", variant: "danger" });
+    } else if (currentStatus === "PAID" || currentStatus === "SHIPPED") {
+      buttons.push({ label: "환불 요청", status: "REFUND_REQUESTED", variant: "danger" });
+    }
+  }
+
+  if (isSeller) {
+    // SELLER view (any seller role)
+    if (currentStatus === "PAID") {
+      buttons.push({ label: "발송 처리", status: "SHIPPED", variant: "primary" });
+    } else if (currentStatus === "SHIPPED") {
+      buttons.push({ label: "거래 완료 처리", status: "COMPLETED", variant: "secondary" });
+    }
+  }
+
+  // Note: ADMIN role-specific actions can be added here
+  // e.g., if (userRole === "ADMIN" && currentStatus === "REFUND_REQUESTED") { ... }
+
+  if (buttons.length === 0) {
+    return null;
+  }
+
+  const getButtonClass = (variant: string) => {
+    const base = "px-6 py-3 rounded-xl font-bold text-[16px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+    if (variant === "danger") {
+      return `${base} bg-red-500 text-white hover:bg-red-600`;
+    } else if (variant === "primary") {
+      return `${base} bg-black text-white hover:bg-gray-800`;
+    } else {
+      return `${base} bg-gray-200 text-gray-800 hover:bg-gray-300`;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[14px]">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        {buttons.map(({ label, status, variant }) => (
+          <button
+            key={status}
+            onClick={() => handleStatusChange(status)}
+            disabled={loading}
+            className={getButtonClass(variant)}
+          >
+            {loading ? "처리중..." : label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

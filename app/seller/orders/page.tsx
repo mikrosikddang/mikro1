@@ -29,6 +29,7 @@ interface Order {
 
 const STATUS_FILTERS = [
   { label: "전체", value: null },
+  { label: "결제대기", value: "PENDING" },
   { label: "결제완료", value: "PAID" },
   { label: "배송중", value: "SHIPPED" },
   { label: "환불요청", value: "REFUND_REQUESTED" },

@@ -35,7 +35,11 @@ const sections: Section[] = [
   },
   {
     title: "판매자",
-    links: [{ label: "판매자 센터", href: "/seller" }],
+    links: [
+      { label: "대시보드", href: "/seller" },
+      { label: "상품 관리", href: "/seller/products" },
+      { label: "주문 관리", href: "/seller/orders" },
+    ],
     sellerOnly: true,
   },
   {

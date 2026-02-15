@@ -164,33 +164,39 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
       {/* Buyer shipping info */}
       <div className="mb-6 p-4 bg-gray-50 rounded-xl">
         <h2 className="text-[15px] font-bold text-black mb-3">배송지 정보</h2>
-        <div className="space-y-2 text-[14px]">
-          <div className="flex">
-            <span className="w-20 text-gray-500">받는분</span>
-            <span className="text-gray-900">{order.shipToName || "-"}</span>
+        {!order.shipToName ? (
+          <div className="text-[14px] text-gray-500">
+            {order.status === "PENDING" ? "배송지 미입력" : "정보 없음"}
           </div>
-          <div className="flex">
-            <span className="w-20 text-gray-500">연락처</span>
-            <span className="text-gray-900">{order.shipToPhone || "-"}</span>
-          </div>
-          <div className="flex">
-            <span className="w-20 text-gray-500">우편번호</span>
-            <span className="text-gray-900">{order.shipToZip || "-"}</span>
-          </div>
-          <div className="flex">
-            <span className="w-20 text-gray-500">주소</span>
-            <span className="text-gray-900">
-              {order.shipToAddr1 || "-"}
-              {order.shipToAddr2 && `, ${order.shipToAddr2}`}
-            </span>
-          </div>
-          {order.shipToMemo && (
+        ) : (
+          <div className="space-y-2 text-[14px]">
             <div className="flex">
-              <span className="w-20 text-gray-500">배송 메모</span>
-              <span className="text-gray-900">{order.shipToMemo}</span>
+              <span className="w-20 text-gray-500">받는분</span>
+              <span className="text-gray-900">{order.shipToName}</span>
             </div>
-          )}
-        </div>
+            <div className="flex">
+              <span className="w-20 text-gray-500">연락처</span>
+              <span className="text-gray-900">{order.shipToPhone || "-"}</span>
+            </div>
+            <div className="flex">
+              <span className="w-20 text-gray-500">우편번호</span>
+              <span className="text-gray-900">{order.shipToZip || "-"}</span>
+            </div>
+            <div className="flex">
+              <span className="w-20 text-gray-500">주소</span>
+              <span className="text-gray-900">
+                {order.shipToAddr1 || "-"}
+                {order.shipToAddr2 && `, ${order.shipToAddr2}`}
+              </span>
+            </div>
+            {order.shipToMemo && (
+              <div className="flex">
+                <span className="w-20 text-gray-500">배송 메모</span>
+                <span className="text-gray-900">{order.shipToMemo}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Order items */}

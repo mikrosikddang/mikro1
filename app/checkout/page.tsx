@@ -275,14 +275,37 @@ export default function CheckoutPage() {
   };
 
   const handleCreateOrders = async () => {
-    // In direct mode, order already exists
-    if (isDirectMode) {
-      setShowPaymentModal(true);
+    if (!selectedAddress) {
+      alert("배송지를 선택해주세요");
       return;
     }
 
-    if (!selectedAddress) {
-      alert("배송지를 선택해주세요");
+    // In direct mode, order already exists - update with shipping address
+    if (isDirectMode) {
+      try {
+        setProcessingPayment(true);
+        setError(null);
+
+        const orderId = orderIds[0]; // Direct mode has single order
+        const res = await fetch(`/api/orders/${orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ addressId: selectedAddress.id }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "배송지 업데이트 실패");
+        }
+
+        // Successfully updated - open payment modal
+        setShowPaymentModal(true);
+      } catch (err: any) {
+        setError(err.message || "배송지 업데이트에 실패했습니다");
+      } finally {
+        setProcessingPayment(false);
+      }
       return;
     }
 
