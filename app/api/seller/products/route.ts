@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
+import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 
 export const runtime = "nodejs";
 
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
       priceKrw,
       category,
       description,
+      descriptionJson,
       mainImages,
       contentImages,
       variants,
@@ -29,9 +32,10 @@ export async function POST(req: NextRequest) {
       priceKrw: number;
       category?: string;
       description?: string;
+      descriptionJson?: any;
       mainImages: string[];
       contentImages?: string[];
-      variants: { sizeLabel: string; stock: number }[];
+      variants: { color?: string; sizeLabel: string; stock: number }[];
     };
 
     // ---- Validation ----
@@ -55,16 +59,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate variants
-    const seenLabels = new Set<string>();
+    const seenCombos = new Set<string>();
     for (const v of variants) {
+      const color = (v.color || "FREE").trim().toUpperCase();
       const label = (v.sizeLabel || "").trim().toUpperCase();
       if (!label) {
         return NextResponse.json({ error: "사이즈명을 입력해주세요" }, { status: 400 });
       }
-      if (seenLabels.has(label)) {
-        return NextResponse.json({ error: `중복된 사이즈: ${label}` }, { status: 400 });
+      const combo = `${color}|${label}`;
+      if (seenCombos.has(combo)) {
+        return NextResponse.json({ error: `중복된 옵션: ${color} ${label}` }, { status: 400 });
       }
-      seenLabels.add(label);
+      seenCombos.add(combo);
       if (typeof v.stock !== "number" || v.stock < 0 || !Number.isInteger(v.stock)) {
         return NextResponse.json({ error: "재고는 0 이상 정수를 입력해주세요" }, { status: 400 });
       }
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
           priceKrw,
           category: category?.trim() || null,
           description: description?.trim() || null,
+          descriptionJson: descriptionJson ? (sanitizeDescriptionJson(descriptionJson) as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         },
       });
 
@@ -108,7 +115,7 @@ export async function POST(req: NextRequest) {
       await tx.productVariant.createMany({
         data: variants.map((v) => ({
           productId: p.id,
-          color: "FREE",
+          color: (v.color || "FREE").trim().toUpperCase(),
           sizeLabel: v.sizeLabel.trim().toUpperCase(),
           stock: v.stock,
         })),

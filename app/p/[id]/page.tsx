@@ -6,6 +6,7 @@ import ImageCarousel from "@/components/ImageCarousel";
 import { formatKrw } from "@/lib/format";
 import WishlistButton from "@/components/WishlistButton";
 import AddToCartSection from "./AddToCartSection";
+import { renderDescriptionForCustomer } from "@/lib/descriptionSchema";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -79,13 +80,72 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
 
         {/* Description */}
-        {product.description && (
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">
-              {product.description}
-            </p>
-          </div>
-        )}
+        {(() => {
+          // Render structured description if available
+          if (product.descriptionJson && typeof product.descriptionJson === "object") {
+            const rendered = renderDescriptionForCustomer(product.descriptionJson as any);
+            const hasContent = rendered.spec.length > 0 || rendered.detail || rendered.csShipping.length > 0;
+
+            if (!hasContent) return null;
+
+            return (
+              <div className="mt-6 pt-5 border-t border-gray-100 space-y-5">
+                {/* Spec Section */}
+                {rendered.spec.length > 0 && (
+                  <div>
+                    <h3 className="text-[14px] font-bold text-gray-900 mb-2">상품 사양</h3>
+                    <dl className="space-y-1.5">
+                      {rendered.spec.map((item, idx) => (
+                        <div key={idx} className="flex text-[13px]">
+                          <dt className="w-20 text-gray-500 shrink-0">{item.label}</dt>
+                          <dd className="text-gray-700">{item.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+
+                {/* Detail Section */}
+                {rendered.detail && (
+                  <div>
+                    <h3 className="text-[14px] font-bold text-gray-900 mb-2">상세 설명</h3>
+                    <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
+                      {rendered.detail}
+                    </p>
+                  </div>
+                )}
+
+                {/* CS & Shipping Section */}
+                {rendered.csShipping.length > 0 && (
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <h3 className="text-[13px] font-bold text-gray-900 mb-2">배송 및 고객센터</h3>
+                    <dl className="space-y-1">
+                      {rendered.csShipping.map((item, idx) => (
+                        <div key={idx} className="flex text-[12px]">
+                          <dt className="w-20 text-gray-500 shrink-0">{item.label}</dt>
+                          <dd className="text-gray-700">{item.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Fallback to legacy description
+          if (product.description) {
+            return (
+              <div className="mt-6 pt-5 border-t border-gray-100">
+                <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">
+                  {product.description}
+                </p>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
 
         {/* Content images – stacked vertically */}
         {contentImages.length > 0 && (

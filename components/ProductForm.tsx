@@ -9,10 +9,12 @@ const MAX_CONTENT = 20;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const DEFAULT_SIZES = [
-  { sizeLabel: "S", stock: 0 },
-  { sizeLabel: "M", stock: 0 },
-  { sizeLabel: "L", stock: 0 },
+  { color: "FREE", sizeLabel: "S", stock: 0 },
+  { color: "FREE", sizeLabel: "M", stock: 0 },
+  { color: "FREE", sizeLabel: "L", stock: 0 },
 ];
+
+const PRESET_COLORS = ["BLACK", "CHARCOAL", "GRAY", "BEIGE", "WHITE"];
 
 type ImageSlot = {
   file?: File;
@@ -23,6 +25,7 @@ type ImageSlot = {
 };
 
 type VariantRow = {
+  color: string;
   sizeLabel: string;
   stock: number;
 };
@@ -32,9 +35,10 @@ export type ProductFormInitialValues = {
   priceKrw: number;
   category: string;
   description: string;
+  descriptionJson?: any;
   mainImages: string[];
   contentImages: string[];
-  variants: { sizeLabel: string; stock: number }[];
+  variants: { color?: string; sizeLabel: string; stock: number }[];
 };
 
 function urlToSlot(url: string): ImageSlot {
@@ -57,7 +61,13 @@ export default function ProductForm({
     initialValues?.contentImages.map(urlToSlot) ?? [],
   );
   const [variants, setVariants] = useState<VariantRow[]>(
-    initialValues?.variants ?? [...DEFAULT_SIZES],
+    initialValues?.variants
+      ? initialValues.variants.map((v) => ({
+          color: v.color || "FREE",
+          sizeLabel: v.sizeLabel,
+          stock: v.stock,
+        }))
+      : [...DEFAULT_SIZES],
   );
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [priceKrw, setPriceKrw] = useState(
@@ -65,6 +75,20 @@ export default function ProductForm({
   );
   const [category, setCategory] = useState(initialValues?.category ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
+
+  // Structured description fields
+  const [specMeasurements, setSpecMeasurements] = useState(initialValues?.descriptionJson?.spec?.measurements ?? "");
+  const [specModelInfo, setSpecModelInfo] = useState(initialValues?.descriptionJson?.spec?.modelInfo ?? "");
+  const [specMaterial, setSpecMaterial] = useState(initialValues?.descriptionJson?.spec?.material ?? "");
+  const [specOrigin, setSpecOrigin] = useState(initialValues?.descriptionJson?.spec?.origin ?? "");
+  const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
+  const [detailText, setDetailText] = useState(initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "");
+  const [csCourier, setCsCourier] = useState(initialValues?.descriptionJson?.csShipping?.courier ?? "");
+  const [csPhone, setCsPhone] = useState(initialValues?.descriptionJson?.csShipping?.csPhone ?? "");
+  const [csEmail, setCsEmail] = useState(initialValues?.descriptionJson?.csShipping?.csEmail ?? "");
+  const [csReturnAddress, setCsReturnAddress] = useState(initialValues?.descriptionJson?.csShipping?.returnAddress ?? "");
+  const [csNote, setCsNote] = useState(initialValues?.descriptionJson?.csShipping?.note ?? "");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,7 +213,7 @@ export default function ProductForm({
   }
 
   function addVariant() {
-    setVariants((prev) => [...prev, { sizeLabel: "", stock: 0 }]);
+    setVariants((prev) => [...prev, { color: "FREE", sizeLabel: "", stock: 0 }]);
   }
 
   function removeVariant(index: number) {
@@ -252,6 +276,26 @@ export default function ProductForm({
         }
       }
 
+      // Build structured description
+      const descriptionJson = {
+        v: 1,
+        spec: {
+          measurements: specMeasurements.trim() || undefined,
+          modelInfo: specModelInfo.trim() || undefined,
+          material: specMaterial.trim() || undefined,
+          origin: specOrigin.trim() || undefined,
+          fit: specFit.trim() || undefined,
+        },
+        detail: detailText.trim() || undefined,
+        csShipping: {
+          courier: csCourier.trim() || undefined,
+          csPhone: csPhone.trim() || undefined,
+          csEmail: csEmail.trim() || undefined,
+          returnAddress: csReturnAddress.trim() || undefined,
+          note: csNote.trim() || undefined,
+        },
+      };
+
       // Create product
       const res = await fetch("/api/seller/products", {
         method: "POST",
@@ -261,9 +305,11 @@ export default function ProductForm({
           priceKrw: price,
           category: category || undefined,
           description: description.trim() || undefined,
+          descriptionJson,
           mainImages: mainUrls,
           contentImages: contentUrls.length > 0 ? contentUrls : undefined,
           variants: variants.map((v) => ({
+            color: v.color || "FREE",
             sizeLabel: v.sizeLabel.trim(),
             stock: v.stock,
           })),
@@ -327,41 +373,84 @@ export default function ProductForm({
       {/* ===== Variants ===== */}
       <section className="mb-6">
         <label className="block text-[14px] font-medium text-gray-700 mb-2">
-          사이즈/재고 <span className="text-red-500">*</span>
+          컬러/사이즈/재고 <span className="text-red-500">*</span>
         </label>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {variants.map((v, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                type="text"
-                value={v.sizeLabel}
-                onChange={(e) => updateVariant(i, "sizeLabel", e.target.value)}
-                placeholder="사이즈 (S, M, L...)"
-                className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black"
-                disabled={submitting}
-              />
-              <input
-                type="number"
-                inputMode="numeric"
-                value={v.stock}
-                onChange={(e) => updateVariant(i, "stock", Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="재고"
-                className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black"
-                min={0}
-                disabled={submitting}
-              />
-              {variants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeVariant(i)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
+            <div key={i} className="p-3 bg-gray-50 rounded-lg space-y-2">
+              {/* 컬러 선택 */}
+              <div>
+                <label className="block text-[12px] text-gray-600 mb-1">컬러</label>
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {PRESET_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => updateVariant(i, "color", color)}
+                      className={`px-3 py-1 text-[12px] rounded-lg border transition-colors ${
+                        v.color === color
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
+                      }`}
+                      disabled={submitting}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (v.color && !PRESET_COLORS.includes(v.color)) return;
+                      const customColor = prompt("컬러를 입력하세요 (예: NAVY, BROWN)");
+                      if (customColor) {
+                        updateVariant(i, "color", customColor.trim().toUpperCase());
+                      }
+                    }}
+                    className={`px-3 py-1 text-[12px] rounded-lg border transition-colors ${
+                      v.color && !PRESET_COLORS.includes(v.color)
+                        ? "bg-black text-white border-black"
+                        : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
+                    }`}
+                    disabled={submitting}
+                  >
+                    {v.color && !PRESET_COLORS.includes(v.color) ? v.color : "그외컬러"}
+                  </button>
+                </div>
+              </div>
+
+              {/* 사이즈/재고 */}
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={v.sizeLabel}
+                  onChange={(e) => updateVariant(i, "sizeLabel", e.target.value)}
+                  placeholder="사이즈 (S, M, L...)"
+                  className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black bg-white"
                   disabled={submitting}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+                />
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={v.stock}
+                  onChange={(e) => updateVariant(i, "stock", Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="재고"
+                  className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black bg-white"
+                  min={0}
+                  disabled={submitting}
+                />
+                {variants.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(i)}
+                    className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
+                    disabled={submitting}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -371,7 +460,7 @@ export default function ProductForm({
           className="mt-2 px-4 py-2 text-[13px] text-gray-600 border border-dashed border-gray-300 rounded-lg hover:bg-gray-50"
           disabled={submitting}
         >
-          + 사이즈 추가
+          + 옵션 추가
         </button>
       </section>
 
@@ -431,20 +520,116 @@ export default function ProductForm({
         </select>
       </section>
 
-      {/* ===== Description ===== */}
-      <section className="mb-8">
-        <label htmlFor="desc" className="block text-[14px] font-medium text-gray-700 mb-1.5">
-          상품 설명
-        </label>
-        <textarea
-          id="desc"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="색상, 사이즈, 소재 등을 자유롭게 적어주세요"
-          rows={4}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors resize-none"
-          disabled={submitting}
-        />
+      {/* ===== Structured Description ===== */}
+      <section className="mb-8 space-y-6">
+        <h3 className="text-[16px] font-bold text-gray-900">상품 설명</h3>
+
+        {/* Section 1: Spec */}
+        <div className="p-4 bg-gray-50 rounded-xl space-y-3">
+          <h4 className="text-[14px] font-medium text-gray-700 mb-2">사양 정보</h4>
+          <div className="grid grid-cols-1 gap-3">
+            <input
+              type="text"
+              placeholder="사이즈 (예: 총장 70cm, 가슴 50cm)"
+              value={specMeasurements}
+              onChange={(e) => setSpecMeasurements(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="모델 정보 (예: 키 175cm, 60kg 착용)"
+              value={specModelInfo}
+              onChange={(e) => setSpecModelInfo(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="소재 (예: 면 100%)"
+              value={specMaterial}
+              onChange={(e) => setSpecMaterial(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="원산지 (예: 한국)"
+              value={specOrigin}
+              onChange={(e) => setSpecOrigin(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="핏 (예: 오버핏, 레귤러핏)"
+              value={specFit}
+              onChange={(e) => setSpecFit(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+          </div>
+        </div>
+
+        {/* Section 2: Detail */}
+        <div className="space-y-2">
+          <label className="block text-[14px] font-medium text-gray-700">상세 설명</label>
+          <textarea
+            value={detailText}
+            onChange={(e) => setDetailText(e.target.value)}
+            placeholder="색상, 스타일, 코디 팁 등을 자유롭게 적어주세요"
+            rows={5}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors resize-none"
+            disabled={submitting}
+          />
+        </div>
+
+        {/* Section 3: CS & Shipping */}
+        <div className="p-4 bg-blue-50 rounded-xl space-y-3">
+          <h4 className="text-[14px] font-medium text-gray-700 mb-2">고객센터 & 배송 정보</h4>
+          <div className="grid grid-cols-1 gap-3">
+            <input
+              type="text"
+              placeholder="택배사 (예: CJ대한통운)"
+              value={csCourier}
+              onChange={(e) => setCsCourier(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="고객센터 전화 (예: 010-1234-5678)"
+              value={csPhone}
+              onChange={(e) => setCsPhone(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="이메일 (예: shop@example.com)"
+              value={csEmail}
+              onChange={(e) => setCsEmail(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <input
+              type="text"
+              placeholder="반품 주소 (예: 서울시 중구 을지로 123)"
+              value={csReturnAddress}
+              onChange={(e) => setCsReturnAddress(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <textarea
+              placeholder="배송 안내 (예: 평일 오후 3시 이전 주문 시 당일 발송)"
+              value={csNote}
+              onChange={(e) => setCsNote(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors resize-none"
+              disabled={submitting}
+            />
+          </div>
+        </div>
       </section>
 
       {/* Error message */}

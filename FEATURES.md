@@ -507,6 +507,62 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 
 ---
 
+## 구조화된 상품 설명 (Structured Product Descriptions)
+
+### 개요
+Product 모델에 `descriptionJson` (Json 타입) 필드를 추가하여 구조화된 상품 설명을 지원합니다. 기존 `description` (String) 필드는 하위 호환성을 위해 유지됩니다.
+
+### 스키마 구조 (v1)
+```typescript
+{
+  v: 1,
+  spec?: {
+    measurements?: string;  // 사이즈
+    modelInfo?: string;     // 모델 정보
+    material?: string;      // 소재
+    origin?: string;        // 원산지
+    fit?: string;          // 핏
+  },
+  detail?: string,         // 상세 설명
+  csShipping?: {
+    courier?: string;       // 택배사
+    csPhone?: string;       // 고객센터 전화
+    csEmail?: string;       // 고객센터 이메일
+    returnAddress?: string; // 반품 주소
+    note?: string;         // 기타 안내
+  }
+}
+```
+
+### 검증 및 렌더링
+- **sanitizeDescriptionJson()**: 입력 검증, 문자열 trim, 길이 제한 (500자)
+- **renderDescriptionForCustomer()**: UI 렌더링용 정규화된 배열 반환
+- **buildDescriptionInitialValues()**: 편집 폼 초기값 생성 (legacy description → detail 변환 지원)
+
+### 판매자 API
+- `POST /api/seller/products`: descriptionJson 저장 (Prisma.JsonNull 또는 sanitized object)
+- `PATCH /api/seller/products/[id]`: descriptionJson 업데이트
+
+### 판매자 UI (ProductForm)
+상품 등록/수정 시 3개 섹션으로 구조화된 입력 폼 제공:
+1. **상품 사양**: 사이즈, 모델 정보, 소재, 원산지, 핏
+2. **상세 설명**: 자유 텍스트
+3. **배송 및 고객센터**: 택배사, 고객센터 전화/이메일, 반품 주소, 기타 안내
+
+### 고객 UI (/p/[id])
+- descriptionJson이 있으면 3개 섹션으로 렌더링
+- descriptionJson이 없으면 legacy description을 fallback으로 표시
+- 둘 다 없으면 설명 섹션 미표시
+
+### 테스트 체크리스트
+- ✅ 신규 상품 등록: descriptionJson 저장 및 /p/[id]에서 3개 섹션 렌더링
+- ✅ 기존 상품 (descriptionJson null): legacy description 텍스트 그대로 표시
+- ✅ 기존 상품 수정: 편집 페이지에서 legacy description → detail 필드로 프리필, 저장 시 descriptionJson 생성
+- ✅ TypeScript 컴파일: 빌드 통과 확인
+- ✅ 하위 호환성: description 필드 유지, 기존 데이터 영향 없음
+
+---
+
 ## 기술 스택
 
 | 영역 | 기술 |

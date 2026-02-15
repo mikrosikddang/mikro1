@@ -128,7 +128,8 @@ model Product {
   seller      User          @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
 
   title       String
-  description String?
+  description String?       // Legacy plain text description (kept for backward compatibility)
+  descriptionJson Json?     // Structured description (v1: spec, detail, csShipping)
   category    String?       // 바지/아우터 등 (MVP는 string)
   priceKrw    Int
   isActive    Boolean       @default(true)
