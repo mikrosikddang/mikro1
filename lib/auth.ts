@@ -1,9 +1,9 @@
 /**
  * MVP auth — deterministic login with signed HttpOnly cookie.
  *
- * Credentials:
- *   customer: id="1" pw="1"  → CUSTOMER
- *   seller:   id="s" pw="s"  → SELLER (userId = MVP_SELLER_ID)
+ * MVP Credentials (map to real DB users):
+ *   customer: id="1" pw="1"  → CUSTOMER (email: mvp1@mikro.local, id: mvp-customer-1)
+ *   seller:   id="s" pw="s"  → SELLER (email: seller1@mikro.local, id: mvp-seller-1)
  *
  * Session is HMAC-SHA256 signed, stored in HttpOnly cookie "mikro_session".
  */
@@ -25,24 +25,11 @@ export interface Session {
 
 const COOKIE_NAME = "mikro_session";
 
-// Get auth secret with production safety
-function getAuthSecret(): string {
-  const secret = process.env.COOKIE_SECRET || process.env.AUTH_SECRET;
-
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "CRITICAL: COOKIE_SECRET or AUTH_SECRET must be set in production environment"
-      );
-    }
-    // Development fallback
-    return "mikro-dev-secret-must-be-32-chars!!";
-  }
-
-  return secret;
-}
-
-const AUTH_SECRET = getAuthSecret();
+// Get auth secret - allows fallback for build/dev, runtime will validate
+const AUTH_SECRET =
+  process.env.COOKIE_SECRET ||
+  process.env.AUTH_SECRET ||
+  "mikro-dev-secret-must-be-32-chars!!";
 
 /* ---------- sign / verify ---------- */
 

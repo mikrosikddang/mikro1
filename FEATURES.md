@@ -9,8 +9,8 @@
 
 | 역할 | 아이디 | 비밀번호 | 설명 |
 |------|--------|---------|------|
-| 고객 | `1` | `1` | CUSTOMER 역할, userId = `mvp-customer-1` |
-| 판매자 | `s` | `s` | SELLER 역할, userId = `MVP_SELLER_ID` 환경변수 |
+| 고객 | `1` | `1` | CUSTOMER 역할 (email: mvp1@mikro.local, id: mvp-customer-1) |
+| 판매자 | `s` | `s` | SELLER 역할 (email: seller1@mikro.local, id: mvp-seller-1) |
 
 ---
 

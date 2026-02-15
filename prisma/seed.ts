@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient, UserRole, SellerApprovalStatus } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
+import bcrypt from "bcryptjs";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -44,27 +45,102 @@ async function main() {
   await prisma.user.deleteMany();
 
   // Admin
-  const admin = await prisma.user.create({
-    data: {
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@mikro.local" },
+    update: {},
+    create: {
       email: "admin@mikro.local",
       name: "Admin",
       role: UserRole.ADMIN,
     },
   });
 
-  // Sellers — first seller uses MVP_SELLER_ID so login (s/s) always works
-  const mvpSellerId = process.env.MVP_SELLER_ID;
-  if (!mvpSellerId) {
-    throw new Error("MVP_SELLER_ID env var is required for seeding");
-  }
+  // ========================================
+  // MVP TEST ACCOUNTS (Deterministic IDs)
+  // ========================================
 
-  const sellers = await Promise.all(
-    ["동대문A", "동대문B", "동대문C"].map((shopName, i) =>
-      prisma.user.create({
-        data: {
-          ...(i === 0 ? { id: mvpSellerId } : {}),
-          email: `seller${i + 1}@mikro.local`,
-          name: `Seller${i + 1}`,
+  // MVP CUSTOMER: Login with "1" / "1"
+  const mvpCustomerPassword = await bcrypt.hash("1", 10);
+  const mvpCustomer = await prisma.user.upsert({
+    where: { id: "mvp-customer-1" },
+    update: {
+      email: "mvp1@mikro.local",
+      name: "MVP Customer",
+      password: mvpCustomerPassword,
+      role: UserRole.CUSTOMER,
+    },
+    create: {
+      id: "mvp-customer-1",
+      email: "mvp1@mikro.local",
+      name: "MVP Customer",
+      password: mvpCustomerPassword,
+      role: UserRole.CUSTOMER,
+    },
+  });
+
+  // MVP SELLER: Login with "s" / "s"
+  const mvpSellerPassword = await bcrypt.hash("s", 10);
+  const mvpSeller = await prisma.user.upsert({
+    where: { id: "mvp-seller-1" },
+    update: {
+      email: "seller1@mikro.local",
+      name: "MVP Seller",
+      password: mvpSellerPassword,
+      role: UserRole.SELLER_ACTIVE,
+    },
+    create: {
+      id: "mvp-seller-1",
+      email: "seller1@mikro.local",
+      name: "MVP Seller",
+      password: mvpSellerPassword,
+      role: UserRole.SELLER_ACTIVE,
+    },
+  });
+
+  // MVP SELLER PROFILE
+  await prisma.sellerProfile.upsert({
+    where: { userId: "mvp-seller-1" },
+    update: {
+      shopName: "동대문A",
+      type: "도매",
+      marketBuilding: "동대문",
+      floor: "A",
+      roomNo: "101",
+      managerName: "담당자1",
+      managerPhone: "010-1234-5678",
+      bizRegImageUrl: "https://placehold.co/600x800?text=biz",
+      status: SellerApprovalStatus.APPROVED,
+      shippingFeeKrw: 3000,
+      freeShippingThreshold: 50000,
+    },
+    create: {
+      userId: "mvp-seller-1",
+      shopName: "동대문A",
+      type: "도매",
+      marketBuilding: "동대문",
+      floor: "A",
+      roomNo: "101",
+      managerName: "담당자1",
+      managerPhone: "010-1234-5678",
+      bizRegImageUrl: "https://placehold.co/600x800?text=biz",
+      status: SellerApprovalStatus.APPROVED,
+      shippingFeeKrw: 3000,
+      freeShippingThreshold: 50000,
+    },
+  });
+
+  // Sellers — additional test sellers (not MVP login accounts)
+  const mvpSellerId = "mvp-seller-1"; // Use deterministic ID
+
+  // Additional sellers (MVP seller already created above)
+  const additionalSellers = await Promise.all(
+    ["동대문B", "동대문C"].map((shopName, i) =>
+      prisma.user.upsert({
+        where: { email: `seller${i + 2}@mikro.local` },
+        update: {},
+        create: {
+          email: `seller${i + 2}@mikro.local`,
+          name: `Seller${i + 2}`,
           role: UserRole.SELLER_ACTIVE,
           sellerProfile: {
             create: {
@@ -73,7 +149,7 @@ async function main() {
               marketBuilding: pick(["APM", "누죤", "디자이너클럽", "밀리오레"]),
               floor: String(randInt(1, 6)),
               roomNo: `${randInt(100, 999)}호`,
-              managerName: `담당자${i + 1}`,
+              managerName: `담당자${i + 2}`,
               managerPhone: `010-12${randInt(10, 99)}-${randInt(1000, 9999)}`,
               bizRegImageUrl: "https://placehold.co/600x800?text=biz",
               status: SellerApprovalStatus.APPROVED,
@@ -84,18 +160,24 @@ async function main() {
     ),
   );
 
-  // Customers
-  const customers = await Promise.all(
-    Array.from({ length: 5 }).map((_, i) =>
-      prisma.user.create({
-        data: {
-          email: `customer${i + 1}@mikro.local`,
-          name: `Customer${i + 1}`,
+  const sellers = [mvpSeller, ...additionalSellers];
+
+  // Additional customers (MVP customer already created above)
+  const additionalCustomers = await Promise.all(
+    Array.from({ length: 4 }).map((_, i) =>
+      prisma.user.upsert({
+        where: { email: `customer${i + 2}@mikro.local` },
+        update: {},
+        create: {
+          email: `customer${i + 2}@mikro.local`,
+          name: `Customer${i + 2}`,
           role: UserRole.CUSTOMER,
         },
       }),
     ),
   );
+
+  const customers = [mvpCustomer, ...additionalCustomers];
 
   const categories = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
   const titleA = ["미니멀", "데일리", "스탠다드", "오버핏", "슬림핏", "빈티지", "캐주얼", "포멀"];
@@ -244,6 +326,8 @@ async function main() {
   console.log("✅ Seed complete");
   console.log({
     adminEmail: admin.email,
+    mvpCustomer: { id: mvpCustomer.id, email: mvpCustomer.email, login: "1/1" },
+    mvpSeller: { id: mvpSeller.id, email: mvpSeller.email, login: "s/s" },
     sellerEmails: sellers.map((s) => s.email),
     customerEmails: customers.map((c) => c.email),
   });

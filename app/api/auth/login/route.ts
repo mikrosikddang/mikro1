@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { signSession, buildCookieOptions } from "@/lib/auth";
 import type { Role, Session } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 
@@ -8,9 +10,11 @@ export const runtime = "nodejs";
  * POST /api/auth/login
  * Body: { id: string, pw: string }
  *
- * MVP deterministic credentials:
- *   1/1  → CUSTOMER (userId = "mvp-customer-1")
- *   s/s  → SELLER   (userId = MVP_SELLER_ID from env)
+ * MVP deterministic credentials (mapped to real DB users):
+ *   1/1  → Fetches user with email "mvp1@mikro.local" (id: "mvp-customer-1")
+ *   s/s  → Fetches user with email "seller1@mikro.local" (id: "mvp-seller-1")
+ *
+ * + 실제 이메일/비밀번호 로그인 지원
  */
 export async function POST(req: NextRequest) {
   let body: { id?: string; pw?: string };
@@ -35,23 +39,49 @@ export async function POST(req: NextRequest) {
   let userId: string;
   let role: Role;
 
-  if (id === "1" && pw === "1") {
-    userId = "mvp-customer-1";
-    role = "CUSTOMER";
-  } else if (id === "s" && pw === "s") {
-    const sellerId = process.env.MVP_SELLER_ID;
-    if (!sellerId) {
+  try {
+    let user;
+
+    // MVP shortcut logins - map to real DB users
+    if (id === "1" && pw === "1") {
+      user = await prisma.user.findUnique({
+        where: { email: "mvp1@mikro.local" },
+      });
+    } else if (id === "s" && pw === "s") {
+      user = await prisma.user.findUnique({
+        where: { email: "seller1@mikro.local" },
+      });
+    } else {
+      // Regular email/password login
+      user = await prisma.user.findUnique({
+        where: { email: id },
+      });
+    }
+
+    if (!user || !user.password) {
       return NextResponse.json(
-        { ok: false, message: "서버 설정 오류 (MVP_SELLER_ID)" },
-        { status: 500 },
+        { ok: false, message: "아이디 또는 비밀번호가 일치하지 않습니다" },
+        { status: 401 },
       );
     }
-    userId = sellerId;
-    role = "SELLER";
-  } else {
+
+    // Verify password using bcrypt
+    const passwordMatch = await bcrypt.compare(pw, user.password);
+    if (!passwordMatch) {
+      return NextResponse.json(
+        { ok: false, message: "아이디 또는 비밀번호가 일치하지 않습니다" },
+        { status: 401 },
+      );
+    }
+
+    // Use actual DB user ID and role
+    userId = user.id;
+    role = user.role === "SELLER_ACTIVE" || user.role === "SELLER_PENDING" ? "SELLER" : "CUSTOMER";
+  } catch (error) {
+    console.error("Login error:", error);
     return NextResponse.json(
-      { ok: false, message: "아이디 또는 비밀번호가 일치하지 않습니다" },
-      { status: 401 },
+      { ok: false, message: "로그인 중 오류가 발생했습니다" },
+      { status: 500 },
     );
   }
 
