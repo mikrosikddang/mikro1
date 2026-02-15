@@ -12,6 +12,7 @@ interface SimulatePaymentFailRequest {
 /**
  * POST /api/payments/simulate-fail
  * Simulate payment failure
+ * Phase 2: All authenticated users (including sellers) can purchase
  *
  * Sets Payment.status = FAILED but keeps Order.status = PENDING
  * to allow retry. Does NOT deduct stock.
@@ -22,13 +23,6 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (canAccessSellerFeatures(session.role)) {
-      return NextResponse.json(
-        { error: "Sellers cannot simulate payment" },
-        { status: 403 }
-      );
     }
 
     const body = (await request.json()) as SimulatePaymentFailRequest;

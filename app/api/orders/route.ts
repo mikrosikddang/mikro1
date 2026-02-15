@@ -29,21 +29,14 @@ interface CreateOrderRequest {
 /**
  * POST /api/orders
  * 장바구니 기반 주문 생성 (재고 검증만, 재고 차감은 결제 확정 시)
+ * Phase 2: All authenticated users (including sellers) can create orders
  */
 export async function POST(request: Request) {
   try {
-    // 1) CUSTOMER 인증 필수
+    // 1) Authentication required
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // SELLER는 주문 생성 불가
-    if (canAccessSellerFeatures(session.role)) {
-      return NextResponse.json(
-        { error: "Sellers cannot create orders" },
-        { status: 403 }
-      );
     }
 
     const body = (await request.json()) as CreateOrderRequest;

@@ -12,6 +12,7 @@ interface SimulatePaymentRequest {
 /**
  * POST /api/payments/simulate
  * Simulate payment success with atomic stock deduction
+ * Phase 2: All authenticated users (including sellers) can purchase
  *
  * CRITICAL: This performs atomic stock deduction using updateMany with
  * WHERE stock >= quantity to prevent race conditions and overselling
@@ -21,13 +22,6 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (canAccessSellerFeatures(session.role)) {
-      return NextResponse.json(
-        { error: "Sellers cannot simulate payment" },
-        { status: 403 }
-      );
     }
 
     const body = (await request.json()) as SimulatePaymentRequest;

@@ -14,10 +14,11 @@ interface DirectOrderRequest {
  * POST /api/orders/direct
  *
  * Create order directly from product detail page (바로구매 flow).
+ * Phase 2: All authenticated users (including sellers) can purchase
  * Does NOT deduct stock - stock deduction happens during payment confirmation.
  *
  * Flow:
- * 1. Authenticate CUSTOMER
+ * 1. Authenticate user
  * 2. Validate variant and product
  * 3. Calculate pricing server-side
  * 4. Create order + orderItem in transaction
@@ -29,13 +30,6 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (canAccessSellerFeatures(session.role)) {
-      return NextResponse.json(
-        { error: "Sellers cannot create orders" },
-        { status: 403 }
-      );
     }
 
     // Parse request
