@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
+import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 
 export const runtime = "nodejs";
 
@@ -86,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       isActive?: boolean;
       mainImages?: string[];
       contentImages?: string[];
-      variants?: { color?: string; sizeLabel: string; stock: number }[];
+      variants?: { id?: string; color?: string; sizeLabel: string; stock: number }[];
     };
 
     const existing = await prisma.product.findUnique({ where: { id } });
@@ -137,24 +138,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // ---- Validate variants ----
     if (variants !== undefined) {
-      if (!Array.isArray(variants) || variants.length === 0) {
-        return NextResponse.json({ error: "사이즈/재고를 1개 이상 입력해주세요" }, { status: 400 });
-      }
-      const seenCombos = new Set<string>();
-      for (const v of variants) {
-        const color = (v.color || "FREE").trim().toUpperCase();
-        const label = (v.sizeLabel || "").trim().toUpperCase();
-        if (!label) {
-          return NextResponse.json({ error: "사이즈명을 입력해주세요" }, { status: 400 });
-        }
-        const combo = `${color}|${label}`;
-        if (seenCombos.has(combo)) {
-          return NextResponse.json({ error: `중복된 옵션: ${color} ${label}` }, { status: 400 });
-        }
-        seenCombos.add(combo);
-        if (typeof v.stock !== "number" || v.stock < 0 || !Number.isInteger(v.stock)) {
-          return NextResponse.json({ error: "재고는 0 이상 정수를 입력해주세요" }, { status: 400 });
-        }
+      // Normalize variants for validation
+      const normalizedVariants = variants.map((v) => ({
+        id: v.id,
+        color: v.color || "FREE",
+        sizeLabel: v.sizeLabel,
+        stock: v.stock,
+      }));
+      const variantErrors = validateFlatVariants(normalizedVariants);
+      if (variantErrors.length > 0) {
+        return NextResponse.json(
+          { error: formatValidationErrors(variantErrors) },
+          { status: 400 }
+        );
       }
     }
 
@@ -200,17 +196,52 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         }
       }
 
-      // Replace variants (delete + recreate)
+      // Diff-based variant update (preserves variantIds)
       if (variants !== undefined) {
-        await tx.productVariant.deleteMany({ where: { productId: id } });
-        await tx.productVariant.createMany({
-          data: variants.map((v) => ({
-            productId: id,
-            color: (v.color || "FREE").trim().toUpperCase(),
-            sizeLabel: v.sizeLabel.trim().toUpperCase(),
-            stock: v.stock,
-          })),
+        // Fetch existing variants
+        const existingVariants = await tx.productVariant.findMany({
+          where: { productId: id },
         });
+        const existingIds = new Set(existingVariants.map((v) => v.id));
+
+        const incomingIds = new Set(
+          variants.filter((v) => v.id).map((v) => v.id!)
+        );
+
+        // 1. Update existing variants that are in the request
+        for (const v of variants) {
+          if (v.id && existingIds.has(v.id)) {
+            await tx.productVariant.update({
+              where: { id: v.id },
+              data: {
+                color: (v.color || "FREE").trim().toUpperCase(),
+                sizeLabel: v.sizeLabel.trim().toUpperCase(),
+                stock: v.stock,
+              },
+            });
+          }
+        }
+
+        // 2. Create new variants (no id or id not found in DB)
+        const toCreate = variants.filter((v) => !v.id || !existingIds.has(v.id));
+        if (toCreate.length > 0) {
+          await tx.productVariant.createMany({
+            data: toCreate.map((v) => ({
+              productId: id,
+              color: (v.color || "FREE").trim().toUpperCase(),
+              sizeLabel: v.sizeLabel.trim().toUpperCase(),
+              stock: v.stock,
+            })),
+          });
+        }
+
+        // 3. Delete variants that exist in DB but not in request
+        const toDelete = Array.from(existingIds).filter((dbId) => !incomingIds.has(dbId));
+        if (toDelete.length > 0) {
+          await tx.productVariant.deleteMany({
+            where: { id: { in: toDelete } },
+          });
+        }
       }
 
       return updatedProduct;

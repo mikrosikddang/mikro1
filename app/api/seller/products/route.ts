@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
+import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 
 export const runtime = "nodejs";
 
@@ -54,26 +55,18 @@ export async function POST(req: NextRequest) {
     if (contentImages && contentImages.length > 20) {
       return NextResponse.json({ error: "상세 이미지는 최대 20장입니다" }, { status: 400 });
     }
-    if (!variants || !Array.isArray(variants) || variants.length === 0) {
-      return NextResponse.json({ error: "사이즈/재고를 1개 이상 입력해주세요" }, { status: 400 });
-    }
-
-    // Validate variants
-    const seenCombos = new Set<string>();
-    for (const v of variants) {
-      const color = (v.color || "FREE").trim().toUpperCase();
-      const label = (v.sizeLabel || "").trim().toUpperCase();
-      if (!label) {
-        return NextResponse.json({ error: "사이즈명을 입력해주세요" }, { status: 400 });
-      }
-      const combo = `${color}|${label}`;
-      if (seenCombos.has(combo)) {
-        return NextResponse.json({ error: `중복된 옵션: ${color} ${label}` }, { status: 400 });
-      }
-      seenCombos.add(combo);
-      if (typeof v.stock !== "number" || v.stock < 0 || !Number.isInteger(v.stock)) {
-        return NextResponse.json({ error: "재고는 0 이상 정수를 입력해주세요" }, { status: 400 });
-      }
+    // Validate variants using shared validation
+    const normalizedVariants = variants.map((v) => ({
+      color: v.color || "FREE",
+      sizeLabel: v.sizeLabel,
+      stock: v.stock,
+    }));
+    const variantErrors = validateFlatVariants(normalizedVariants);
+    if (variantErrors.length > 0) {
+      return NextResponse.json(
+        { error: formatValidationErrors(variantErrors) },
+        { status: 400 }
+      );
     }
 
     // ---- Transaction ----
