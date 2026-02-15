@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use actual DB user ID and role
+    // Use actual DB user ID and role (preserve exact role from DB)
     userId = user.id;
-    role = user.role === "SELLER_ACTIVE" || user.role === "SELLER_PENDING" ? "SELLER" : "CUSTOMER";
+    role = user.role as Role;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

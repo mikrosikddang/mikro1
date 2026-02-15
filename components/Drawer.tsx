@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import LogoutButton from "@/components/LogoutButton";
+import { canAccessSellerFeatures } from "@/lib/roles";
 
 type DrawerProps = {
   open: boolean;
@@ -55,7 +56,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const prevPathname = useRef(pathname);
   const session = useSession();
 
-  const isSeller = session?.role === "SELLER";
+  const isSeller = session ? canAccessSellerFeatures(session.role) : false;
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -121,7 +122,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             {session ? (
               <div className="flex items-center gap-2">
                 <span className="text-[13px] text-gray-500">
-                  {session.role === "SELLER" ? "🏪 판매자" : "👤 고객"}
+                  {canAccessSellerFeatures(session.role) ? "🏪 판매자" : "👤 고객"}
                 </span>
               </div>
             ) : (

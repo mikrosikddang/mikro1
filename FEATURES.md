@@ -576,3 +576,153 @@ Product 모델에 `descriptionJson` (Json 타입) 필드를 추가하여 구조�
 | 배포 | AWS Amplify |
 | 스타일 | Tailwind CSS |
 | 폰트 | Geist Sans |
+
+---
+
+## 판매자 운영 기능 (Seller Operations)
+
+### 개요
+판매자가 상품 판매 및 주문 관리를 효율적으로 수행할 수 있도록 4가지 핵심 기능을 추가합니다.
+
+### 1. Instagram-style 판매자 상점 페이지 (`/s/[sellerId]`)
+
+**레이아웃**:
+- **헤더**:
+  - 좌측: 브랜드 아바타 (원형, `sellerProfile.avatarUrl` 또는 initials)
+  - 우측: 상점명, 유형 배지, 위치 정보 (상가명/층/호수)
+  - 하단: 고객센터 버튼 (`csEmail`이 있으면 mailto 링크, 없으면 채팅 플레이스홀더)
+- **상품 그리드**:
+  - 3열 그리드 (1:1 정사각형 타일)
+  - 각 타일: 메인 이미지, 가격 오버레이, 상품명
+  - 클릭 시 `/p/[id]`로 이동
+- **무한 스크롤**:
+  - Intersection Observer 기반
+  - 커서 페이지네이션 (createdAt desc, id tie-breaker)
+  - `/api/sellers/[sellerId]/products?cursor=&limit=30`
+
+**API**:
+- `GET /api/sellers/[sellerId]/products`: 활성화된 상품 목록 (isActive=true, isDeleted=false)
+- 응답: `{ items: Product[], nextCursor: string | null }`
+
+---
+
+### 2. 판매자 구매 허용 (Seller as Buyer)
+
+**변경 사항**:
+- 기존: SELLER 역할은 cart/checkout/orders API 차단
+- 신규: SELLER 역할도 구매자 기능 사용 가능 (lib/roleGuards.ts 통합)
+
+**역할 가드 (`lib/roleGuards.ts`)**:
+- `canUseBuyerFeatures(session)`: 모든 인증된 사용자 허용 (CUSTOMER, SELLER_PENDING, SELLER_ACTIVE, ADMIN)
+- `requireBuyerFeatures(session)`: 구매자 기능 API에서 사용
+- `requireSeller(session)`: 판매자 전용 API에서 사용
+
+**자가 구매 차단**:
+- `/api/checkout/create-orders`에서 검증:
+  - `item.variant.product.sellerId === session.userId` 시 409 에러
+  - 메시지: "본인 상점의 상품은 구매할 수 없습니다."
+
+**인증 업데이트 (`lib/auth.ts`)**:
+- `Role` 타입: Prisma UserRole 열거형과 일치 (CUSTOMER, SELLER_PENDING, SELLER_ACTIVE, ADMIN)
+- `isSellerRole(role)`: 판매자 역할 체크 헬퍼
+
+---
+
+### 3. 판매자 주문 관리
+
+#### 주문 목록 (`/seller/orders`)
+- **필터 탭**:
+  - 전체, 결제완료(PAID), 배송중(SHIPPED), 환불요청(REFUND_REQUESTED), 완료(COMPLETED), 취소/실패(CANCELLED)
+- **주문 카드**:
+  - 주문번호, 상태 배지, 대표 상품명, 총 결제금액, 주문일
+  - 클릭 시 `/seller/orders/[id]`로 이동
+- **API**: `GET /api/seller/orders?status=&cursor=&limit=20`
+  - 소유권 필터: `sellerId = session.userId`
+
+#### 주문 상세 (`/seller/orders/[id]`)
+- **배송지 정보 스냅샷**:
+  - 받는분, 연락처, 우편번호, 주소, 배송 메모
+  - **보안**: 구매자 이메일/계정 정보는 노출 안 함
+- **주문 상품**: 상품명, 옵션, 수량, 단가
+- **가격 내역**: 상품 금액, 배송비, 총 결제금액
+- **상태 액션 버튼**:
+  - PAID → SHIPPED: "발송 처리" 버튼
+  - SHIPPED → COMPLETED: "배송 완료 처리" 버튼
+  - REFUND_REQUESTED: 안내 메시지 (관리자 승인 대기)
+- **API**:
+  - `GET /api/seller/orders/[id]`: 소유권 체크 (sellerId === session.userId, 아니면 404)
+  - `PATCH /api/orders/[id]/status`: 기존 상태 전환 API 재사용 (lib/orderState.ts 규칙 준수)
+
+#### 상태 전환 규칙 (lib/orderState.ts)
+- PAID → SHIPPED (판매자 발송)
+- SHIPPED → COMPLETED (판매자 배송 완료)
+- 모든 전환은 `canTransition()` 검증 통과 필수
+
+---
+
+### 4. 판매자 가입 신청 (Seller Apply Flow)
+
+#### 신청 페이지 (`/seller/apply`)
+- **로그인 필수**: 미로그인 시 `/login?next=/seller/apply`로 리다이렉트
+- **상태별 UI**:
+  - **신규 신청**: 폼 표시
+  - **심사 중 (PENDING)**: "심사 중" 메시지 + 수정 가능
+  - **승인 완료 (APPROVED)**: 판매자 센터로 이동 버튼
+
+**신청 폼 필드**:
+- 상점명 (필수)
+- 상점 유형 (필수, 선택: 도매/브랜드/사입/기타)
+- 상가명 (선택)
+- 층 (선택)
+- 호수 (선택)
+- 고객센터 이메일 (필수, 이메일 형식 검증)
+
+**API**:
+- `POST /api/seller/apply`:
+  - SellerProfile upsert (status=PENDING)
+  - User.role → SELLER_PENDING으로 업데이트
+  - 재신청 시 status 다시 PENDING으로 리셋
+- `GET /api/seller/apply`:
+  - 현재 사용자의 SellerProfile 상태 조회
+
+**진입점**:
+- `/login` 페이지: "판매자 가입 신청" 링크 추가
+- `/my` 페이지:
+  - CUSTOMER: "판매자 가입 신청" 메뉴 표시
+  - SELLER_PENDING/SELLER_ACTIVE/ADMIN: "판매자 센터" 메뉴 표시
+- `/seller` 페이지: "주문 관리" 퀵 링크 추가
+
+---
+
+## 테스트 가이드
+
+- **수동 테스트**: `SELLER_OPS_TESTS.md` 참고
+  - 소유권 제어 (다른 판매자 주문 접근 차단)
+  - 상태 전환 (PAID→SHIPPED→COMPLETED)
+  - 구매자 배송정보 가시성
+  - 자가 구매 차단
+  - 판매자의 다른 판매자 상품 구매 가능
+
+---
+
+## 데이터베이스 변경사항
+
+### SellerProfile 스키마 추가 필드
+- `avatarUrl` (String?, optional): 프로필 아바타 이미지 URL
+- `csEmail` (String?, optional): 고객센터 이메일
+
+### 마이그레이션
+- `npx prisma db push` 실행 (개발 환경)
+- 기존 판매자 프로필은 null 값으로 유지 (하위 호환성)
+
+---
+
+## 보안 고려사항
+
+1. **주문 소유권**: 판매자는 `order.sellerId === session.userId`인 주문만 조회 가능
+2. **구매자 정보 보호**: 판매자 주문 상세에서 구매자 이메일 노출 안 함 (배송지 스냅샷만)
+3. **자가 구매 차단**: API 레벨에서 검증 (클라이언트 우회 불가)
+4. **역할 분리**: lib/roleGuards.ts로 중앙화된 역할 체크
+
+---
+

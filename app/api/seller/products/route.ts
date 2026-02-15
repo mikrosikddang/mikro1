@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput } from "@/lib/variantNormalize";
@@ -10,13 +11,8 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireRole("SELLER");
-    if (!session) {
-      return NextResponse.json(
-        { error: "로그인이 필요합니다 (판매자 전용)" },
-        { status: 401 },
-      );
-    }
+    const _session = await getSession();
+    const session = requireSeller(_session);
 
     const sellerId = session.userId;
     const body = await req.json();

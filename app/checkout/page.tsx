@@ -70,6 +70,7 @@ export default function CheckoutPage() {
   const [isDirectMode, setIsDirectMode] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
+  const [checkoutAttemptId, setCheckoutAttemptId] = useState<string | null>(null);
 
   useEffect(() => {
     if (directOrderId) {
@@ -196,24 +197,7 @@ export default function CheckoutPage() {
       const defaultAddr = addressesData.find((a: Address) => a.isDefault);
       setSelectedAddress(defaultAddr || null);
 
-      // Validate products
-      for (const item of cart) {
-        const product = item.variant.product;
-        const variant = item.variant;
-
-        if (product.isDeleted || !product.isActive) {
-          throw new Error(
-            `${product.title}은(는) 현재 구매할 수 없습니다`
-          );
-        }
-
-        if (item.quantity > variant.stock) {
-          throw new Error(
-            `${product.title} (${variant.sizeLabel})의 재고가 부족합니다 (요청: ${item.quantity}, 재고: ${variant.stock})`
-          );
-        }
-      }
-
+      // No client-side validation - server will handle it atomically
       setItems(cart);
 
       // Group by seller
@@ -306,39 +290,65 @@ export default function CheckoutPage() {
       setProcessingPayment(true);
       setError(null);
 
-      const orderItems = items.map((i) => ({
-        productId: i.variant.product.id,
-        variantId: i.variantId,
-        quantity: i.quantity,
-      }));
+      // Generate checkoutAttemptId once per checkout attempt
+      // Reuse if already set (prevents duplicate on retry)
+      const attemptId = checkoutAttemptId || crypto.randomUUID();
+      if (!checkoutAttemptId) {
+        setCheckoutAttemptId(attemptId);
+      }
 
-      const res = await fetch("/api/orders", {
+      // Call new atomic endpoint
+      const res = await fetch("/api/checkout/create-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: orderItems,
-          address: {
-            name: selectedAddress.name,
-            phone: selectedAddress.phone,
-            zipCode: selectedAddress.zipCode,
-            addr1: selectedAddress.addr1,
-            addr2: selectedAddress.addr2 || undefined,
-          },
+          checkoutAttemptId: attemptId,
+          addressId: selectedAddress.id,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        // Handle specific error codes
+        if (res.status === 400 && data.error?.includes("CART_EMPTY")) {
+          alert("장바구니가 비어있습니다");
+          router.push("/cart");
+          return;
+        }
+
+        if (res.status === 409 && data.error?.includes("CART_ITEM_INVALID_REMOVED")) {
+          alert("일부 상품이 판매 중단되어 장바구니에서 제거되었습니다. 다시 시도해주세요.");
+          // Reload checkout data to show updated cart
+          await loadCheckoutData();
+          return;
+        }
+
+        if (res.status === 409 && data.error?.includes("OUT_OF_STOCK")) {
+          const errorMsg = data.error.replace("OUT_OF_STOCK: ", "재고 부족: ");
+          setError(errorMsg);
+          return;
+        }
+
+        if (res.status === 400 && data.error?.includes("ADDRESS_INVALID")) {
+          alert("배송지 정보가 유효하지 않습니다");
+          await reloadAddresses();
+          return;
+        }
+
         throw new Error(data.error || "주문 생성 실패");
       }
 
-      const createdOrderIds = data.orderId
-        ? [data.orderId]
-        : data.orders?.map((o: any) => o.orderId) || [];
+      // Success - extract order IDs
+      const createdOrderIds = data.orders?.map((o: any) => o.id) || [];
 
       if (createdOrderIds.length === 0) {
         throw new Error("주문 생성 실패");
+      }
+
+      // Show removed items message if any
+      if (data.removedCartItems && data.removedCartItems.length > 0) {
+        alert(`일부 유효하지 않은 상품이 제거되었습니다: ${data.removedCartItems.join(", ")}`);
       }
 
       setOrderIds(createdOrderIds);
@@ -369,10 +379,8 @@ export default function CheckoutPage() {
         throw new Error(data.error || "결제 처리 실패");
       }
 
-      // Clear cart via API (only in cart mode, not direct mode)
-      if (!isDirectMode) {
-        await fetch("/api/cart", { method: "DELETE" });
-      }
+      // Cart is cleared automatically by server on payment success (TRACK 3)
+      // No need to call DELETE /api/cart anymore
 
       // Redirect to success page with all order IDs
       const idsParam = orderIds.join(",");

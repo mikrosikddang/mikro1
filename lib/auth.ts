@@ -10,16 +10,13 @@
 
 import { cookies } from "next/headers";
 import { createHmac } from "crypto";
+import type { Role, Session } from "./authTypes";
+import { canAccessSellerFeatures } from "./roles";
 
-/* ---------- types ---------- */
-
-export type Role = "CUSTOMER" | "SELLER";
-
-export interface Session {
-  userId: string;
-  role: Role;
-  issuedAt: number;
-}
+// Re-export types and helpers for convenience
+export type { Role, Session };
+export { UserRole } from "@prisma/client";
+export * from "./roles";
 
 /* ---------- config ---------- */
 
@@ -104,20 +101,6 @@ export function buildDeleteCookieOptions() {
   };
 }
 
-/* ---------- API guard ---------- */
-
-/**
- * Check session has the required role. For use in API route handlers.
- * Returns the Session on success, or null (caller should return 401).
- */
-export async function requireRole(
-  requiredRole: Role,
-): Promise<Session | null> {
-  const session = await getSession();
-  if (!session) return null;
-  if (requiredRole === "SELLER" && session.role !== "SELLER") return null;
-  // CUSTOMER role: any logged-in user (sellers can also be customers)
-  return session;
-}
+/* ---------- Exports ---------- */
 
 export { COOKIE_NAME };

@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { UserRole } from "@prisma/client";
 
 export type ClientSession = {
   userId: string;
-  role: "CUSTOMER" | "SELLER";
+  role: UserRole;
 } | null;
 
 const SessionContext = createContext<ClientSession>(null);

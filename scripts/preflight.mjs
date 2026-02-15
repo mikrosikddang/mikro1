@@ -16,7 +16,7 @@
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -350,6 +350,62 @@ check('(18) PATCH /api/orders/[id]/status exists', () => {
   }
   return 'API endpoint exists';
 }, { hardFail: true });
+
+// Check 19: No string literal status comparisons (TRACK 2 enforcement)
+check('(19) OrderStatus enum-only (no string literals)', () => {
+  const searchDirs = ['app/api', 'lib'];
+  const violations = [];
+
+  // Patterns to detect string literal status comparisons
+  const statusPatterns = [
+    /\.status\s*===\s*["'](?:PENDING|PAID|SHIPPED|COMPLETED|CANCELLED|REFUND_REQUESTED|REFUNDED|FAILED)["']/g,
+    /\.status\s*!==\s*["'](?:PENDING|PAID|SHIPPED|COMPLETED|CANCELLED|REFUND_REQUESTED|REFUNDED|FAILED)["']/g,
+    /status:\s*["'](?:PENDING|PAID|SHIPPED|COMPLETED|CANCELLED|REFUND_REQUESTED|REFUNDED|FAILED)["']/g,
+  ];
+
+  for (const dir of searchDirs) {
+    const dirPath = join(rootDir, dir);
+    if (!existsSync(dirPath)) continue;
+
+    const files = readdirSync(dirPath, { recursive: true })
+      .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
+      .map(f => join(dir, f));
+
+    for (const file of files) {
+      const content = readFileSync(join(rootDir, file), 'utf-8');
+
+      // Skip lines with session.role (those are allowed)
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes('session.role')) continue; // Allowed
+        if (line.includes('//')) {
+          // Check only the part before comment
+          const beforeComment = line.split('//')[0];
+          for (const pattern of statusPatterns) {
+            if (pattern.test(beforeComment)) {
+              violations.push(`${file}:${i + 1}`);
+              break;
+            }
+          }
+        } else {
+          for (const pattern of statusPatterns) {
+            if (pattern.test(line)) {
+              violations.push(`${file}:${i + 1}`);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(`Found ${violations.length} string literal status comparison(s): ${violations.slice(0, 3).join(', ')}${violations.length > 3 ? '...' : ''}`);
+  }
+
+  return 'All status comparisons use OrderStatus enum';
+}, { hardFail: mode === 'prod' });
 
 // ============================================================
 // Print Results

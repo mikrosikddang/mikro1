@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 import { generateOrderNo } from "@/lib/order-utils";
+import { OrderStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     // SELLER는 주문 생성 불가
-    if (session.role === "SELLER") {
+    if (canAccessSellerFeatures(session.role)) {
       return NextResponse.json(
         { error: "Sellers cannot create orders" },
         { status: 403 }
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
             orderNo: generateOrderNo(),
             buyerId: session.userId,
             sellerId,
-            status: "PENDING",
+            status: OrderStatus.PENDING,
             totalAmountKrw,
             itemsSubtotalKrw: totalAmountKrw,
             shippingFeeKrw: calculatedShippingFee,

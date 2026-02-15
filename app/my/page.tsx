@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Container from "@/components/Container";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures, isCustomer } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
 
 const chevronSvg = (
@@ -21,21 +21,21 @@ export default async function MyPage() {
         {session ? (
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl mb-6">
             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-[18px]">
-              {session.role === "SELLER" ? "🏪" : "👤"}
+              {canAccessSellerFeatures(session.role) ? "🏪" : "👤"}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-[15px] font-medium text-gray-900">
-                  {session.role === "SELLER" ? "판매자" : "고객"}
+                  {canAccessSellerFeatures(session.role) ? "판매자" : "고객"}
                 </p>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    session.role === "SELLER"
+                    canAccessSellerFeatures(session.role)
                       ? "bg-black text-white"
                       : "bg-gray-200 text-gray-600"
                   }`}
                 >
-                  {session.role === "SELLER" ? "SELLER" : "CUSTOMER"}
+                  {session.role}
                 </span>
               </div>
               <p className="text-[12px] text-gray-400 mt-0.5">
@@ -77,7 +77,7 @@ export default async function MyPage() {
             {chevronSvg}
           </Link>
 
-          {session?.role === "SELLER" && (
+          {session && canAccessSellerFeatures(session.role) ? (
             <Link
               href="/seller"
               className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
@@ -85,7 +85,15 @@ export default async function MyPage() {
               판매자 센터
               {chevronSvg}
             </Link>
-          )}
+          ) : session && isCustomer(session.role) ? (
+            <Link
+              href="/seller/apply"
+              className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+            >
+              판매자 가입 신청
+              {chevronSvg}
+            </Link>
+          ) : null}
 
           <Link
             href="/info"

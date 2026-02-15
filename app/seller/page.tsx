@@ -65,18 +65,27 @@ export default async function SellerDashboardPage({ searchParams }: Props) {
   return (
     <div className="py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-[22px] font-bold text-black">{shopName}</h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">
-            전체 {allProducts.length}개
-          </p>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-[22px] font-bold text-black">{shopName}</h1>
+            <p className="text-[13px] text-gray-500 mt-0.5">
+              전체 {allProducts.length}개
+            </p>
+          </div>
+          <Link
+            href="/seller/products/new"
+            className="h-10 px-5 bg-black text-white rounded-xl text-[14px] font-medium flex items-center active:bg-gray-800 transition-colors"
+          >
+            상품 올리기
+          </Link>
         </div>
+        {/* Quick links */}
         <Link
-          href="/seller/products/new"
-          className="h-10 px-5 bg-black text-white rounded-xl text-[14px] font-medium flex items-center active:bg-gray-800 transition-colors"
+          href="/seller/orders"
+          className="block p-3 bg-gray-50 rounded-xl text-[14px] text-gray-700 font-medium active:bg-gray-100 transition-colors"
         >
-          상품 올리기
+          📦 주문 관리 →
         </Link>
       </div>
 

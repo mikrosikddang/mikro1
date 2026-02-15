@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.role === "SELLER") {
+    if (canAccessSellerFeatures(session.role)) {
       return NextResponse.json(
         { error: "Sellers cannot simulate payment" },
         { status: 403 }
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
           throw new Error(`Forbidden: Order ${orderId} does not belong to you`);
         }
 
-        if (order.status !== "PENDING") {
+        if (order.status !== OrderStatus.PENDING) {
           continue;
         }
 
@@ -64,14 +65,14 @@ export async function POST(request: Request) {
           await tx.payment.update({
             where: { id: order.payment.id },
             data: {
-              status: "FAILED",
+              status: PaymentStatus.FAILED,
             },
           });
         } else {
           await tx.payment.create({
             data: {
               orderId: order.id,
-              status: "FAILED",
+              status: PaymentStatus.FAILED,
               amountKrw: order.totalPayKrw || order.totalAmountKrw,
               method: "TEST_SIMULATION",
             },

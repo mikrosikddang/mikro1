@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Container from "@/components/Container";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 
 export default async function SellerLayout({
   children,
@@ -9,7 +9,7 @@ export default async function SellerLayout({
 }) {
   const session = await getSession();
 
-  if (!session || session.role !== "SELLER") {
+  if (!session || !canAccessSellerFeatures(session.role)) {
     redirect("/login?next=/seller");
   }
 

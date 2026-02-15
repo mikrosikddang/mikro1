@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 import ProductForm, { type ProductFormInitialValues } from "@/components/ProductForm";
 
 type Props = {
@@ -14,7 +14,7 @@ export default async function NewProductPage({ searchParams }: Props) {
 
   if (cloneFrom) {
     const session = await getSession();
-    if (!session || session.role !== "SELLER") notFound();
+    if (!session || !canAccessSellerFeatures(session.role)) notFound();
 
     const product = await prisma.product.findUnique({
       where: { id: cloneFrom },

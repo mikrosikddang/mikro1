@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
 import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
 import { validateVariantTree, formatValidationErrors } from "@/lib/variantValidation";
+import BulkPasteModal from "@/components/BulkPasteModal";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -110,6 +111,8 @@ export default function ProductForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
+  const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
 
   // ---------- Image helpers ----------
   function handleFilePick(
@@ -290,6 +293,112 @@ export default function ProductForm({
     });
   }
 
+  // Stock quick actions
+  const setAllStockToZero = useCallback((groupIndex: number) => {
+    setVariantTree((prev) => {
+      const copy = [...prev];
+      copy[groupIndex] = {
+        ...copy[groupIndex],
+        sizes: copy[groupIndex].sizes.map((s) => ({ ...s, stock: 0 })),
+      };
+      return copy;
+    });
+  }, []);
+
+  const setAllStockToValue = useCallback((groupIndex: number, value: number) => {
+    setVariantTree((prev) => {
+      const copy = [...prev];
+      copy[groupIndex] = {
+        ...copy[groupIndex],
+        sizes: copy[groupIndex].sizes.map((s) => ({ ...s, stock: value })),
+      };
+      return copy;
+    });
+    setStockBulkInput((prev) => ({ ...prev, [groupIndex]: "" }));
+  }, []);
+
+  // Bulk paste handler
+  const handleBulkPasteApply = useCallback(
+    (groupIndex: number, parsedSizes: { sizeLabel: string; stock: number }[]) => {
+      setVariantTree((prev) => {
+        const copy = [...prev];
+        const existingSizes = copy[groupIndex].sizes;
+        const sizeMap = new Map(
+          existingSizes.map((s) => [s.sizeLabel.toUpperCase(), s])
+        );
+
+        // Merge or add sizes
+        for (const parsed of parsedSizes) {
+          const key = parsed.sizeLabel.toUpperCase();
+          if (sizeMap.has(key)) {
+            // Update existing
+            const existing = sizeMap.get(key)!;
+            existing.stock = parsed.stock;
+          } else {
+            // Add new
+            existingSizes.push({
+              clientId: generateId(),
+              sizeLabel: parsed.sizeLabel,
+              stock: parsed.stock,
+            });
+            sizeMap.set(key, existingSizes[existingSizes.length - 1]);
+          }
+        }
+
+        copy[groupIndex] = { ...copy[groupIndex], sizes: existingSizes };
+        return copy;
+      });
+      setBulkPasteModal(null);
+    },
+    []
+  );
+
+  // Add color group with preset
+  const addColorGroupWithPreset = useCallback((presetColor?: string) => {
+    setVariantTree((prev) => [
+      ...prev,
+      {
+        clientId: generateId(),
+        color: presetColor || "",
+        sizes: [{ clientId: generateId(), sizeLabel: "", stock: 0 }],
+      },
+    ]);
+  }, []);
+
+  // Check for duplicate colors
+  const getDuplicateColors = useMemo(() => {
+    const seen = new Set<string>();
+    const dupes = new Set<number>();
+    variantTree.forEach((group, idx) => {
+      const normalized = group.color.trim().toUpperCase();
+      if (normalized && seen.has(normalized)) {
+        dupes.add(idx);
+      }
+      if (normalized) seen.add(normalized);
+    });
+    return dupes;
+  }, [variantTree]);
+
+  // Check for duplicate sizes within a color group
+  const getDuplicateSizes = useMemo(() => {
+    const dupesMap = new Map<number, Set<number>>();
+    variantTree.forEach((group, groupIdx) => {
+      const seen = new Set<string>();
+      const dupes = new Set<number>();
+      group.sizes.forEach((size, sizeIdx) => {
+        const normalized = size.sizeLabel.trim().toUpperCase();
+        if (normalized && seen.has(normalized)) {
+          dupes.add(sizeIdx);
+        }
+        if (normalized) seen.add(normalized);
+      });
+      if (dupes.size > 0) {
+        dupesMap.set(groupIdx, dupes);
+      }
+    });
+    return dupesMap;
+  }, [variantTree]);
+
   // ---------- Submit ----------
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -443,128 +552,232 @@ export default function ProductForm({
         </label>
 
         <div className="space-y-4">
-          {variantTree.map((colorGroup, groupIndex) => (
-            <div key={colorGroup.clientId} className="p-4 bg-gray-50 rounded-xl space-y-3">
-              {/* Color Group Header */}
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-gray-600">컬러 그룹 {groupIndex + 1}</span>
-                {variantTree.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeColorGroup(groupIndex)}
-                    className="text-[12px] text-red-500 hover:text-red-600"
-                    disabled={submitting}
-                  >
-                    그룹 삭제
-                  </button>
-                )}
-              </div>
+          {variantTree.map((colorGroup, groupIndex) => {
+            const hasDuplicateColor = getDuplicateColors.has(groupIndex);
+            const duplicateSizes = getDuplicateSizes.get(groupIndex);
 
-              {/* Color Selection */}
-              <div>
-                <label className="block text-[12px] text-gray-600 mb-1.5">컬러</label>
-                <div className="flex gap-2 flex-wrap mb-2">
-                  {PRESET_COLORS.map((color) => (
+            return (
+              <div key={colorGroup.clientId} className="p-4 bg-gray-50 rounded-xl space-y-3">
+                {/* Color Group Header */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-medium text-gray-600">
+                    컬러 그룹 {groupIndex + 1}
+                  </span>
+                  {variantTree.length > 1 && (
                     <button
-                      key={color}
                       type="button"
-                      onClick={() => updateColorGroupColor(groupIndex, color)}
+                      onClick={() => removeColorGroup(groupIndex)}
+                      className="text-[12px] text-red-500 hover:text-red-600"
+                      disabled={submitting}
+                    >
+                      그룹 삭제
+                    </button>
+                  )}
+                </div>
+
+                {/* Color Selection */}
+                <div>
+                  <label className="block text-[12px] text-gray-600 mb-1.5">컬러</label>
+                  <div className="flex gap-2 flex-wrap mb-2">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => updateColorGroupColor(groupIndex, color)}
+                        className={`px-3 py-1.5 text-[12px] rounded-lg border transition-colors ${
+                          colorGroup.color === color
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
+                        }`}
+                        disabled={submitting}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)) return;
+                        const customColor = prompt("컬러를 입력하세요 (예: NAVY, BROWN)");
+                        if (customColor) {
+                          updateColorGroupColor(groupIndex, customColor.trim().toUpperCase());
+                        }
+                      }}
                       className={`px-3 py-1.5 text-[12px] rounded-lg border transition-colors ${
-                        colorGroup.color === color
+                        colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)
                           ? "bg-black text-white border-black"
                           : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
                       }`}
                       disabled={submitting}
                     >
-                      {color}
+                      {colorGroup.color && !PRESET_COLORS.includes(colorGroup.color) ? colorGroup.color : "직접입력"}
                     </button>
-                  ))}
+                  </div>
+                  {hasDuplicateColor && (
+                    <p className="text-[12px] text-red-500 mt-1">중복된 컬러입니다</p>
+                  )}
+                </div>
+
+                {/* Stock Quick Actions */}
+                <div className="flex gap-2 items-center flex-wrap">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)) return;
-                      const customColor = prompt("컬러를 입력하세요 (예: NAVY, BROWN)");
-                      if (customColor) {
-                        updateColorGroupColor(groupIndex, customColor.trim().toUpperCase());
-                      }
-                    }}
-                    className={`px-3 py-1.5 text-[12px] rounded-lg border transition-colors ${
-                      colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                    }`}
+                    onClick={() => setAllStockToZero(groupIndex)}
+                    className="px-3 py-1.5 text-[12px] bg-white border border-gray-200 rounded-lg hover:bg-gray-100 active:bg-gray-200"
                     disabled={submitting}
                   >
-                    {colorGroup.color && !PRESET_COLORS.includes(colorGroup.color) ? colorGroup.color : "그외컬러"}
+                    전체 재고 0
                   </button>
-                </div>
-              </div>
-
-              {/* Size List */}
-              <div className="space-y-2">
-                <label className="block text-[12px] text-gray-600 mb-1">사이즈</label>
-                {colorGroup.sizes.map((size, sizeIndex) => (
-                  <div key={size.clientId} className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      value={size.sizeLabel}
-                      onChange={(e) => updateSize(groupIndex, sizeIndex, "sizeLabel", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSizeToGroup(groupIndex);
-                        }
-                      }}
-                      placeholder="사이즈명"
-                      className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black bg-white"
-                      disabled={submitting}
-                    />
+                  <div className="flex gap-1 items-center">
                     <input
                       type="number"
                       inputMode="numeric"
-                      value={size.stock}
-                      onChange={(e) => updateSize(groupIndex, sizeIndex, "stock", Math.max(0, parseInt(e.target.value) || 0))}
-                      placeholder="재고"
-                      className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black bg-white"
-                      min={0}
+                      value={stockBulkInput[groupIndex] || ""}
+                      onChange={(e) => setStockBulkInput((prev) => ({ ...prev, [groupIndex]: e.target.value }))}
+                      placeholder="수량"
+                      className="w-16 h-8 px-2 text-[12px] border border-gray-200 rounded-lg text-center focus:outline-none focus:border-black"
                       disabled={submitting}
+                      min={0}
                     />
-                    {colorGroup.sizes.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSizeFromGroup(groupIndex, sizeIndex)}
-                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
-                        disabled={submitting}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = parseInt(stockBulkInput[groupIndex] || "0", 10);
+                        if (!isNaN(val) && val >= 0) {
+                          setAllStockToValue(groupIndex, val);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-[12px] bg-white border border-gray-200 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+                      disabled={submitting}
+                    >
+                      전체 적용
+                    </button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => addSizeToGroup(groupIndex)}
-                  className="w-full h-9 text-[13px] text-gray-600 border border-dashed border-gray-300 rounded-lg hover:bg-white"
-                  disabled={submitting}
-                >
-                  + 사이즈 추가
-                </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBulkPasteModal({
+                        groupIndex,
+                        colorName: colorGroup.color || "컬러 미지정",
+                      })
+                    }
+                    className="px-3 py-1.5 text-[12px] bg-white border border-gray-200 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+                    disabled={submitting}
+                  >
+                    일괄 입력
+                  </button>
+                </div>
+
+                {/* Size List */}
+                <div className="space-y-2">
+                  <label className="block text-[12px] text-gray-600 mb-1">사이즈</label>
+                  {colorGroup.sizes.map((size, sizeIndex) => {
+                    const hasDuplicateSize = duplicateSizes?.has(sizeIndex);
+                    return (
+                      <div key={size.clientId}>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={size.sizeLabel}
+                            onChange={(e) => updateSize(groupIndex, sizeIndex, "sizeLabel", e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addSizeToGroup(groupIndex);
+                              }
+                              // Backspace on empty sizeLabel deletes row
+                              if (
+                                e.key === "Backspace" &&
+                                size.sizeLabel === "" &&
+                                colorGroup.sizes.length > 1
+                              ) {
+                                e.preventDefault();
+                                removeSizeFromGroup(groupIndex, sizeIndex);
+                              }
+                            }}
+                            placeholder="사이즈명"
+                            className={`flex-1 h-10 px-3 rounded-lg border text-[14px] focus:outline-none focus:border-black bg-white ${
+                              hasDuplicateSize ? "border-red-500" : "border-gray-200"
+                            }`}
+                            disabled={submitting}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={size.stock}
+                            onChange={(e) => updateSize(groupIndex, sizeIndex, "stock", Math.max(0, parseInt(e.target.value) || 0))}
+                            placeholder="재고"
+                            className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black bg-white"
+                            min={0}
+                            disabled={submitting}
+                          />
+                          {colorGroup.sizes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeSizeFromGroup(groupIndex, sizeIndex)}
+                              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
+                              disabled={submitting}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        {hasDuplicateSize && (
+                          <p className="text-[11px] text-red-500 mt-0.5 ml-1">중복된 사이즈</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => addSizeToGroup(groupIndex)}
+                    className="w-full h-9 text-[13px] text-gray-600 border border-dashed border-gray-300 rounded-lg hover:bg-white"
+                    disabled={submitting}
+                  >
+                    + 사이즈 추가
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <button
-          type="button"
-          onClick={addColorGroup}
-          className="mt-3 w-full h-11 text-[14px] text-gray-700 font-medium border border-dashed border-gray-300 rounded-xl hover:bg-gray-50"
-          disabled={submitting}
-        >
-          + 컬러 추가
-        </button>
+        {/* Add Color Group - Preset Buttons */}
+        <div className="mt-3 space-y-2">
+          <div className="flex gap-2 flex-wrap">
+            {PRESET_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => addColorGroupWithPreset(color)}
+                className="px-4 py-2 text-[13px] bg-white border border-gray-300 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+                disabled={submitting}
+              >
+                + {color}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => addColorGroupWithPreset()}
+              className="px-4 py-2 text-[13px] bg-white border border-dashed border-gray-300 rounded-lg hover:bg-gray-50"
+              disabled={submitting}
+            >
+              + 기타 컬러
+            </button>
+          </div>
+        </div>
       </section>
+
+      {/* Bulk Paste Modal */}
+      {bulkPasteModal && (
+        <BulkPasteModal
+          colorName={bulkPasteModal.colorName}
+          onApply={(sizes) => handleBulkPasteApply(bulkPasteModal.groupIndex, sizes)}
+          onClose={() => setBulkPasteModal(null)}
+        />
+      )}
 
       {/* ===== Title ===== */}
       <section className="mb-5">

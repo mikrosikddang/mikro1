@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { requireBuyerFeatures } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -16,17 +17,8 @@ interface AddToCartRequest {
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role === "SELLER") {
-      return NextResponse.json(
-        { error: "Sellers cannot use cart" },
-        { status: 403 }
-      );
-    }
+    const _session = await getSession();
+    const session = requireBuyerFeatures(_session); // Now allows sellers to buy
 
     const items = await prisma.$transaction(async (tx) => {
       // Step 1: Auto-cleanup invalid cart items
@@ -123,17 +115,8 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role === "SELLER") {
-      return NextResponse.json(
-        { error: "Sellers cannot use cart" },
-        { status: 403 }
-      );
-    }
+    const _session = await getSession();
+    const session = requireBuyerFeatures(_session); // Now allows sellers to buy
 
     const body = (await request.json()) as AddToCartRequest;
 
@@ -257,17 +240,8 @@ export async function POST(request: Request) {
  */
 export async function DELETE() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role === "SELLER") {
-      return NextResponse.json(
-        { error: "Sellers cannot use cart" },
-        { status: 403 }
-      );
-    }
+    const _session = await getSession();
+    const session = requireBuyerFeatures(_session); // Now allows sellers to buy
 
     await prisma.cartItem.deleteMany({
       where: { userId: session.userId },

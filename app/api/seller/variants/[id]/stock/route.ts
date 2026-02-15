@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireSeller } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -8,13 +9,8 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const session = await requireRole("SELLER");
-    if (!session) {
-      return NextResponse.json(
-        { ok: false, message: "UNAUTHORIZED" },
-        { status: 401 },
-      );
-    }
+    const _session = await getSession();
+    const session = requireSeller(_session);
 
     const { id: variantId } = await params;
 

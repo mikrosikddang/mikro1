@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures, isCustomer } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
 import { canTransition, assertTransition, OrderTransitionError } from "@/lib/orderState";
 
@@ -91,12 +91,11 @@ export async function PATCH(
       }
 
       // 3. Ownership verification
-      // Note: session.role is simplified to "CUSTOMER" | "SELLER" in lib/auth.ts
-      const isCustomer = session.role === "CUSTOMER";
-      const isSeller = session.role === "SELLER";
-      const isAdmin = false; // ADMIN not yet implemented in auth flow
+      // Role check: CUSTOMER or any seller role (SELLER_PENDING, SELLER_ACTIVE, ADMIN)
+      const isCustomerRole = isCustomer(session.role);
+      const isSeller = canAccessSellerFeatures(session.role);
 
-      if (isCustomer && order.buyerId !== session.userId) {
+      if (isCustomerRole && order.buyerId !== session.userId) {
         throw new Error("FORBIDDEN: Order does not belong to you");
       }
 
@@ -120,12 +119,12 @@ export async function PATCH(
       }
 
       // 6. Role-based permission check for specific transitions
-      if (isCustomer) {
+      if (isCustomerRole) {
         // CUSTOMER can: PENDING -> CANCELLED, PAID/SHIPPED -> REFUND_REQUESTED
         const allowedCustomerTransitions: [OrderStatus, OrderStatus][] = [
-          ["PENDING", "CANCELLED"],
-          ["PAID", "REFUND_REQUESTED"],
-          ["SHIPPED", "REFUND_REQUESTED"],
+          [OrderStatus.PENDING, OrderStatus.CANCELLED],
+          [OrderStatus.PAID, OrderStatus.REFUND_REQUESTED],
+          [OrderStatus.SHIPPED, OrderStatus.REFUND_REQUESTED],
         ];
 
         const isAllowed = allowedCustomerTransitions.some(
@@ -140,8 +139,8 @@ export async function PATCH(
       } else if (isSeller) {
         // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED
         const allowedSellerTransitions: [OrderStatus, OrderStatus][] = [
-          ["PAID", "SHIPPED"],
-          ["SHIPPED", "COMPLETED"],
+          [OrderStatus.PAID, OrderStatus.SHIPPED],
+          [OrderStatus.SHIPPED, OrderStatus.COMPLETED],
         ];
 
         const isAllowed = allowedSellerTransitions.some(
@@ -153,15 +152,6 @@ export async function PATCH(
             `FORBIDDEN: SELLER cannot transition ${order.status} -> ${body.to}`
           );
         }
-      } else if (isAdmin) {
-        // ADMIN can: REFUND_REQUESTED -> REFUNDED
-        // (and any other transition as admin override)
-        // For now, we enforce admin only does refund approval
-        if (order.status === "REFUND_REQUESTED" && body.to !== "REFUNDED") {
-          throw new Error(
-            `FORBIDDEN: ADMIN should only approve refunds (REFUND_REQUESTED -> REFUNDED)`
-          );
-        }
       } else {
         throw new Error("FORBIDDEN: Unknown role");
       }
@@ -169,7 +159,7 @@ export async function PATCH(
       // 7. Special handling: REFUND (restore stock atomically)
       const warnings: string[] = [];
 
-      if (body.to === "REFUNDED") {
+      if (body.to === OrderStatus.REFUNDED) {
         // Restore stock for all items
         for (const item of order.items) {
           if (!item.variantId) {

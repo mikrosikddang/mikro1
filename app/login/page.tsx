@@ -95,8 +95,8 @@ function LoginForm() {
           </button>
         </form>
 
-        {/* Signup link */}
-        <div className="mt-4 text-center">
+        {/* Signup and Seller Apply links */}
+        <div className="mt-4 text-center space-y-2">
           <p className="text-[14px] text-gray-600">
             계정이 없으신가요?{" "}
             <a
@@ -104,6 +104,15 @@ function LoginForm() {
               className="text-black font-medium underline"
             >
               회원가입
+            </a>
+          </p>
+          <p className="text-[14px] text-gray-600">
+            판매자로 가입하시겠어요?{" "}
+            <a
+              href="/seller/apply"
+              className="text-black font-medium underline"
+            >
+              판매자 가입 신청
             </a>
           </p>
         </div>

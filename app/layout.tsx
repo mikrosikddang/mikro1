@@ -3,7 +3,7 @@ import { Geist } from "next/font/google";
 import TopBar from "@/components/TopBar";
 import BottomTab from "@/components/BottomTab";
 import ConditionalFooter from "@/components/ConditionalFooter";
-import { SessionProvider } from "@/components/SessionProvider";
+import { SessionProvider, type ClientSession } from "@/components/SessionProvider";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
 
@@ -29,7 +29,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
-  const clientSession = session
+  const clientSession: ClientSession = session
     ? { userId: session.userId, role: session.role }
     : null;
 

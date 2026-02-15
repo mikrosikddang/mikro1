@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Container from "@/components/Container";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKrw } from "@/lib/format";
 
@@ -41,7 +41,7 @@ export default async function OrderSuccessPage({ searchParams }: PageProps) {
     redirect(`/login?next=${encodeURIComponent(`/orders/success?ids=${idsParam}`)}`);
   }
 
-  if (session.role === "SELLER") {
+  if (canAccessSellerFeatures(session.role)) {
     return (
       <Container>
         <div className="py-16 text-center">

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoginRedirectUrl } from "@/lib/authHelpers";
+import type { UserRole } from "@prisma/client";
+import { isSeller } from "@/lib/roles";
 
 interface Variant {
   id: string;
@@ -15,7 +17,7 @@ interface Props {
   productId: string;
   variants: Variant[];
   isSoldOut: boolean;
-  userRole: "CUSTOMER" | "SELLER" | null;
+  userRole: UserRole | null;
 }
 
 export default function AddToCartSection({
@@ -59,12 +61,7 @@ export default function AddToCartSection({
       return;
     }
 
-    if (userRole === "SELLER") {
-      // Seller cannot purchase
-      setMessage("구매는 고객 계정만 가능합니다");
-      setTimeout(() => setMessage(null), 2000);
-      return;
-    }
+    // Phase 2: Sellers can now purchase (removed seller blocking logic)
 
     try {
       setLoading(true);
@@ -128,12 +125,7 @@ export default function AddToCartSection({
       return;
     }
 
-    if (userRole === "SELLER") {
-      // Seller cannot purchase
-      setMessage("구매는 고객 계정만 가능합니다");
-      setTimeout(() => setMessage(null), 2000);
-      return;
-    }
+    // Phase 2: Sellers can now purchase (removed seller blocking logic)
 
     try {
       setLoading(true);

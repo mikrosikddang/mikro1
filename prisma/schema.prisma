@@ -112,6 +112,8 @@ model SellerProfile {
   managerPhone   String?
 
   bizRegImageUrl String?              // S3 URL
+  avatarUrl      String?              // Profile avatar URL
+  csEmail        String?              // Customer service email for contact
   status         SellerApprovalStatus @default(PENDING)
   rejectedReason String?
 
@@ -197,6 +199,9 @@ model Order {
   shipToAddr1  String?
   shipToAddr2  String?
   shipToMemo   String?
+
+  // Idempotency key for checkout flow
+  checkoutAttemptId String? @unique
 
   expiresAt    DateTime?
   createdAt    DateTime @default(now())

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
+import { OrderStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.role === "SELLER") {
+    if (canAccessSellerFeatures(session.role)) {
       return NextResponse.json(
         { error: "Sellers cannot create orders" },
         { status: 403 }
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
           orderNo,
           buyerId: session.userId,
           sellerId: product.sellerId,
-          status: "PENDING",
+          status: OrderStatus.PENDING,
           totalAmountKrw: itemsSubtotalKrw, // Legacy field
           itemsSubtotalKrw,
           shippingFeeKrw,

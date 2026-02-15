@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { requireBuyerFeatures } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -16,17 +17,8 @@ interface UpdateCartItemRequest {
  */
 export async function PATCH(request: Request, { params }: Props) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role === "SELLER") {
-      return NextResponse.json(
-        { error: "Sellers cannot use cart" },
-        { status: 403 }
-      );
-    }
+    const _session = await getSession();
+    const session = requireBuyerFeatures(_session); // Now allows sellers to buy
 
     const { id } = await params;
     const body = (await request.json()) as UpdateCartItemRequest;
@@ -115,17 +107,8 @@ export async function PATCH(request: Request, { params }: Props) {
  */
 export async function DELETE(request: Request, { params }: Props) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role === "SELLER") {
-      return NextResponse.json(
-        { error: "Sellers cannot use cart" },
-        { status: 403 }
-      );
-    }
+    const _session = await getSession();
+    const session = requireBuyerFeatures(_session); // Now allows sellers to buy
 
     const { id } = await params;
 

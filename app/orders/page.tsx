@@ -12,27 +12,7 @@ export default async function OrdersPage() {
     redirect("/login?next=/orders");
   }
 
-  if (session.role === "SELLER") {
-    return (
-      <Container>
-        <div className="py-16 text-center">
-          <h1 className="text-[24px] font-bold text-black mb-4">
-            접근 권한이 없습니다
-          </h1>
-          <p className="text-[14px] text-gray-600 mb-6">
-            판매자는 구매 주문 내역을 볼 수 없습니다.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-black text-white rounded-xl text-[16px] font-bold"
-          >
-            홈으로
-          </Link>
-        </div>
-      </Container>
-    );
-  }
-
+  // Phase 2: Sellers can now purchase, so they can view their buyer orders
   const orders = await prisma.order.findMany({
     where: {
       buyerId: session.userId,

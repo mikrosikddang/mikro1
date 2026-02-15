@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.role === "SELLER") {
+    if (canAccessSellerFeatures(session.role)) {
       return NextResponse.json(
         { error: "Sellers cannot manage addresses" },
         { status: 403 }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.role === "SELLER") {
+    if (canAccessSellerFeatures(session.role)) {
       return NextResponse.json(
         { error: "Sellers cannot manage addresses" },
         { status: 403 }

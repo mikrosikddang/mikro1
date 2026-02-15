@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { OrderStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import type { UserRole } from "@prisma/client";
+import { canAccessSellerFeatures } from "@/lib/roles";
 
 interface OrderActionsProps {
   orderId: string;
   currentStatus: OrderStatus;
-  userRole: "CUSTOMER" | "SELLER"; // Simplified role from lib/auth.ts
+  userRole: UserRole;
   isBuyer: boolean;
   isSeller: boolean;
 }
@@ -56,8 +58,8 @@ export default function OrderActions({
   // Determine which buttons to show based on role and current status
   let buttons: Array<{ label: string; status: OrderStatus; variant: "danger" | "primary" | "secondary" }> = [];
 
-  if (isBuyer && userRole === "CUSTOMER") {
-    // CUSTOMER view
+  if (isBuyer && !canAccessSellerFeatures(userRole)) {
+    // CUSTOMER buyer view
     if (currentStatus === "PENDING") {
       buttons.push({ label: "주문 취소", status: "CANCELLED", variant: "danger" });
     } else if (currentStatus === "PAID" || currentStatus === "SHIPPED") {
@@ -65,8 +67,8 @@ export default function OrderActions({
     }
   }
 
-  if (isSeller && userRole === "SELLER") {
-    // SELLER view
+  if (isSeller) {
+    // SELLER view (any seller role)
     if (currentStatus === "PAID") {
       buttons.push({ label: "발송 처리", status: "SHIPPED", variant: "primary" });
     } else if (currentStatus === "SHIPPED") {
@@ -74,8 +76,8 @@ export default function OrderActions({
     }
   }
 
-  // Note: ADMIN role not yet implemented in auth flow
-  // When implemented, add: if (userRole === "ADMIN" && currentStatus === "REFUND_REQUESTED") { ... }
+  // Note: ADMIN role-specific actions can be added here
+  // e.g., if (userRole === "ADMIN" && currentStatus === "REFUND_REQUESTED") { ... }
 
   if (buttons.length === 0) {
     return null;

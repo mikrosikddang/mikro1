@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPresignedPut, validateUpload, MAX_FILE_SIZE } from "@/lib/s3";
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireSeller } from "@/lib/roleGuards";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -8,13 +9,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     // Auth guard: SELLER only
-    const session = await requireRole("SELLER");
-    if (!session) {
-      return NextResponse.json(
-        { error: "로그인이 필요합니다 (판매자 전용)" },
-        { status: 401 },
-      );
-    }
+    const _session = await getSession();
+    const session = requireSeller(_session);
 
     const { fileName, contentType, fileSize } = await req.json();
 
