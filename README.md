@@ -102,7 +102,57 @@ PROD_URL=https://main.xxx.amplifyapp.com ADMIN_PREFLIGHT_TOKEN=your-token node s
 | 15 | Prisma Client | WARN | **FAIL** | **FAIL** | 생성 여부 |
 | 16 | TypeScript | WARN | **FAIL** | **FAIL** | 타입 에러 |
 
-### ADMIN 인증 설정
+### Admin Bootstrap (프로덕션 운영자 생성)
+
+플랫폼 운영자(ADMIN) 계정은 코드에 하드코딩되지 않으며, **환경변수 기반 Bootstrap**으로 생성합니다.
+
+#### 최초 1회 Admin 계정 생성 절차
+
+1. **환경변수 설정** (`.env.local`)
+```bash
+# .env.local (절대 커밋 금지!)
+ADMIN_BOOTSTRAP_EMAIL="owner@yourdomain.com"
+ADMIN_BOOTSTRAP_PASSWORD="your-strong-password"
+```
+
+2. **Seed 실행**
+```bash
+npx prisma db seed
+```
+출력 예시:
+```
+✅ Admin bootstrap: owner@yourdomain.com (role: ADMIN)
+✅ Seed complete
+```
+
+3. **로그인 확인**
+- 로그인 페이지에서 설정한 email/password로 로그인
+- `/admin` 페이지 접근 확인
+
+4. **보안 조치 (필수)**
+```bash
+# .env.local에서 bootstrap 환경변수 즉시 제거
+# ADMIN_BOOTSTRAP_EMAIL= (삭제)
+# ADMIN_BOOTSTRAP_PASSWORD= (삭제)
+```
+
+#### 주의사항
+
+- ⚠️ **절대 커밋 금지**: Bootstrap 환경변수는 `.env.local`에만 설정 (`.gitignore`에 포함됨)
+- ✅ **Idempotent**: Seed를 여러 번 실행해도 안전 (이메일 기준 upsert)
+- ✅ **비밀번호 해싱**: bcrypt로 안전하게 해시되어 저장
+- 🔒 **프로덕션**: 운영 환경에서는 seed가 아닌 별도 admin 관리 UI 권장 (향후 구현)
+
+#### MVP Test Accounts
+
+일반 사용자용 테스트 계정 (seed 자동 생성):
+- **Customer**: id=`1`, password=`1`
+- **Seller**: id=`s`, password=`s`
+- **Admin**: 더 이상 고정 계정 없음 (bootstrap으로 생성 필요)
+
+---
+
+### ADMIN 인증 설정 (Preflight API)
 
 프로덕션 점검 API는 토큰 인증만 지원합니다:
 

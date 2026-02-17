@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { OrderStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -108,7 +109,7 @@ export async function PATCH(request: Request, { params }: Props) {
     }
 
     // Only allow updates for PENDING orders
-    if (order.status !== "PENDING") {
+    if (order.status !== OrderStatus.PENDING) {
       return NextResponse.json(
         { error: "Cannot update address for non-pending order" },
         { status: 400 }

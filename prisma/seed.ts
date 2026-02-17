@@ -44,16 +44,36 @@ async function main() {
   await prisma.sellerProfile.deleteMany();
   await prisma.user.deleteMany();
 
-  // Admin
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@mikro.local" },
-    update: {},
-    create: {
-      email: "admin@mikro.local",
-      name: "Admin",
-      role: UserRole.ADMIN,
-    },
-  });
+  // ========================================
+  // ADMIN BOOTSTRAP (환경변수 기반 - 초기 1회 운영자 생성)
+  // ========================================
+  // 환경변수 ADMIN_BOOTSTRAP_EMAIL + ADMIN_BOOTSTRAP_PASSWORD 설정 시에만 Admin 생성
+  // 설정하지 않으면 SKIP (정상 동작)
+  const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim();
+  const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+
+  let adminBootstrapResult = null;
+
+  if (bootstrapEmail && bootstrapPassword) {
+    const hashedPassword = await bcrypt.hash(bootstrapPassword, 10);
+    const admin = await prisma.user.upsert({
+      where: { email: bootstrapEmail },
+      update: {
+        password: hashedPassword,
+        role: UserRole.ADMIN,
+      },
+      create: {
+        email: bootstrapEmail,
+        name: "Platform Admin",
+        password: hashedPassword,
+        role: UserRole.ADMIN,
+      },
+    });
+    adminBootstrapResult = { email: admin.email, created: true };
+    console.log(`✅ Admin bootstrap: ${admin.email} (role: ADMIN)`);
+  } else {
+    console.log("ℹ️  Admin bootstrap skipped (no ADMIN_BOOTSTRAP_EMAIL/PASSWORD)");
+  }
 
   // ========================================
   // MVP TEST ACCOUNTS (Deterministic IDs)
@@ -325,7 +345,7 @@ async function main() {
 
   console.log("✅ Seed complete");
   console.log({
-    adminEmail: admin.email,
+    adminBootstrap: adminBootstrapResult || "skipped (no env vars)",
     mvpCustomer: { id: mvpCustomer.id, email: mvpCustomer.email, login: "1/1" },
     mvpSeller: { id: mvpSeller.id, email: mvpSeller.email, login: "s/s" },
     sellerEmails: sellers.map((s) => s.email),

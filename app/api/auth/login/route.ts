@@ -10,11 +10,13 @@ export const runtime = "nodejs";
  * POST /api/auth/login
  * Body: { id: string, pw: string }
  *
- * MVP deterministic credentials (mapped to real DB users):
+ * MVP test account shortcuts (mapped to real DB users):
  *   1/1  → Fetches user with email "mvp1@mikro.local" (id: "mvp-customer-1")
  *   s/s  → Fetches user with email "seller1@mikro.local" (id: "mvp-seller-1")
  *
- * + 실제 이메일/비밀번호 로그인 지원
+ * General email/password login:
+ *   - Use actual email address as "id" field
+ *   - Admin accounts use email login (no hardcoded shortcuts)
  */
 export async function POST(req: NextRequest) {
   let body: { id?: string; pw?: string };
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
   try {
     let user;
 
-    // MVP shortcut logins - map to real DB users
+    // MVP test account shortcuts - map to real DB users
     if (id === "1" && pw === "1") {
       user = await prisma.user.findUnique({
         where: { email: "mvp1@mikro.local" },
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
         where: { email: "seller1@mikro.local" },
       });
     } else {
-      // Regular email/password login
+      // Regular email/password login (including admin accounts)
       user = await prisma.user.findUnique({
         where: { email: id },
       });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, canAccessSellerFeatures, isCustomer } from "@/lib/auth";
+import { getSession, isCustomer, isSeller, isAdmin } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
 import { canTransition, assertTransition, OrderTransitionError } from "@/lib/orderState";
 
@@ -18,6 +18,7 @@ interface RouteContext {
  * PATCH /api/orders/[id]/status
  *
  * Update order status with strict role-based permissions and state machine validation.
+ * PRODUCTION-GRADE GOVERNANCE: Seller-driven operations, Admin oversight only.
  *
  * Auth rules:
  * - CUSTOMER can:
@@ -26,18 +27,20 @@ interface RouteContext {
  * - SELLER can:
  *   - PAID -> SHIPPED (ship order)
  *   - SHIPPED -> COMPLETED (mark as completed)
- * - ADMIN can:
- *   - REFUND_REQUESTED -> REFUNDED (approve refund)
+ *   - REFUND_REQUESTED -> REFUNDED (approve refund + restore stock)
+ * - ADMIN:
+ *   - NOT allowed normal transitions
+ *   - Must use override endpoint for dispute resolution
  *
  * Ownership rules:
  * - CUSTOMER must match order.buyerId
  * - SELLER must match order.sellerId
- * - ADMIN bypasses ownership
+ * - ADMIN does not use this endpoint
  *
  * Responses:
  * - 200: Success
  * - 401: Not authenticated
- * - 403: Role mismatch or ownership violation
+ * - 403: Role mismatch, ownership violation, or ADMIN attempted normal transition
  * - 404: Order not found
  * - 400: Invalid transition
  * - 409: Conflict (concurrent update or already in target state)
@@ -90,16 +93,22 @@ export async function PATCH(
         throw new Error("ORDER_NOT_FOUND");
       }
 
-      // 3. Ownership verification
-      // Role check: CUSTOMER or any seller role (SELLER_PENDING, SELLER_ACTIVE, ADMIN)
+      // 3. Role and ownership verification
       const isCustomerRole = isCustomer(session.role);
-      const isSeller = canAccessSellerFeatures(session.role);
+      const isSellerRole = isSeller(session.role);
+      const isAdminRole = isAdmin(session.role);
 
+      // ADMIN is NOT allowed to use normal transitions
+      if (isAdminRole) {
+        throw new Error("FORBIDDEN: ADMIN must use override endpoint for order status changes");
+      }
+
+      // Ownership checks
       if (isCustomerRole && order.buyerId !== session.userId) {
         throw new Error("FORBIDDEN: Order does not belong to you");
       }
 
-      if (isSeller && order.sellerId !== session.userId) {
+      if (isSellerRole && order.sellerId !== session.userId) {
         throw new Error("FORBIDDEN: Order does not belong to your shop");
       }
 
@@ -136,11 +145,12 @@ export async function PATCH(
             `FORBIDDEN: CUSTOMER cannot transition ${order.status} -> ${body.to}`
           );
         }
-      } else if (isSeller) {
-        // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED
+      } else if (isSellerRole) {
+        // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED, REFUND_REQUESTED -> REFUNDED
         const allowedSellerTransitions: [OrderStatus, OrderStatus][] = [
           [OrderStatus.PAID, OrderStatus.SHIPPED],
           [OrderStatus.SHIPPED, OrderStatus.COMPLETED],
+          [OrderStatus.REFUND_REQUESTED, OrderStatus.REFUNDED],
         ];
 
         const isAllowed = allowedSellerTransitions.some(
@@ -153,7 +163,7 @@ export async function PATCH(
           );
         }
       } else {
-        throw new Error("FORBIDDEN: Unknown role");
+        throw new Error("FORBIDDEN: Invalid role");
       }
 
       // 7. Special handling: REFUND (restore stock atomically)

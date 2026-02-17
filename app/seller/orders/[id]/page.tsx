@@ -94,8 +94,16 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
       return;
     }
 
-    if (!confirm(`주문 상태를 "${getStatusLabel(newStatus)}"로 변경하시겠습니까?`)) {
-      return;
+    // Special confirmation for refund approval
+    if (newStatus === "REFUNDED") {
+      const confirmed = confirm(
+        "환불 승인 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.\n\n계속하시겠습니까?"
+      );
+      if (!confirmed) return;
+    } else {
+      if (!confirm(`주문 상태를 "${getStatusLabel(newStatus)}"로 변경하시겠습니까?`)) {
+        return;
+      }
     }
 
     setActionLoading(true);
@@ -103,7 +111,7 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
       const res = await fetch(`/api/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ to: newStatus }),
       });
 
       if (!res.ok) {
@@ -114,7 +122,7 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
 
       // Reload order
       await loadOrder();
-      alert("상태가 변경되었습니다.");
+      alert(newStatus === "REFUNDED" ? "환불이 승인되었습니다." : "상태가 변경되었습니다.");
     } catch (error) {
       console.error("Error changing status:", error);
       alert("상태 변경 중 오류가 발생했습니다.");
@@ -133,6 +141,7 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
 
   const canShip = canTransition(order.status, "SHIPPED");
   const canComplete = canTransition(order.status, "COMPLETED");
+  const canApproveRefund = canTransition(order.status, "REFUNDED");
 
   return (
     <div className="pb-20">
@@ -272,12 +281,24 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
             {actionLoading ? "처리 중..." : "배송 완료 처리"}
           </button>
         )}
-        {order.status === "REFUND_REQUESTED" && (
-          <div className="p-4 bg-orange-50 rounded-xl">
-            <p className="text-[13px] text-orange-800">
-              고객이 환불을 요청했습니다. 관리자 승인 대기 중입니다.
-            </p>
-          </div>
+        {canApproveRefund && (
+          <>
+            <div className="p-4 bg-orange-50 rounded-xl">
+              <p className="text-[13px] text-orange-800 mb-1 font-medium">
+                ⚠️ 고객이 환불을 요청했습니다
+              </p>
+              <p className="text-[12px] text-orange-700">
+                환불 승인 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.
+              </p>
+            </div>
+            <button
+              onClick={() => handleStatusChange("REFUNDED")}
+              disabled={actionLoading}
+              className="w-full h-12 bg-orange-600 text-white rounded-xl text-[15px] font-bold active:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {actionLoading ? "처리 중..." : "환불 승인"}
+            </button>
+          </>
         )}
       </div>
     </div>

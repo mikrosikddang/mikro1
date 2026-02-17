@@ -407,6 +407,135 @@ check('(19) OrderStatus enum-only (no string literals)', () => {
   return 'All status comparisons use OrderStatus enum';
 }, { hardFail: mode === 'prod' });
 
+// Check 20: OrderAuditLog table exists (governance)
+check('(20) OrderAuditLog table exists', () => {
+  const schemaPath = 'prisma/schema.prisma';
+  if (!fileContains(schemaPath, 'model OrderAuditLog')) {
+    throw new Error('OrderAuditLog model not found');
+  }
+  const requiredFields = ['orderId', 'adminId', 'from', 'to', 'reason'];
+  for (const field of requiredFields) {
+    if (!fileContains(schemaPath, field)) {
+      throw new Error(`OrderAuditLog missing field: ${field}`);
+    }
+  }
+  return 'Audit log table exists';
+}, { hardFail: mode === 'prod' });
+
+// Check 21: Admin override endpoint exists
+check('(21) Admin override endpoint exists', () => {
+  const routePath = 'app/api/admin/orders/[id]/override/route.ts';
+  if (!existsSync(join(rootDir, routePath))) {
+    throw new Error('Override API not found');
+  }
+  if (!fileContains(routePath, 'isAdmin')) {
+    throw new Error('isAdmin check not found in override endpoint');
+  }
+  if (!fileContains(routePath, 'orderAuditLog.create')) {
+    throw new Error('Audit logging not found in override endpoint');
+  }
+  return 'Override endpoint with audit logging exists';
+}, { hardFail: mode === 'prod' });
+
+// Check 22: Seller refund approval (not admin)
+check('(22) Seller approves refunds (not admin)', () => {
+  const routePath = 'app/api/orders/[id]/status/route.ts';
+
+  // Verify SELLER can approve refunds
+  if (!fileContains(routePath, 'REFUND_REQUESTED') || !fileContains(routePath, 'REFUNDED')) {
+    throw new Error('Refund status handling not found');
+  }
+
+  // Verify ADMIN is blocked from normal transitions
+  if (!fileContains(routePath, 'ADMIN must use override endpoint')) {
+    throw new Error('ADMIN rejection message not found');
+  }
+
+  return 'Seller refund approval enforced, admin blocked';
+}, { hardFail: mode === 'prod' });
+
+// Check 23: Role helpers used (no string comparisons)
+check('(23) Role helpers used (no string role comparisons)', () => {
+  const routePath = 'app/api/orders/[id]/status/route.ts';
+
+  // Ensure role helpers are imported
+  if (!fileContains(routePath, 'isCustomer') || !fileContains(routePath, 'isSeller') || !fileContains(routePath, 'isAdmin')) {
+    throw new Error('Role helpers not imported');
+  }
+
+  // Check for forbidden string literal role comparisons
+  const content = readFileSync(join(rootDir, routePath), 'utf-8');
+  const forbiddenPatterns = [
+    /role\s*===\s*["']SELLER["']/,
+    /role\s*===\s*["']CUSTOMER["']/,
+    /role\s*===\s*["']ADMIN["']/,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    if (pattern.test(content)) {
+      throw new Error('Found string literal role comparison');
+    }
+  }
+
+  return 'Role helpers used correctly';
+}, { hardFail: mode === 'prod' });
+
+// Check 24: No hardcoded admin credentials (governance security)
+check('(24) No hardcoded admin credentials', () => {
+  const forbiddenPatterns = [
+    'alzmfhtlrEkd',
+    'admin@mikro.local',
+    'mvp-admin-1',
+    'id === "admin"',
+  ];
+
+  const scanDirs = ['.', 'app', 'lib', 'prisma', 'scripts'];
+  const excludeFiles = [
+    '.env.example', // Allowed to have ADMIN_BOOTSTRAP_EMAIL examples
+    'GOVERNANCE_VERIFICATION_REPORT.md', // Contains historical references
+    'README.md', // May document old behavior
+    'preflight.mjs', // This file itself (contains the forbidden patterns as strings)
+  ];
+  const violations = [];
+
+  for (const dir of scanDirs) {
+    const dirPath = join(rootDir, dir);
+    if (!existsSync(dirPath)) continue;
+
+    const files = readdirSync(dirPath, { recursive: true })
+      .filter(f => {
+        // Only scan source files
+        if (!(f.endsWith('.ts') || f.endsWith('.tsx') || f.endsWith('.mjs'))) return false;
+
+        // Exclude certain files
+        const fileName = f.split('/').pop() || '';
+        if (excludeFiles.includes(fileName)) return false;
+
+        // Exclude build/cache directories
+        if (f.includes('node_modules/') || f.includes('.next/') || f.includes('dist/')) return false;
+
+        return true;
+      })
+      .map(f => join(dir, f));
+
+    for (const file of files) {
+      const content = readFileSync(join(rootDir, file), 'utf-8');
+
+      for (const pattern of forbiddenPatterns) {
+        if (content.includes(pattern)) {
+          violations.push(`${file}: "${pattern}"`);
+        }
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(`Found ${violations.length} hardcoded admin credential(s): ${violations.slice(0, 3).join(', ')}${violations.length > 3 ? '...' : ''}`);
+  }
+
+  return 'No hardcoded admin credentials found';
+}, { hardFail: mode === 'prod' });
+
 // ============================================================
 // Print Results
 // ============================================================

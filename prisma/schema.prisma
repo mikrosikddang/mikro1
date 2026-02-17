@@ -260,3 +260,16 @@ model Shipment {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model OrderAuditLog {
+  id        String      @id @default(cuid())
+  orderId   String
+  adminId   String
+  from      OrderStatus
+  to        OrderStatus
+  reason    String
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+  @@index([adminId])
+}
