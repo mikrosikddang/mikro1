@@ -55,10 +55,11 @@ jobs:
           MVP_SELLER_ID: "ci-seller-id"
 
   # Production runtime validation (scheduled + manual)
+  # DISABLED: Requires PROD_URL and ADMIN_PREFLIGHT_TOKEN secrets to be configured
   production-preflight:
     runs-on: ubuntu-latest
-    # Only run on schedule or manual dispatch (not on every push/PR)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Disabled until secrets are configured
+    if: false
 
     steps:
       - name: Checkout code
