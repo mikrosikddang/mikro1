@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getTotalStock, getProductBadge } from "@/lib/productState";
 import ProductCard from "@/components/ProductCard";
-import SellerProductFilter from "@/components/SellerProductFilter";
+import SellerProductTabs from "@/components/SellerProductTabs";
 
 type Props = {
-  searchParams: Promise<{ showHidden?: string; showDeleted?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 };
 
 /** Build variant summary string like "S:10 M:8 L:6" */
@@ -18,8 +18,7 @@ function buildVariantSummary(variants: { sizeLabel: string; stock: number }[]): 
 
 export default async function SellerProductsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const showHidden = params.showHidden === "1";
-  const showDeleted = params.showDeleted === "1";
+  const tab = params.tab || 'active';
 
   const session = await getSession();
   const sellerId = session!.userId; // layout guard guarantees SELLER
@@ -30,7 +29,7 @@ export default async function SellerProductsPage({ searchParams }: Props) {
   });
 
   const allProducts = await prisma.product.findMany({
-    where: { sellerId },
+    where: { sellerId, isDeleted: false },
     orderBy: { createdAt: "desc" },
     include: {
       images: { where: { kind: "MAIN" }, orderBy: { sortOrder: "asc" } },
@@ -48,52 +47,51 @@ export default async function SellerProductsPage({ searchParams }: Props) {
     return { ...p, totalStock: stock, variantSummary };
   });
 
-  // Counts via single-source badge
-  const counts = { ACTIVE: 0, HIDDEN: 0, SOLD_OUT: 0, DELETED: 0 };
-  for (const p of productsWithStock) {
-    counts[getProductBadge({ isActive: p.isActive, isDeleted: p.isDeleted, totalStock: p.totalStock })]++;
-  }
-  const { ACTIVE: activeCount, HIDDEN: hiddenCount, SOLD_OUT: soldOutCount, DELETED: deletedCount } = counts;
+  // Calculate counts for each tab
+  const tabCounts = productsWithStock.reduce((acc, p) => {
+    const stock = p.totalStock;
+    if (!p.isActive) {
+      acc.hidden++;
+    } else if (stock === 0) {
+      acc.soldOut++;
+    } else {
+      acc.active++;
+    }
+    return acc;
+  }, { active: 0, hidden: 0, soldOut: 0 });
 
-  // Filter based on toggles
+  // Filter based on active tab
   const products = productsWithStock.filter((p) => {
-    if (p.isDeleted) return showDeleted;
-    if (!p.isActive) return showHidden;
-    return true;
+    if (tab === 'hidden') return !p.isActive;
+    if (tab === 'sold-out') return p.isActive && p.totalStock === 0;
+    // 'active' tab (default)
+    return p.isActive && p.totalStock > 0;
   });
 
   return (
-    <div className="py-6">
+    <div className="py-4">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-[22px] font-bold text-black">상품 관리</h1>
+            <h1 className="text-[20px] font-bold text-black">상품 관리</h1>
             <p className="text-[13px] text-gray-500 mt-0.5">
               {shopName} · 전체 {allProducts.length}개
             </p>
           </div>
           <Link
             href="/seller/products/new"
-            className="h-10 px-5 bg-black text-white rounded-xl text-[14px] font-medium flex items-center active:bg-gray-800 transition-colors"
+            className="h-10 px-5 bg-black text-white rounded-lg text-[14px] font-medium flex items-center active:bg-gray-800 transition-colors"
           >
             + 상품 올리기
           </Link>
         </div>
       </div>
 
-      {/* Filter toggles */}
-      <div className="mb-4">
-        <Suspense fallback={null}>
-          <SellerProductFilter
-            totalCount={allProducts.length}
-            activeCount={activeCount}
-            hiddenCount={hiddenCount}
-            soldOutCount={soldOutCount}
-            deletedCount={deletedCount}
-          />
-        </Suspense>
-      </div>
+      {/* Status Tabs */}
+      <Suspense fallback={null}>
+        <SellerProductTabs counts={tabCounts} />
+      </Suspense>
 
       {/* Product list */}
       <div className="flex flex-col">

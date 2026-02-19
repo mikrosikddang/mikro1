@@ -29,12 +29,10 @@ interface Order {
 
 const STATUS_FILTERS = [
   { label: "전체", value: null },
-  { label: "결제대기", value: "PENDING" },
   { label: "결제완료", value: "PAID" },
   { label: "배송중", value: "SHIPPED" },
   { label: "환불요청", value: "REFUND_REQUESTED" },
   { label: "완료", value: "COMPLETED" },
-  { label: "취소/실패", value: "CANCELLED" },
 ] as const;
 
 export default function SellerOrdersPage() {
@@ -72,18 +70,18 @@ export default function SellerOrdersPage() {
 
   return (
     <div className="pb-20">
-      <h1 className="text-[22px] font-bold text-black mb-6">주문 관리</h1>
+      <h1 className="text-[20px] font-bold text-black mb-4">주문 관리</h1>
 
       {/* Status filter tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-gray-100">
+      <div className="flex gap-2 overflow-x-auto border-b border-gray-200 mb-4">
         {STATUS_FILTERS.map((filter) => (
           <button
             key={filter.label}
             onClick={() => setSelectedStatus(filter.value)}
-            className={`px-4 py-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors ${
+            className={`pb-3 px-4 text-[14px] font-medium whitespace-nowrap border-b-2 transition-colors ${
               selectedStatus === filter.value
-                ? "bg-black text-white"
-                : "bg-gray-100 text-gray-600 active:bg-gray-200"
+                ? "border-black text-black"
+                : "border-transparent text-gray-500"
             }`}
           >
             {filter.label}
@@ -101,7 +99,7 @@ export default function SellerOrdersPage() {
           주문이 없습니다.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
           {orders.map((order) => {
             const firstItem = order.items[0];
             const itemCount = order.items.length;
@@ -114,20 +112,20 @@ export default function SellerOrdersPage() {
               <Link
                 key={order.id}
                 href={`/seller/orders/${order.id}`}
-                className="block p-4 bg-white border border-gray-100 rounded-xl active:bg-gray-50 transition-colors"
+                className="block p-2.5 bg-white border border-gray-100 rounded-lg active:bg-gray-50 transition-colors"
               >
                 {/* Header */}
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between mb-1.5">
                   <div className="flex-1">
-                    <p className="text-[13px] text-gray-500 mb-1">
+                    <p className="text-[12px] text-gray-500 mb-0.5">
                       {order.orderNo}
                     </p>
-                    <p className="text-[15px] font-medium text-gray-900">
+                    <p className="text-[14px] font-medium text-gray-900">
                       {itemText}
                     </p>
                   </div>
                   <span
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${getStatusColor(
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${getStatusColor(
                       order.status
                     )}`}
                   >
@@ -136,11 +134,11 @@ export default function SellerOrdersPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                  <p className="text-[13px] text-gray-400">
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
+                  <p className="text-[12px] text-gray-400">
                     {new Date(order.createdAt).toLocaleDateString("ko-KR")}
                   </p>
-                  <p className="text-[16px] font-bold text-black">
+                  <p className="text-[15px] font-bold text-black">
                     ₩{order.totalPayKrw.toLocaleString("ko-KR")}
                   </p>
                 </div>

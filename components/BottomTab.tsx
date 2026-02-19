@@ -14,6 +14,11 @@ const tabs = [
 export default function BottomTab() {
   const pathname = usePathname();
 
+  // Hide bottom tab in seller center and admin area
+  if (pathname.startsWith('/seller') || pathname.startsWith('/admin')) {
+    return null;
+  }
+
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
