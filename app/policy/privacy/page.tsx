@@ -141,7 +141,8 @@ export default function PrivacyPage() {
               <li>회원 탈퇴를 통한 개인정보 삭제</li>
             </ul>
             <p className="mt-2">
-              권리 행사는 고객센터 이메일(mikrobrand25@gmail.com) 또는
+              권리 행사는 고객센터 (카카오채널: <a href="http://pf.kakao.com/_CXAmn/chat" className="text-blue-600 underline">미크로브랜드</a>,
+              이메일: mikrobrand25@gmail.com, 전화: 82-10-9186-5859) 또는
               개인정보보호 담당 이메일(mikrodataprotection@gmail.com)로
               서면, 이메일 등을 통해 가능합니다.
             </p>
@@ -157,8 +158,10 @@ export default function PrivacyPage() {
                 <p className="mt-1">이메일: mikrodataprotection@gmail.com</p>
               </div>
               <div>
-                <p className="font-medium">고객센터:</p>
-                <p className="mt-1">이메일: mikrobrand25@gmail.com</p>
+                <p className="font-medium">고객센터 민원접수:</p>
+                <p className="mt-1">카카오채널: <a href="http://pf.kakao.com/_CXAmn/chat" className="text-blue-600 underline">미크로브랜드</a></p>
+                <p>전화: 82-10-9186-5859</p>
+                <p>이메일: mikrobrand25@gmail.com</p>
               </div>
             </div>
             <p className="mt-2">

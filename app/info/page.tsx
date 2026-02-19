@@ -10,25 +10,39 @@ export default function InfoPage() {
         {/* Customer Service */}
         <div className="mb-4 p-4 bg-white rounded-xl border border-gray-200">
           <h2 className="text-[16px] font-bold text-black mb-3">
-            고객센터 / 문의
+            고객센터 민원접수
           </h2>
           <div className="space-y-2">
             <div>
               <p className="text-[13px] text-gray-600 mb-1">
-                Official Contact Email
+                카카오채널
               </p>
+              <a
+                href="http://pf.kakao.com/_CXAmn/chat"
+                className="text-[14px] text-blue-600 font-medium"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                미크로브랜드
+              </a>
+            </div>
+            <div>
+              <p className="text-[13px] text-gray-600 mb-1">전화</p>
+              <a
+                href="tel:+82-10-9186-5859"
+                className="text-[14px] text-blue-600 font-medium"
+              >
+                82-10-9186-5859
+              </a>
+            </div>
+            <div>
+              <p className="text-[13px] text-gray-600 mb-1">이메일</p>
               <a
                 href="mailto:mikrobrand25@gmail.com"
                 className="text-[14px] text-blue-600 font-medium break-all"
               >
                 mikrobrand25@gmail.com
               </a>
-            </div>
-            <div>
-              <p className="text-[13px] text-gray-600 mb-1">운영 시간</p>
-              <p className="text-[14px] text-black">
-                평일 10:00 - 18:00 (주말 및 공휴일 휴무)
-              </p>
             </div>
           </div>
         </div>
@@ -59,11 +73,11 @@ export default function InfoPage() {
           <div className="space-y-3">
             <div>
               <p className="text-[13px] text-gray-600 mb-1">상호</p>
-              <p className="text-[14px] text-black font-medium">미크로</p>
+              <p className="text-[14px] text-black font-medium">미크로브랜드(MIKROBRAND)</p>
             </div>
             <div>
-              <p className="text-[13px] text-gray-600 mb-1">대표자</p>
-              <p className="text-[14px] text-black font-medium">김동현</p>
+              <p className="text-[13px] text-gray-600 mb-1">대표자명</p>
+              <p className="text-[14px] text-black font-medium">정땅</p>
             </div>
             <div>
               <p className="text-[13px] text-gray-600 mb-1">사업자등록번호</p>
@@ -78,16 +92,15 @@ export default function InfoPage() {
               </p>
             </div>
             <div>
-              <p className="text-[13px] text-gray-600 mb-1">OFFICE</p>
+              <p className="text-[13px] text-gray-600 mb-1">사업장소재지 (OFFICE)</p>
               <p className="text-[14px] text-black leading-relaxed">
-                93, Saemal-ro, Guro-gu, Seoul, Jesangga 2-dong, Basement floor,
-                Unit 111, Republic of Korea
+                서울특별시 구로구 새말로 93, 제상가2동 제지층 제111 C136
               </p>
             </div>
             <div>
-              <p className="text-[13px] text-gray-600 mb-1">HEAD OFFICE</p>
+              <p className="text-[13px] text-gray-600 mb-1">사업장소재지 (HEAD OFFICE)</p>
               <p className="text-[14px] text-black leading-relaxed">
-                5F 90, Gyeongin-ro 53-gil, Guro-gu, Seoul, Republic of Korea
+                서울특별시 구로구 경인로 53길 90 14F
               </p>
             </div>
           </div>

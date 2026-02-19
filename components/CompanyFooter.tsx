@@ -5,23 +5,25 @@ export default function CompanyFooter() {
         <div className="space-y-4 text-[13px] text-gray-600">
           {/* Company Info */}
           <div>
-            <p className="font-bold text-gray-800 mb-2">미크로</p>
-            <p>대표자: 김동현</p>
+            <p className="font-bold text-gray-800 mb-2">미크로브랜드(MIKROBRAND)</p>
+            <p>대표자명: 정땅</p>
             <p>사업자등록번호: 443-65-00701</p>
             <p>통신판매업 신고번호: 2025-서울구로-0131</p>
           </div>
 
           {/* Contact */}
           <div>
-            <p>고객센터: mikrobrand25@gmail.com</p>
-            <p>개인정보보호: mikrodataprotection@gmail.com</p>
-            <p className="text-[12px] text-gray-500 mt-1">평일 10:00 - 18:00 (주말·공휴일 휴무)</p>
+            <p className="font-medium mb-1">고객센터 민원접수</p>
+            <p>카카오채널: <a href="http://pf.kakao.com/_CXAmn/chat" className="text-blue-600 underline">미크로브랜드</a></p>
+            <p>전화: 82-10-9186-5859</p>
+            <p>메일: mikrobrand25@gmail.com</p>
+            <p className="mt-2">개인정보보호: mikrodataprotection@gmail.com</p>
           </div>
 
           {/* Address */}
           <div className="text-[12px] text-gray-500">
-            <p>OFFICE: 93, Saemal-ro, Guro-gu, Seoul</p>
-            <p>HEAD OFFICE: 5F 90, Gyeongin-ro 53-gil, Guro-gu, Seoul</p>
+            <p>OFFICE: 서울특별시 구로구 새말로 93, 제상가2동 제지층 제111 C136</p>
+            <p>HEAD OFFICE: 서울특별시 구로구 경인로 53길 90 14F</p>
           </div>
 
           {/* Links */}
