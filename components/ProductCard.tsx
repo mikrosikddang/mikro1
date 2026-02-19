@@ -92,23 +92,38 @@ export default function ProductCard({
       </div>
 
       {/* Product info */}
-      <div className="pt-3 pb-5">
-        <Link href={sellerMode ? `/seller/products/${id}/edit` : `/p/${id}`}>
-          <h3 className="text-[15px] font-medium text-gray-900 leading-snug line-clamp-2">
-            {title}
-          </h3>
-        </Link>
-        <p className="mt-1 text-[17px] font-bold text-black">
-          {formatKrw(priceKrw)}
-        </p>
-
+      <div className="px-4 py-3">
+        {/* Brand name first (customer mode only) */}
         {!sellerMode && (
           <Link
             href={`/s/${sellerId}`}
-            className="mt-1.5 inline-block text-[13px] text-gray-500 hover:text-gray-800 transition-colors"
+            className="inline-block text-[13px] text-gray-500 font-medium hover:text-gray-700 transition-colors"
           >
             {shopName}
           </Link>
+        )}
+
+        {/* Product title */}
+        <Link href={sellerMode ? `/seller/products/${id}/edit` : `/p/${id}`}>
+          <h3 className="mt-1 text-[17px] font-semibold text-black leading-snug line-clamp-2">
+            {title}
+          </h3>
+        </Link>
+
+        {/* Price */}
+        {!sellerMode && (
+          <div className="mt-1.5 flex items-baseline gap-0.5">
+            <span className="text-[14px] text-black">₩</span>
+            <span className="text-[16px] font-semibold text-black tabular-nums">
+              {priceKrw.toLocaleString()}
+            </span>
+          </div>
+        )}
+
+        {sellerMode && (
+          <p className="mt-1 text-[17px] font-bold text-black">
+            {formatKrw(priceKrw)}
+          </p>
         )}
 
         {/* Seller mode: stock adjusters + actions */}

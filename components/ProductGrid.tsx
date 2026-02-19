@@ -90,9 +90,9 @@ export default function ProductGrid({
         </p>
       </div>
 
-      {/* 2-column mobile, 3-column tablet+ grid */}
+      {/* Tight 3-column Instagram-style grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+        <div className="grid grid-cols-3 gap-[1px]">
           {products.map((product) => (
             <ProductGridTile
               key={product.id}

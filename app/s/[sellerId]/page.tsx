@@ -56,25 +56,29 @@ export default async function SellerShopPage({ params }: Props) {
   }));
 
   return (
-    <Container>
-      {/* Instagram-style header */}
-      <SellerShopHeader
-        sellerId={sellerId}
-        shopName={profile.shopName}
-        type={profile.type}
-        marketBuilding={profile.marketBuilding}
-        floor={profile.floor}
-        roomNo={profile.roomNo}
-        avatarUrl={profile.avatarUrl}
-        csEmail={profile.csEmail}
-      />
+    <>
+      <Container>
+        {/* Instagram-style header */}
+        <SellerShopHeader
+          sellerId={sellerId}
+          shopName={profile.shopName}
+          type={profile.type}
+          marketBuilding={profile.marketBuilding}
+          floor={profile.floor}
+          roomNo={profile.roomNo}
+          avatarUrl={profile.avatarUrl}
+          csEmail={profile.csEmail}
+        />
+      </Container>
 
-      {/* Instagram-style product grid with infinite scroll */}
-      <ProductGrid
-        sellerId={sellerId}
-        initialProducts={initialProducts}
-        initialNextCursor={nextCursor}
-      />
-    </Container>
+      {/* Instagram-style product grid - full width, no padding */}
+      <div className="mx-auto w-full max-w-[420px]">
+        <ProductGrid
+          sellerId={sellerId}
+          initialProducts={initialProducts}
+          initialNextCursor={nextCursor}
+        />
+      </div>
+    </>
   );
 }
