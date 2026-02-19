@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
 import ProductCard from "@/components/ProductCard";
+import Disclaimer from "@/components/Disclaimer";
 
 /** Map English URL slugs → Korean category values stored in DB */
 const categoryMap: Record<string, string> = {
@@ -99,6 +100,9 @@ export default async function HomePage({ searchParams }: Props) {
           </div>
         )}
       </div>
+
+      {/* Marketplace disclaimer */}
+      <Disclaimer />
     </Container>
   );
 }

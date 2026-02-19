@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
 import SellerShopHeader from "@/components/SellerShopHeader";
 import ProductGrid from "@/components/ProductGrid";
+import Disclaimer from "@/components/Disclaimer";
 
 type Props = { params: Promise<{ sellerId: string }> };
 
@@ -79,6 +80,11 @@ export default async function SellerShopPage({ params }: Props) {
           initialNextCursor={nextCursor}
         />
       </div>
+
+      {/* Marketplace disclaimer */}
+      <Container>
+        <Disclaimer />
+      </Container>
     </>
   );
 }

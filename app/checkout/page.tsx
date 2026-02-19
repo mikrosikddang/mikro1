@@ -6,6 +6,7 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
 import AddressForm from "@/components/AddressForm";
+import Disclaimer from "@/components/Disclaimer";
 
 interface Address {
   id: string;
@@ -778,6 +779,9 @@ export default function CheckoutPage() {
             </div>
           </div>
         )}
+
+        {/* Marketplace disclaimer */}
+        <Disclaimer />
       </div>
     </Container>
   );

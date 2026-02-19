@@ -10,6 +10,7 @@ import { renderDescriptionForCustomer } from "@/lib/descriptionSchema";
 import { getSession } from "@/lib/auth";
 import SellerNameText from "@/components/typography/SellerNameText";
 import ProductTitleText from "@/components/typography/ProductTitleText";
+import Disclaimer from "@/components/Disclaimer";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -162,6 +163,9 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="mt-4 flex justify-end">
           <WishlistButton productId={product.id} variant="detail" />
         </div>
+
+        {/* Marketplace disclaimer */}
+        <Disclaimer />
       </div>
     </Container>
   );
