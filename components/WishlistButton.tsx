@@ -37,14 +37,16 @@ export default function WishlistButton({ productId, variant = "card" }: Props) {
       aria-label={active ? "관심목록에서 제거" : "관심목록에 추가"}
       className={
         isCard
-          ? "absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-sm active:scale-90 transition-transform"
+          ? "absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center group active:scale-90 transition-transform"
           : "w-[52px] h-[52px] border border-gray-200 rounded-xl flex items-center justify-center active:bg-gray-50 transition-colors"
       }
     >
       <svg
         className={
           isCard
-            ? `w-5 h-5 transition-colors ${active ? "text-red-500" : "text-gray-500"}`
+            ? `w-5 h-5 transition-colors ${
+                active ? "text-red-500" : "text-white/70 group-hover:text-white"
+              }`
             : `w-6 h-6 transition-colors ${active ? "text-red-500" : "text-gray-400"}`
         }
         fill={active ? "currentColor" : "none"}

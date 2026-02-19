@@ -92,7 +92,7 @@ export default function ProductGrid({
 
       {/* 2-column mobile, 3-column tablet+ grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
           {products.map((product) => (
             <ProductGridTile
               key={product.id}

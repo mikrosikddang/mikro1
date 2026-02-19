@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
-import ProductCard from "@/components/ProductCard";
+import ProductGridTile from "@/components/ProductGridTile";
 
 /** Map English URL slugs → Korean category values stored in DB */
 const categoryMap: Record<string, string> = {
@@ -66,38 +66,40 @@ export default async function HomePage({ searchParams }: Props) {
         ))}
       </div>
 
-      <div className="flex flex-col">
-        {products.map((product) => (
-          <ProductCard
-            key={product.id}
-            id={product.id}
-            title={product.title}
-            priceKrw={product.priceKrw}
-            images={product.images.map((i) => ({ url: i.url }))}
-            shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
-            sellerId={product.sellerId}
-          />
-        ))}
+      {/* Premium brand commerce grid */}
+      {products.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 pb-8">
+          {products.map((product) => (
+            <ProductGridTile
+              key={product.id}
+              id={product.id}
+              title={product.title}
+              priceKrw={product.priceKrw}
+              imageUrl={product.images[0]?.url}
+              shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
+              sellerId={product.sellerId}
+            />
+          ))}
+        </div>
+      ) : (
 
-        {products.length === 0 && (
-          <div className="py-20 text-center">
-            <p className="text-[40px] mb-3">🔍</p>
-            <p className="text-gray-400 text-sm">
-              {dbCategory
-                ? `"${dbCategory}" 카테고리에 상품이 없습니다.`
-                : "등록된 상품이 없습니다."}
-            </p>
-            {dbCategory && (
-              <Link
-                href="/"
-                className="inline-block mt-4 px-5 py-2.5 bg-black text-white rounded-xl text-[13px] font-medium"
-              >
-                전체 보기
-              </Link>
-            )}
-          </div>
-        )}
-      </div>
+        <div className="py-20 text-center">
+          <p className="text-[40px] mb-3">🔍</p>
+          <p className="text-gray-400 text-sm">
+            {dbCategory
+              ? `"${dbCategory}" 카테고리에 상품이 없습니다.`
+              : "등록된 상품이 없습니다."}
+          </p>
+          {dbCategory && (
+            <Link
+              href="/"
+              className="inline-block mt-4 px-5 py-2.5 bg-black text-white rounded-xl text-[13px] font-medium"
+            >
+              전체 보기
+            </Link>
+          )}
+        </div>
+      )}
     </Container>
   );
 }
