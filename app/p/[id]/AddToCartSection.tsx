@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoginRedirectUrl } from "@/lib/authHelpers";
 import type { UserRole } from "@prisma/client";
-import { isSeller } from "@/lib/roles";
 
 interface Variant {
   id: string;
@@ -61,8 +60,6 @@ export default function AddToCartSection({
       return;
     }
 
-    // Phase 2: Sellers can now purchase (removed seller blocking logic)
-
     try {
       setLoading(true);
 
@@ -75,7 +72,6 @@ export default function AddToCartSection({
       const data = await res.json();
 
       if (res.status === 401) {
-        // Not logged in - redirect to login with return URL
         router.push(getLoginRedirectUrl());
         return;
       }
@@ -117,15 +113,12 @@ export default function AddToCartSection({
 
     // Check authentication before API call
     if (!userRole) {
-      // Not logged in - show message and redirect
       setMessage("로그인이 필요합니다");
       setTimeout(() => {
         router.push(getLoginRedirectUrl());
       }, 1000);
       return;
     }
-
-    // Phase 2: Sellers can now purchase (removed seller blocking logic)
 
     try {
       setLoading(true);
@@ -139,7 +132,6 @@ export default function AddToCartSection({
       const data = await res.json();
 
       if (res.status === 401) {
-        // Not logged in - redirect to login with return URL
         router.push(getLoginRedirectUrl());
         return;
       }
@@ -164,58 +156,48 @@ export default function AddToCartSection({
     }
   };
 
-  const handleGoToCart = () => {
-    router.push("/cart");
-  };
-
   const maxQuantity = selectedVariant ? selectedVariant.stock : 99;
 
   return (
-    <div className="space-y-4">
-      {/* Variants selection */}
+    <div className="space-y-6">
+      {/* Size selection dropdown */}
       {variants.length > 0 && (
         <div>
-          <label className="block text-[14px] font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             사이즈 선택
           </label>
-          <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedVariantId || ""}
+            onChange={(e) => {
+              const variantId = e.target.value;
+              setSelectedVariantId(variantId || null);
+
+              // Reset quantity if it exceeds new variant's stock
+              const variant = variants.find((v) => v.id === variantId);
+              if (variant && quantity > variant.stock) {
+                setQuantity(Math.min(1, variant.stock));
+              }
+            }}
+            className="w-full py-3 px-4 text-base rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-black transition-colors"
+          >
+            <option value="">선택하세요</option>
             {variants.map((v) => {
               const label = v.sizeLabel === "FREE" ? "FREE" : v.sizeLabel;
               const outOfStock = v.stock <= 0;
-              const isSelected = v.id === selectedVariantId;
-
               return (
-                <button
-                  key={v.id}
-                  type="button"
-                  disabled={outOfStock}
-                  onClick={() => {
-                    setSelectedVariantId(v.id);
-                    // Reset quantity if it exceeds new variant's stock
-                    if (quantity > v.stock) {
-                      setQuantity(Math.min(1, v.stock));
-                    }
-                  }}
-                  className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all ${
-                    outOfStock
-                      ? "bg-gray-100 text-gray-400 line-through cursor-not-allowed"
-                      : isSelected
-                        ? "bg-black text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-                  }`}
-                >
-                  {label} ({v.stock})
-                </button>
+                <option key={v.id} value={v.id} disabled={outOfStock}>
+                  {label} {outOfStock ? "(품절)" : ""}
+                </option>
               );
             })}
-          </div>
+          </select>
         </div>
       )}
 
       {/* Quantity selector */}
       {selectedVariantId && (
         <div>
-          <label className="block text-[14px] font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             수량
           </label>
           <div className="flex items-center gap-3">
@@ -227,7 +209,7 @@ export default function AddToCartSection({
             >
               −
             </button>
-            <span className="text-[18px] font-bold text-black min-w-[3ch] text-center">
+            <span className="text-lg font-bold text-black min-w-[3ch] text-center">
               {quantity}
             </span>
             <button
@@ -244,39 +226,42 @@ export default function AddToCartSection({
 
       {/* Message */}
       {message && (
-        <div className="p-3 rounded-lg bg-black/90 text-white text-center text-[14px] font-medium">
+        <div className="p-3 rounded-lg bg-black/90 text-white text-center text-sm font-medium">
           {message}
         </div>
       )}
 
+      {/* Divider */}
+      <div className="border-t border-gray-100" />
+
       {/* CTA buttons */}
-      <div className="space-y-3">
+      {!selectedVariantId ? (
+        <button
+          disabled
+          className="w-full h-[52px] bg-gray-100 text-gray-400 rounded-lg text-base font-medium cursor-not-allowed"
+        >
+          옵션을 선택하세요
+        </button>
+      ) : (
         <div className="flex gap-3">
           <button
             type="button"
             onClick={handleDirectPurchase}
-            disabled={isSoldOut || !selectedVariantId || loading}
-            className="flex-1 h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            disabled={isSoldOut || loading}
+            className="flex-1 h-[52px] bg-black text-white rounded-lg text-base font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             {loading ? "처리 중..." : isSoldOut ? "품절" : "바로구매"}
           </button>
           <button
             type="button"
             onClick={handleAddToCart}
-            disabled={isSoldOut || !selectedVariantId || loading}
-            className="flex-1 h-[52px] bg-gray-700 text-white rounded-xl text-[16px] font-bold active:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            disabled={isSoldOut || loading}
+            className="flex-1 h-[52px] border-2 border-black text-black rounded-lg text-base font-bold active:bg-gray-50 transition-colors disabled:border-gray-300 disabled:text-gray-300 disabled:cursor-not-allowed"
           >
             {loading ? "처리 중..." : "장바구니"}
           </button>
         </div>
-        <button
-          type="button"
-          onClick={handleGoToCart}
-          className="w-full h-[44px] bg-gray-100 text-gray-700 rounded-xl text-[14px] font-medium active:bg-gray-200 transition-colors"
-        >
-          장바구니 보기
-        </button>
-      </div>
+      )}
     </div>
   );
 }

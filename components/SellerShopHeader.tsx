@@ -41,7 +41,7 @@ export default function SellerShopHeader({
   const csLabel = csEmail ? "이메일 문의" : "채팅 문의";
 
   return (
-    <div className="py-6 border-b border-gray-100">
+    <div className="py-6 border-b border-gray-200 mb-6">
       {/* Avatar + Shop Info Row */}
       <div className="flex items-start gap-4 mb-4">
         {/* Avatar */}

@@ -84,15 +84,15 @@ export default function ProductGrid({
   return (
     <div className="pb-20">
       {/* Product count */}
-      <div className="py-4">
-        <p className="text-[14px] text-gray-500">
-          상품 <span className="font-bold text-black">{products.length}</span>개
+      <div className="py-4 mb-2">
+        <p className="text-sm text-gray-600">
+          상품 <span className="font-bold text-black">{products.length}</span>
         </p>
       </div>
 
-      {/* 3-column grid */}
+      {/* 2-column mobile, 3-column tablet+ grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {products.map((product) => (
             <ProductGridTile
               key={product.id}

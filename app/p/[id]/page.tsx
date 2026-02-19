@@ -45,44 +45,47 @@ export default async function ProductDetailPage({ params }: Props) {
       />
 
       {/* Product info */}
-      <div className="py-5">
-        {/* Seller info */}
+      <div className="py-6">
+        {/* Seller name */}
         <Link
           href={`/s/${product.sellerId}`}
-          className="inline-flex items-center gap-2 mb-3"
+          className="text-sm font-medium text-gray-600 hover:text-black transition-colors"
         >
-          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-[11px] font-bold text-gray-500">
-            {shopName.charAt(0)}
-          </div>
-          <span className="text-[14px] font-medium text-gray-700 hover:text-black transition-colors">
-            {shopName}
-          </span>
+          {shopName}
         </Link>
 
-        <h1 className="text-[20px] font-bold text-black leading-tight">
+        {/* Product title */}
+        <h1 className="mt-2 text-2xl font-bold text-black tracking-tight leading-snug">
           {product.title}
         </h1>
 
-        <p className="mt-2 text-[24px] font-extrabold text-black">
-          {formatKrw(product.priceKrw)}
-        </p>
+        {/* Price */}
+        <div className="mt-4 mb-6">
+          <span className="text-xl text-black">₩</span>
+          <span className="text-3xl font-bold text-black tracking-tight">
+            {product.priceKrw.toLocaleString()}
+          </span>
+        </div>
 
         {/* Sold out badge */}
         {isSoldOut && (
-          <span className="mt-3 inline-block px-3 py-1.5 rounded-full bg-red-500 text-white text-[13px] font-bold">
-            품절
-          </span>
+          <div className="mb-6">
+            <span className="inline-block px-3 py-1.5 rounded-full bg-red-500 text-white text-sm font-bold">
+              품절
+            </span>
+          </div>
         )}
 
+        {/* Divider */}
+        <div className="border-t border-gray-100 my-6" />
+
         {/* Add to cart section */}
-        <div className="mt-6">
-          <AddToCartSection
-            productId={product.id}
-            variants={product.variants}
-            isSoldOut={isSoldOut}
-            userRole={session?.role ?? null}
-          />
-        </div>
+        <AddToCartSection
+          productId={product.id}
+          variants={product.variants}
+          isSoldOut={isSoldOut}
+          userRole={session?.role ?? null}
+        />
 
         {/* Description */}
         {(() => {
