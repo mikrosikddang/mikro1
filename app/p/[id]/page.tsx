@@ -8,6 +8,8 @@ import WishlistButton from "@/components/WishlistButton";
 import AddToCartSection from "./AddToCartSection";
 import { renderDescriptionForCustomer } from "@/lib/descriptionSchema";
 import { getSession } from "@/lib/auth";
+import SellerNameText from "@/components/typography/SellerNameText";
+import ProductTitleText from "@/components/typography/ProductTitleText";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -45,47 +47,32 @@ export default async function ProductDetailPage({ params }: Props) {
       />
 
       {/* Product info */}
-      <div className="py-6">
-        {/* Seller name */}
-        <Link
-          href={`/s/${product.sellerId}`}
-          className="text-sm font-medium text-gray-600 hover:text-black transition-colors"
-        >
-          {shopName}
-        </Link>
-
-        {/* Product title */}
-        <h1 className="mt-2 text-2xl font-bold text-black tracking-tight leading-snug">
-          {product.title}
-        </h1>
-
-        {/* Price */}
-        <div className="mt-4 mb-6">
-          <span className="text-xl text-black">₩</span>
-          <span className="text-3xl font-bold text-black tracking-tight">
-            {product.priceKrw.toLocaleString()}
-          </span>
+      <div className="py-5">
+        {/* Seller name + Product title - tight hierarchy */}
+        <SellerNameText sellerId={product.sellerId} shopName={shopName} />
+        <div className="mt-1">
+          <ProductTitleText title={product.title} />
         </div>
 
         {/* Sold out badge */}
         {isSoldOut && (
-          <div className="mb-6">
+          <div className="mt-3">
             <span className="inline-block px-3 py-1.5 rounded-full bg-red-500 text-white text-sm font-bold">
               품절
             </span>
           </div>
         )}
 
-        {/* Divider */}
-        <div className="border-t border-gray-100 my-6" />
-
-        {/* Add to cart section */}
-        <AddToCartSection
-          productId={product.id}
-          variants={product.variants}
-          isSoldOut={isSoldOut}
-          userRole={session?.role ?? null}
-        />
+        {/* Purchase panel card - contains price, options, CTA */}
+        <div className="mt-4">
+          <AddToCartSection
+            productId={product.id}
+            variants={product.variants}
+            isSoldOut={isSoldOut}
+            userRole={session?.role ?? null}
+            priceKrw={product.priceKrw}
+          />
+        </div>
 
         {/* Description */}
         {(() => {
