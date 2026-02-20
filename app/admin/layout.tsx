@@ -21,25 +21,25 @@ export default async function AdminLayout({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/admin" className="text-lg font-bold">
-              🛡️ Admin Panel
+              🛡️ 관리자 패널
             </Link>
             <nav className="flex gap-4 text-sm">
               <Link href="/admin" className="hover:underline">
-                Overview
+                대시보드
               </Link>
               <Link href="/admin/sellers" className="hover:underline">
-                Sellers
+                판매자 관리
               </Link>
               <Link href="/admin/orders" className="hover:underline">
-                Orders
+                주문 관리
               </Link>
               <Link href="/admin/disputes" className="hover:underline">
-                Disputes
+                분쟁 처리
               </Link>
             </nav>
           </div>
           <div className="text-xs bg-red-800 px-2 py-1 rounded">
-            Admin: {session.userId}
+            관리자: {session.userId}
           </div>
         </div>
       </div>

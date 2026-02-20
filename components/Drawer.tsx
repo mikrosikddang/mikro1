@@ -5,53 +5,64 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import LogoutButton from "@/components/LogoutButton";
-import { canAccessSellerFeatures } from "@/lib/roles";
+import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
+import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 
 type DrawerProps = {
   open: boolean;
   onClose: () => void;
 };
 
-type Section = {
-  title: string;
-  links: { label: string; href: string }[];
+type NavigationGroup = {
+  id: string;
+  label: string;
+  adminOnly?: boolean;
   sellerOnly?: boolean;
+  items: { label: string; href: string }[];
 };
 
-const sections: Section[] = [
+const navigationGroups: NavigationGroup[] = [
   {
-    title: "카테고리",
-    links: [
+    id: "browse",
+    label: "BROWSE",
+    items: [
       { label: "바지", href: "/?category=pants" },
       { label: "아우터", href: "/?category=outer" },
       { label: "반팔티", href: "/?category=short" },
       { label: "긴팔티", href: "/?category=long" },
       { label: "니트", href: "/?category=knit" },
+      { label: "브랜드 보기", href: "/brands" },
     ],
   },
   {
-    title: "브랜드",
-    links: [{ label: "브랜드 보기", href: "/brands" }],
-  },
-  {
-    title: "판매자",
-    links: [
+    id: "seller",
+    label: "SELLER",
+    sellerOnly: true,
+    items: [
       { label: "대시보드", href: "/seller" },
       { label: "상품 관리", href: "/seller/products" },
       { label: "주문 관리", href: "/seller/orders" },
     ],
-    sellerOnly: true,
   },
   {
-    title: "정책",
-    links: [
-      { label: "이용약관", href: "/policy/terms" },
-      { label: "개인정보처리방침", href: "/policy/privacy" },
+    id: "admin",
+    label: "ADMIN",
+    adminOnly: true,
+    items: [
+      { label: "플랫폼 관리", href: "/admin" },
+      { label: "판매자 승인", href: "/admin/sellers" },
+      { label: "주문 모니터링", href: "/admin/orders" },
+      { label: "분쟁 처리", href: "/admin/disputes" },
     ],
   },
   {
-    title: "입점/광고",
-    links: [{ label: "입점 안내", href: "/apply" }],
+    id: "info",
+    label: "INFORMATION",
+    items: [
+      { label: "이용약관", href: "/policy/terms" },
+      { label: "개인정보처리방침", href: "/policy/privacy" },
+      { label: "입점 안내", href: "/apply" },
+    ],
   },
 ];
 
@@ -61,6 +72,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const session = useSession();
 
   const isSeller = session ? canAccessSellerFeatures(session.role) : false;
+  const isAdminUser = session ? isAdmin(session.role) : false;
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -82,65 +94,81 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     };
   }, [open]);
 
-  const visibleSections = sections.filter(
-    (s) => !s.sellerOnly || isSeller,
-  );
+  const visibleGroups = navigationGroups.filter((g) => {
+    if (g.adminOnly) return isAdminUser;
+    if (g.sellerOnly) return isSeller;
+    return true;
+  });
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay - softer backdrop */}
       <div
-        className={`fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[60] bg-black/30 transition-opacity duration-200 ease-out ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer panel */}
+      {/* Drawer panel - brand navigation feel */}
       <aside
         aria-hidden={!open}
-        className={`fixed top-0 right-0 z-[70] h-full w-[85%] max-w-[360px] bg-white shadow-xl transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 z-[70] h-full w-[85%] max-w-[360px] bg-white shadow-lg transition-transform duration-200 ease-out ${
           !open ? "pointer-events-none" : ""
         }`}
         style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 h-[52px] border-b border-gray-100">
-          <span className="text-[16px] font-bold">메뉴</span>
+        {/* Header - 56px height, brand identity */}
+        <div className="flex items-center justify-between px-6 h-14 border-b border-gray-100">
+          <span className="text-[15px] font-semibold tracking-tight text-black">
+            mikro
+          </span>
           <button
             onClick={onClose}
-            className="p-1"
+            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black transition-colors"
             aria-label="닫기"
           >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Content */}
-        <nav className="overflow-y-auto h-[calc(100%-52px)] px-5 pb-10 flex flex-col">
-          {/* Login status */}
-          <div className="mt-4 mb-2 px-1">
+        {/* Content - clean hierarchy */}
+        <nav className="overflow-y-auto h-[calc(100%-56px)] pb-10 flex flex-col">
+          {/* Home feed view toggle - at top */}
+          <HomeFeedViewToggle />
+
+          {/* Login status - refined */}
+          <div className="mt-3 mb-2 px-6">
             {session ? (
               <div className="flex items-center gap-2">
-                <span className="text-[13px] text-gray-500">
-                  {canAccessSellerFeatures(session.role) ? "🏪 판매자" : "👤 고객"}
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-[13px]">
+                    {isAdminUser ? "🛡️" : isSeller ? "🏪" : "👤"}
+                  </span>
+                </div>
+                <span className="text-[13px] font-medium text-gray-700">
+                  {isAdminUser
+                    ? "관리자"
+                    : canAccessSellerFeatures(session.role)
+                      ? "판매자"
+                      : "고객"}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <Link
                   href="/login"
-                  className="text-[13px] font-medium text-black underline"
+                  className="text-[14px] font-medium text-black hover:text-gray-600 transition-colors"
                 >
                   로그인
                 </Link>
-                <span className="text-gray-300">|</span>
+                <span className="text-gray-300">·</span>
                 <Link
                   href="/signup"
-                  className="text-[13px] font-medium text-black underline"
+                  className="text-[14px] font-medium text-black hover:text-gray-600 transition-colors"
                 >
                   회원가입
                 </Link>
@@ -148,29 +176,34 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             )}
           </div>
 
-          {/* Menu sections */}
+          {/* Navigation groups - clean sections */}
           <div className="flex-1">
-            {visibleSections.map((section) => (
-              <div key={section.title}>
-                <h3 className="text-xs uppercase text-gray-400 mt-6 mb-2 tracking-wide">
-                  {section.title}
+            {visibleGroups.map((group) => (
+              <div key={group.id} className="mt-6 first:mt-4">
+                {/* Section header - uppercase, spaced */}
+                <h3 className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-3 px-1">
+                  {group.label}
                 </h3>
-                {section.links.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="block py-3 border-b border-gray-50 text-base text-gray-800 active:text-black transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+
+                {/* Menu items - no borders, clean hierarchy */}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block px-3 py-2.5 text-[16px] font-medium text-gray-900 hover:text-black hover:bg-gray-50 rounded-md transition-all leading-none"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Logout button at bottom - logged in users only */}
+          {/* Logout - minimal divider, refined button */}
           {session && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
+            <div className="mt-8 pt-6 border-t border-gray-100">
               <LogoutButton variant="drawer" />
             </div>
           )}

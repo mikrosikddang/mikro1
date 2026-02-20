@@ -24,6 +24,9 @@ export default function CompanyFooter() {
           <div className="text-[12px] text-gray-500">
             <p>OFFICE: 서울특별시 구로구 새말로 93, 제상가2동 제지층 제111 C136</p>
             <p>HEAD OFFICE: 서울특별시 구로구 경인로 53길 90 14F</p>
+            <p className="mt-3 text-[11px] text-gray-400 leading-relaxed">
+              미크로는 통신판매의 당사자가 아닌 통신판매중개자로서 상품, 상품정보, 거래에 대한 책임이 제한될 수 있으므로, 각 상품 페이지에서 구체적인 내용을 확인하시기 바랍니다.
+            </p>
           </div>
 
           {/* Links */}

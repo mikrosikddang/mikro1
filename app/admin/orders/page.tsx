@@ -49,12 +49,12 @@ export default function AdminOrdersPage() {
           ? "/api/admin/orders"
           : `/api/admin/orders?status=${selectedStatus}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load orders");
+      if (!res.ok) throw new Error("주문 목록을 불러오는데 실패했습니다");
       const data = await res.json();
       setOrders(data.orders || []);
     } catch (error) {
-      console.error("Error loading orders:", error);
-      alert("Failed to load orders");
+      console.error("주문 로딩 오류:", error);
+      alert("주문 목록을 불러오는데 실패했습니다");
     } finally {
       setLoading(false);
     }
@@ -62,20 +62,20 @@ export default function AdminOrdersPage() {
 
   const handleOverride = async (orderId: string, currentStatus: OrderStatus) => {
     const newStatus = prompt(
-      `Override order ${orderId} to status (current: ${currentStatus}):\n\nValid statuses: PENDING, PAID, SHIPPED, COMPLETED, CANCELLED, REFUND_REQUESTED, REFUNDED, FAILED`
+      `주문 ${orderId}의 상태를 변경합니다 (현재: ${getStatusLabel(currentStatus)}):\n\n가능한 상태: PENDING, PAID, SHIPPED, COMPLETED, CANCELLED, REFUND_REQUESTED, REFUNDED, FAILED`
     );
 
     if (!newStatus) return;
 
-    const reason = prompt("Enter override reason (min 10 characters, required):");
+    const reason = prompt("변경 사유를 입력하세요 (최소 10자 이상, 필수):");
     if (!reason || reason.trim().length < 10) {
-      alert("Override reason must be at least 10 characters");
+      alert("변경 사유는 최소 10자 이상이어야 합니다");
       return;
     }
 
     if (
       !confirm(
-        `⚠️ OVERRIDE ORDER STATUS\n\nOrder: ${orderId}\nFrom: ${currentStatus}\nTo: ${newStatus}\n\nThis is an emergency action that bypasses normal rules. Continue?`
+        `⚠️ 주문 상태 강제 변경\n\n주문: ${orderId}\n현재: ${getStatusLabel(currentStatus)}\n변경: ${newStatus}\n\n이 작업은 긴급 상황에서만 사용해야 합니다. 계속하시겠습니까?`
       )
     ) {
       return;
@@ -90,14 +90,14 @@ export default function AdminOrdersPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to override order");
+        throw new Error(data.error || "주문 상태 변경에 실패했습니다");
       }
 
-      alert("Order status overridden successfully. This action has been logged.");
+      alert("주문 상태가 성공적으로 변경되었습니다. 이 작업은 로그에 기록됩니다.");
       loadOrders();
     } catch (error: any) {
-      console.error("Error overriding order:", error);
-      alert(error.message || "Failed to override order");
+      console.error("주문 상태 변경 오류:", error);
+      alert(error.message || "주문 상태 변경에 실패했습니다");
     }
   };
 
@@ -117,10 +117,10 @@ export default function AdminOrdersPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
-          Order Monitoring
+          주문 모니터링
         </h1>
         <p className="text-sm text-gray-600 mb-4">
-          Monitor platform orders. Use override only for dispute resolution.
+          플랫폼의 모든 주문을 모니터링합니다. 상태 변경은 분쟁 해결 시에만 사용하세요.
         </p>
 
         {/* Status filters */}
@@ -135,17 +135,17 @@ export default function AdminOrdersPage() {
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {status === "ALL" ? "ALL" : getStatusLabel(status as OrderStatus)}
+              {status === "ALL" ? "전체" : getStatusLabel(status as OrderStatus)}
             </button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="text-center py-12 text-gray-500">로딩 중...</div>
       ) : orders.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          No orders found with status: {selectedStatus}
+          {selectedStatus === "ALL" ? "전체" : getStatusLabel(selectedStatus as OrderStatus)} 상태의 주문이 없습니다
         </div>
       ) : (
         <div className="space-y-3">
@@ -170,14 +170,14 @@ export default function AdminOrdersPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-900">
                     {order.items[0]?.product.title}
-                    {order.items.length > 1 && ` +${order.items.length - 1} more`}
+                    {order.items.length > 1 && ` 외 ${order.items.length - 1}개`}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Buyer: {order.buyer.email || order.buyer.name || order.buyer.id} •
-                    Seller: {order.seller.sellerProfile?.shopName || order.seller.id}
+                    구매자: {order.buyer.email || order.buyer.name || order.buyer.id} •
+                    판매자: {order.seller.sellerProfile?.shopName || order.seller.id}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(order.createdAt).toLocaleString()}
+                    {new Date(order.createdAt).toLocaleString("ko-KR")}
                   </p>
                 </div>
                 <div className="text-right">
@@ -193,13 +193,13 @@ export default function AdminOrdersPage() {
                   onClick={() => handleOverride(order.id, order.status)}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors"
                 >
-                  🛡️ Override Status
+                  🛡️ 상태 변경
                 </button>
                 <a
                   href={`/admin/orders/${order.id}`}
                   className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
                 >
-                  View Details →
+                  상세 보기 →
                 </a>
               </div>
             </div>

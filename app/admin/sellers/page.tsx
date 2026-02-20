@@ -42,19 +42,19 @@ export default function AdminSellersPage() {
           ? "/api/admin/sellers"
           : `/api/admin/sellers?status=${statusFilter}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load sellers");
+      if (!res.ok) throw new Error("판매자 목록을 불러오는데 실패했습니다");
       const data = await res.json();
       setSellers(data.sellers || []);
     } catch (error) {
-      console.error("Error loading sellers:", error);
-      alert("Failed to load sellers");
+      console.error("판매자 로딩 오류:", error);
+      alert("판매자 목록을 불러오는데 실패했습니다");
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (sellerId: string) => {
-    if (!confirm("Approve this seller application?")) return;
+    if (!confirm("이 판매자 신청을 승인하시겠습니까?")) return;
 
     try {
       const res = await fetch(`/api/admin/sellers/${sellerId}/approve`, {
@@ -63,21 +63,21 @@ export default function AdminSellersPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to approve seller");
+        throw new Error(data.error || "판매자 승인에 실패했습니다");
       }
 
-      alert("Seller approved successfully");
+      alert("판매자가 성공적으로 승인되었습니다");
       loadSellers();
     } catch (error: any) {
-      console.error("Error approving seller:", error);
-      alert(error.message || "Failed to approve seller");
+      console.error("판매자 승인 오류:", error);
+      alert(error.message || "판매자 승인에 실패했습니다");
     }
   };
 
   const handleReject = async (sellerId: string) => {
-    const reason = prompt("Enter rejection reason (required):");
+    const reason = prompt("거부 사유를 입력하세요 (최소 10자 이상):");
     if (!reason || reason.trim().length < 10) {
-      alert("Rejection reason must be at least 10 characters");
+      alert("거부 사유는 최소 10자 이상이어야 합니다");
       return;
     }
 
@@ -90,21 +90,28 @@ export default function AdminSellersPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to reject seller");
+        throw new Error(data.error || "판매자 거부에 실패했습니다");
       }
 
-      alert("Seller rejected");
+      alert("판매자가 거부되었습니다");
       loadSellers();
     } catch (error: any) {
-      console.error("Error rejecting seller:", error);
-      alert(error.message || "Failed to reject seller");
+      console.error("판매자 거부 오류:", error);
+      alert(error.message || "판매자 거부에 실패했습니다");
     }
+  };
+
+  const statusLabels = {
+    ALL: "전체",
+    PENDING: "대기",
+    APPROVED: "승인",
+    REJECTED: "거부",
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Seller Management</h1>
+        <h1 className="text-2xl font-bold text-gray-900">판매자 관리</h1>
         <div className="flex gap-2">
           {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map((status) => (
             <button
@@ -116,17 +123,17 @@ export default function AdminSellersPage() {
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {status}
+              {statusLabels[status]}
             </button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="text-center py-12 text-gray-500">로딩 중...</div>
       ) : sellers.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          No sellers found with status: {statusFilter}
+          {statusLabels[statusFilter]} 상태의 판매자가 없습니다
         </div>
       ) : (
         <div className="space-y-4">
@@ -141,10 +148,10 @@ export default function AdminSellersPage() {
                     {seller.shopName}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {seller.user.email || seller.user.phone || "No contact"}
+                    {seller.user.email || seller.user.phone || "연락처 없음"}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Applied: {new Date(seller.createdAt).toLocaleDateString()}
+                    신청일: {new Date(seller.createdAt).toLocaleDateString("ko-KR")}
                   </p>
                 </div>
                 <span
@@ -156,33 +163,33 @@ export default function AdminSellersPage() {
                       : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
-                  {seller.status}
+                  {statusLabels[seller.status]}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                 <div>
-                  <p className="text-gray-500">Type</p>
+                  <p className="text-gray-500">업종</p>
                   <p className="font-medium text-gray-900">
                     {seller.type || "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Market Building</p>
+                  <p className="text-gray-500">시장/건물</p>
                   <p className="font-medium text-gray-900">
                     {seller.marketBuilding || "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Location</p>
+                  <p className="text-gray-500">위치</p>
                   <p className="font-medium text-gray-900">
                     {seller.floor && seller.roomNo
-                      ? `${seller.floor}F, Room ${seller.roomNo}`
+                      ? `${seller.floor}층, ${seller.roomNo}호`
                       : "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Manager</p>
+                  <p className="text-gray-500">담당자</p>
                   <p className="font-medium text-gray-900">
                     {seller.managerName || "-"}
                     {seller.managerPhone && ` (${seller.managerPhone})`}
@@ -193,7 +200,7 @@ export default function AdminSellersPage() {
               {seller.status === "REJECTED" && seller.rejectedReason && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
                   <p className="text-xs text-red-600 font-medium mb-1">
-                    Rejection Reason:
+                    거부 사유:
                   </p>
                   <p className="text-sm text-red-800">{seller.rejectedReason}</p>
                 </div>
@@ -205,13 +212,13 @@ export default function AdminSellersPage() {
                     onClick={() => handleApprove(seller.id)}
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                   >
-                    ✓ Approve
+                    ✓ 승인
                   </button>
                   <button
                     onClick={() => handleReject(seller.id)}
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
                   >
-                    ✗ Reject
+                    ✗ 거부
                   </button>
                 </div>
               )}

@@ -28,40 +28,40 @@ export default async function AdminDashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Platform Overview
+        플랫폼 현황
       </h1>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-500 mb-2">Total Users</p>
+          <p className="text-sm text-gray-500 mb-2">전체 사용자</p>
           <p className="text-3xl font-bold text-gray-900">{totalUsers}</p>
           <p className="text-xs text-gray-400 mt-1">
-            {totalCustomers} customers, {totalSellers} sellers
+            고객 {totalCustomers}명, 판매자 {totalSellers}명
           </p>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-500 mb-2">Pending Sellers</p>
+          <p className="text-sm text-gray-500 mb-2">승인 대기 판매자</p>
           <p className="text-3xl font-bold text-orange-600">{pendingSellers}</p>
           <Link
             href="/admin/sellers"
             className="text-xs text-blue-600 hover:underline mt-1 inline-block"
           >
-            Review applications →
+            신청서 검토하기 →
           </Link>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-500 mb-2">Total Orders</p>
+          <p className="text-sm text-gray-500 mb-2">전체 주문</p>
           <p className="text-3xl font-bold text-gray-900">{totalOrders}</p>
-          <p className="text-xs text-gray-400 mt-1">{totalProducts} products listed</p>
+          <p className="text-xs text-gray-400 mt-1">등록된 상품 {totalProducts}개</p>
         </div>
       </div>
 
       {/* Alerts */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-900">Attention Required</h2>
+        <h2 className="text-lg font-bold text-gray-900">처리 필요 항목</h2>
 
         {pendingSellers > 0 && (
           <Link
@@ -71,10 +71,10 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-orange-900">
-                  {pendingSellers} seller approval{pendingSellers > 1 ? "s" : ""} pending
+                  {pendingSellers}개의 판매자 승인 대기 중
                 </p>
                 <p className="text-sm text-orange-700">
-                  Review and approve new seller applications
+                  신규 판매자 신청을 검토하고 승인하세요
                 </p>
               </div>
               <span className="text-orange-600">→</span>
@@ -90,10 +90,10 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-red-900">
-                  {refundRequests} refund request{refundRequests > 1 ? "s" : ""} pending
+                  {refundRequests}건의 환불 요청 대기 중
                 </p>
                 <p className="text-sm text-red-700">
-                  Monitor seller refund processing
+                  판매자의 환불 처리를 모니터링하세요
                 </p>
               </div>
               <span className="text-red-600">→</span>
@@ -103,9 +103,9 @@ export default async function AdminDashboardPage() {
 
         {pendingSellers === 0 && refundRequests === 0 && (
           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-            <p className="text-green-900 font-medium">✓ All clear</p>
+            <p className="text-green-900 font-medium">✓ 모두 처리 완료</p>
             <p className="text-sm text-green-700">
-              No pending actions required at this time
+              현재 처리가 필요한 항목이 없습니다
             </p>
           </div>
         )}
@@ -113,24 +113,24 @@ export default async function AdminDashboardPage() {
 
       {/* Quick links */}
       <div className="mt-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-4">바로가기</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/admin/sellers"
             className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <p className="font-medium text-gray-900">👥 Manage Sellers</p>
+            <p className="font-medium text-gray-900">👥 판매자 관리</p>
             <p className="text-sm text-gray-600">
-              Approve, reject, or review seller profiles
+              판매자 프로필 승인, 거부, 검토
             </p>
           </Link>
           <Link
             href="/admin/orders"
             className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <p className="font-medium text-gray-900">📦 Monitor Orders</p>
+            <p className="font-medium text-gray-900">📦 주문 모니터링</p>
             <p className="text-sm text-gray-600">
-              View and override order status for disputes
+              분쟁 해결을 위한 주문 상태 확인 및 변경
             </p>
           </Link>
         </div>
