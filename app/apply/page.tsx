@@ -76,9 +76,20 @@ export default function ApplyPage() {
         </section>
 
         {/* CTA */}
-        <section className="p-5 bg-gray-900 rounded-xl text-center">
-          <p className="text-[15px] font-bold text-white mb-1">입점 문의</p>
-          <p className="text-[14px] text-gray-300">partner@mikro.kr</p>
+        <section className="space-y-4">
+          <Link
+            href="/seller/apply"
+            className="block w-full h-14 bg-black text-white rounded-xl text-[16px] font-bold flex items-center justify-center active:bg-gray-800 transition-colors"
+          >
+            지금 신청하기
+          </Link>
+
+          <div className="p-5 bg-gray-50 rounded-xl text-center">
+            <p className="text-[14px] font-medium text-gray-700 mb-1">
+              입점 문의
+            </p>
+            <p className="text-[13px] text-gray-500">partner@mikro.kr</p>
+          </div>
         </section>
       </div>
     </Container>

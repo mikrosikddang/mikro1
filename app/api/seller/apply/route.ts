@@ -11,6 +11,7 @@ interface SellerApplyRequest {
   marketBuilding?: string;
   floor?: string;
   roomNo?: string;
+  managerPhone: string;
   csEmail: string;
 }
 
@@ -70,6 +71,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!body.managerPhone?.trim()) {
+      return NextResponse.json(
+        { error: "담당자 전화번호는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
     if (!body.csEmail?.trim()) {
       return NextResponse.json(
         { error: "고객센터 이메일은 필수입니다." },
@@ -97,8 +105,9 @@ export async function POST(request: Request) {
           marketBuilding: body.marketBuilding?.trim() || null,
           floor: body.floor?.trim() || null,
           roomNo: body.roomNo?.trim() || null,
+          managerPhone: body.managerPhone.trim(),
           csEmail: body.csEmail.trim(),
-          status: SellerApprovalStatus.PENDING,
+          status: SellerApprovalStatus.APPROVED,
         },
         update: {
           shopName: body.shopName.trim(),
@@ -106,15 +115,16 @@ export async function POST(request: Request) {
           marketBuilding: body.marketBuilding?.trim() || null,
           floor: body.floor?.trim() || null,
           roomNo: body.roomNo?.trim() || null,
+          managerPhone: body.managerPhone.trim(),
           csEmail: body.csEmail.trim(),
-          status: SellerApprovalStatus.PENDING, // Reset to pending on re-application
+          status: SellerApprovalStatus.APPROVED, // Auto-approve immediately
         },
       });
 
-      // Update user role to SELLER_PENDING
+      // Update user role to SELLER_ACTIVE (auto-approved)
       await tx.user.update({
         where: { id: session.userId },
-        data: { role: "SELLER_PENDING" },
+        data: { role: "SELLER_ACTIVE" },
       });
 
       return profile;

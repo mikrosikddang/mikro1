@@ -23,6 +23,7 @@ export default function SellerApplyPage() {
     marketBuilding: "",
     floor: "",
     roomNo: "",
+    managerPhone: "",
     csEmail: "",
   });
 
@@ -55,6 +56,7 @@ export default function SellerApplyPage() {
           marketBuilding: data.profile.marketBuilding || "",
           floor: data.profile.floor || "",
           roomNo: data.profile.roomNo || "",
+          managerPhone: data.profile.managerPhone || "",
           csEmail: data.profile.csEmail || "",
         });
       }
@@ -76,6 +78,11 @@ export default function SellerApplyPage() {
 
     if (!formData.type) {
       setError("상점 유형을 선택해주세요.");
+      return;
+    }
+
+    if (!formData.managerPhone.trim()) {
+      setError("담당자 전화번호는 필수입니다.");
       return;
     }
 
@@ -273,6 +280,26 @@ export default function SellerApplyPage() {
                 disabled={submitting}
               />
             </div>
+          </div>
+
+          {/* Manager Phone */}
+          <div>
+            <label className="block text-[14px] font-medium text-gray-700 mb-2">
+              담당자 전화번호 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              value={formData.managerPhone}
+              onChange={(e) =>
+                setFormData({ ...formData, managerPhone: e.target.value })
+              }
+              placeholder="010-1234-5678"
+              className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <p className="mt-1 text-[12px] text-gray-500">
+              입점 심사 및 연락을 위한 담당자 전화번호입니다.
+            </p>
           </div>
 
           {/* CS Email */}

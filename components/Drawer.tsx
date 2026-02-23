@@ -1,74 +1,30 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import LogoutButton from "@/components/LogoutButton";
 import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
-import MenuProfileRow from "@/components/menu/MenuProfileRow";
+import CategoryPickerSheet from "@/components/CategoryPickerSheet";
+import { pushRecentCategory } from "@/lib/categories";
 
 type DrawerProps = {
   open: boolean;
   onClose: () => void;
 };
 
-type NavigationGroup = {
-  id: string;
-  label: string;
-  adminOnly?: boolean;
-  sellerOnly?: boolean;
-  items: { label: string; href: string; showChevron?: boolean }[];
-};
-
-const navigationGroups: NavigationGroup[] = [
-  {
-    id: "browse",
-    label: "둘러보기",
-    items: [
-      { label: "여성의류", href: "/?main=여성의류" },
-      { label: "남성의류", href: "/?main=남성의류" },
-      { label: "브랜드 보기", href: "/brands", showChevron: true },
-    ],
-  },
-  {
-    id: "seller",
-    label: "판매자",
-    sellerOnly: true,
-    items: [
-      { label: "대시보드", href: "/seller" },
-      { label: "상품 관리", href: "/seller/products" },
-      { label: "주문 관리", href: "/seller/orders" },
-    ],
-  },
-  {
-    id: "admin",
-    label: "관리자",
-    adminOnly: true,
-    items: [
-      { label: "플랫폼 관리", href: "/admin" },
-      { label: "판매자 승인", href: "/admin/sellers" },
-      { label: "주문 모니터링", href: "/admin/orders" },
-      { label: "분쟁 처리", href: "/admin/disputes" },
-    ],
-  },
-  {
-    id: "info",
-    label: "정보",
-    items: [
-      { label: "이용약관", href: "/policy/terms" },
-      { label: "개인정보처리방침", href: "/policy/privacy" },
-      { label: "입점 안내", href: "/apply" },
-    ],
-  },
-];
-
 export default function Drawer({ open, onClose }: DrawerProps) {
   const pathname = usePathname();
   const prevPathname = useRef(pathname);
   const session = useSession();
+  const router = useRouter();
+
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  const [categoryRoot, setCategoryRoot] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const isSeller = session ? canAccessSellerFeatures(session.role) : false;
   const isAdminUser = session ? isAdmin(session.role) : false;
@@ -93,11 +49,39 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     };
   }, [open]);
 
-  const visibleGroups = navigationGroups.filter((g) => {
-    if (g.adminOnly) return isAdminUser;
-    if (g.sellerOnly) return isSeller;
-    return true;
-  });
+  const handleCategorySelect = (category: {
+    main: string;
+    mid: string;
+    sub: string;
+  }) => {
+    // Navigate to home with category filter
+    router.push(
+      `/?main=${encodeURIComponent(category.main)}&mid=${encodeURIComponent(
+        category.mid
+      )}&sub=${encodeURIComponent(category.sub)}`
+    );
+
+    // Close sheets
+    setCategorySheetOpen(false);
+    onClose();
+  };
+
+  const openCategorySheet = (root: string) => {
+    setCategoryRoot(root);
+    setCategorySheetOpen(true);
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    setShowLogoutConfirm(false);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -119,13 +103,47 @@ export default function Drawer({ open, onClose }: DrawerProps) {
         style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 h-14 border-b border-gray-100">
-          <span className="text-[15px] font-semibold tracking-tight text-black">
-            mikro
-          </span>
+        <div className="px-4 pt-4 pb-3 flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            {session ? (
+              <>
+                {/* User name + role pill */}
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-[18px] font-semibold text-gray-900 leading-tight truncate">
+                    {session.userId}
+                  </h2>
+                  <span
+                    className={`inline-block text-[11px] font-semibold px-2 py-[3px] rounded-full flex-shrink-0 ${
+                      isAdminUser
+                        ? "bg-red-50 text-red-600"
+                        : isSeller
+                        ? "bg-blue-50 text-blue-600"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {isAdminUser ? "관리자" : isSeller ? "판매자" : "일반"}
+                  </span>
+                </div>
+                {/* Subtitle */}
+                <p className="text-[13px] font-normal text-gray-500 mt-[2px]">
+                  {isAdminUser
+                    ? "플랫폼 관리자"
+                    : isSeller
+                    ? "판매자 계정"
+                    : "일반 회원"}
+                </p>
+              </>
+            ) : (
+              <h2 className="text-[18px] font-semibold text-gray-900 leading-tight">
+                mikro
+              </h2>
+            )}
+          </div>
+
+          {/* Close button */}
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black transition-colors"
+            className="w-10 h-10 grid place-items-center text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
             aria-label="닫기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,37 +153,123 @@ export default function Drawer({ open, onClose }: DrawerProps) {
         </div>
 
         {/* Content */}
-        <nav className="overflow-y-auto h-[calc(100%-56px)] flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav
+          className="overflow-y-auto h-[calc(100%-56px)] flex flex-col"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
           {/* Home feed view toggle */}
           <HomeFeedViewToggle />
 
-          {/* Profile / Login */}
-          <MenuProfileRow />
-
           {/* Navigation sections */}
           <div className="flex-1">
-            {visibleGroups.map((group) => (
-              <MenuSection key={group.id} title={group.label}>
-                {group.items.map((item) => (
-                  <MenuItem
-                    key={item.href}
-                    label={item.label}
-                    href={item.href}
-                    showChevron={item.showChevron}
-                  />
-                ))}
+            {/* Login/Signup (only when not logged in) */}
+            {!session && (
+              <MenuSection title="계정">
+                <MenuItem label="로그인" href="/login" isSubmenu />
+                <MenuItem label="회원가입" href="/signup" isSubmenu />
               </MenuSection>
-            ))}
-          </div>
+            )}
 
-          {/* Logout */}
-          {session && (
-            <div className="mt-8 pt-6 border-t border-gray-100 px-4 pb-4">
-              <LogoutButton variant="drawer" />
-            </div>
-          )}
+            {/* Browse Section */}
+            <MenuSection title="둘러보기">
+              <MenuItem
+                label="여성의류"
+                showChevron
+                onClick={() => openCategorySheet("여성의류")}
+                isSubmenu
+              />
+              <MenuItem
+                label="남성의류"
+                showChevron
+                onClick={() => openCategorySheet("남성의류")}
+                isSubmenu
+              />
+              <MenuItem label="브랜드 보기" href="/brands" showChevron isSubmenu />
+            </MenuSection>
+
+            {/* Seller Section */}
+            {isSeller && (
+              <MenuSection title="판매자">
+                <MenuItem label="대시보드" href="/seller" isSubmenu />
+                <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
+                <MenuItem label="주문 관리" href="/seller/orders" isSubmenu />
+              </MenuSection>
+            )}
+
+            {/* Admin Section */}
+            {isAdminUser && (
+              <MenuSection title="관리자">
+                <MenuItem label="플랫폼 관리" href="/admin" isSubmenu />
+                <MenuItem label="판매자 승인" href="/admin/sellers" isSubmenu />
+                <MenuItem label="주문 모니터링" href="/admin/orders" isSubmenu />
+                <MenuItem label="분쟁 처리" href="/admin/disputes" isSubmenu />
+              </MenuSection>
+            )}
+
+            {/* Info Section */}
+            <MenuSection title="정보">
+              <MenuItem label="이용약관" href="/policy/terms" isSubmenu />
+              <MenuItem label="개인정보처리방침" href="/policy/privacy" isSubmenu />
+              <MenuItem label="입점 안내" href="/apply" isSubmenu />
+              {session && (
+                <MenuItem
+                  label={loggingOut ? "로그아웃 중..." : "로그아웃"}
+                  onClick={() => setShowLogoutConfirm(true)}
+                  isSubmenu
+                />
+              )}
+            </MenuSection>
+          </div>
         </nav>
+
+        {/* Logout Confirm Modal */}
+        {showLogoutConfirm && (
+          <>
+            {/* Overlay */}
+            <div
+              className="fixed inset-0 z-[100] bg-black/40"
+              onClick={() => setShowLogoutConfirm(false)}
+            />
+
+            {/* Modal */}
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-[280px] w-full overflow-hidden">
+                <div className="p-6 text-center">
+                  <h3 className="text-[17px] font-bold text-gray-900 mb-2">
+                    로그아웃 하시겠어요?
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="h-12 text-[16px] font-medium text-gray-600 active:bg-gray-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                    className="h-12 text-[16px] font-bold text-red-600 active:bg-gray-50 border-l border-gray-200 disabled:opacity-50"
+                  >
+                    {loggingOut ? "로그아웃 중..." : "로그아웃"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </aside>
+
+      {/* Category Picker Sheet */}
+      <CategoryPickerSheet
+        open={categorySheetOpen}
+        onClose={() => setCategorySheetOpen(false)}
+        initialMain={categoryRoot}
+        initialMid={null}
+        initialSub={null}
+        onChange={handleCategorySelect}
+      />
     </>
   );
 }

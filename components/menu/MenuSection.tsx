@@ -5,11 +5,11 @@ type MenuSectionProps = {
 
 export default function MenuSection({ title, children }: MenuSectionProps) {
   return (
-    <div className="mt-6 first:mt-4">
-      <h3 className="text-[12px] tracking-widest text-gray-400 font-semibold mb-2 px-4">
+    <div className="mt-4 first:mt-3">
+      <h3 className="text-[12px] tracking-[0.12em] text-gray-400 font-medium mb-1 px-4">
         {title}
       </h3>
-      <div className="space-y-1">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }

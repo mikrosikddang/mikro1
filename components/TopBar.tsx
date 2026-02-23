@@ -1,11 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Drawer from "@/components/Drawer";
 
 export default function TopBar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      searchInputRef.current?.blur();
+    }
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery("");
+    searchInputRef.current?.focus();
+  };
 
   return (
     <>
@@ -16,23 +34,54 @@ export default function TopBar() {
             mikro
           </Link>
 
-          {/* Search bar placeholder */}
-          <div className="flex-1 h-9 bg-gray-100 rounded-lg flex items-center px-3">
-            <svg
-              className="w-4 h-4 text-gray-400 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {/* Search bar */}
+          <form onSubmit={handleSearchSubmit} className="flex-1">
+            <div
+              className={`h-9 bg-gray-100 rounded-lg flex items-center px-3 transition-colors ${
+                searchFocused ? "bg-gray-200" : ""
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              <svg
+                className="w-4 h-4 text-gray-400 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="검색"
+                className="flex-1 ml-2 text-sm bg-transparent outline-none placeholder:text-gray-400 text-gray-900"
               />
-            </svg>
-            <span className="ml-2 text-sm text-gray-400">검색</span>
-          </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleSearchClear}
+                  className="ml-1 w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  aria-label="검색어 지우기"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </form>
 
           {/* Hamburger menu */}
           <button

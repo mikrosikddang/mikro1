@@ -2,17 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const tabs = [
-  { label: "홈", href: "/" },
-  { label: "관심", href: "/wishlist" },
-  { label: "뉴스", href: "/news" },
-  { label: "채팅", href: "/chat" },
-  { label: "MY", href: "/my" },
-];
+import { useSession } from "@/components/SessionProvider";
+import { canAccessSellerFeatures } from "@/lib/roles";
 
 export default function BottomTab() {
   const pathname = usePathname();
+  const session = useSession();
+  const isSeller = session ? canAccessSellerFeatures(session.role) : false;
+
+  const tabs = [
+    { label: "홈", href: "/" },
+    { label: "관심", href: "/wishlist" },
+    isSeller
+      ? { label: "상품올리기", href: "/seller/products/new" }
+      : { label: "뉴스", href: "/news" },
+    { label: "채팅", href: "/chat" },
+    { label: "MY", href: "/my" },
+  ];
 
   // Hide bottom tab in seller center and admin area
   if (pathname.startsWith('/seller') || pathname.startsWith('/admin')) {

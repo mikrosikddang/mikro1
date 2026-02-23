@@ -28,52 +28,44 @@ export default function HomeFeedViewToggle({ onModeChange }: HomeFeedViewToggleP
     }
   };
 
+  const isFeedMode = viewMode === "feed";
+
+  const toggleSwitch = () => {
+    const newMode = isFeedMode ? "carrot" : "feed";
+    handleModeChange(newMode);
+  };
+
   // Don't render until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <div className="px-6 pt-4 pb-3">
-        <div className="h-9 bg-gray-100 rounded-full" />
+      <div className="mx-4 mt-2 mb-3">
+        <div className="h-10 px-3 rounded-2xl bg-gray-50 border border-gray-100" />
       </div>
     );
   }
 
   return (
-    <div className="px-6 pt-4 pb-3">
-      {/* Segmented control */}
-      <div className="relative flex items-center bg-gray-100 rounded-full p-0.5 h-9">
-        <button
-          type="button"
-          onClick={() => handleModeChange("feed")}
-          className={`flex-1 h-full rounded-full text-[13px] font-medium transition-all relative z-10 ${
-            viewMode === "feed"
-              ? "text-gray-900 font-semibold"
-              : "text-gray-500"
-          }`}
-          aria-pressed={viewMode === "feed"}
-        >
-          피드
-        </button>
-        <button
-          type="button"
-          onClick={() => handleModeChange("carrot")}
-          className={`flex-1 h-full rounded-full text-[13px] font-medium transition-all relative z-10 ${
-            viewMode === "carrot"
-              ? "text-gray-900 font-semibold"
-              : "text-gray-500"
-          }`}
-          aria-pressed={viewMode === "carrot"}
-        >
-          리스트
-        </button>
+    <div className="mx-4 mt-2 mb-3">
+      <button
+        type="button"
+        onClick={toggleSwitch}
+        className="w-full h-10 px-3 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between active:bg-gray-100 transition-colors"
+      >
+        <span className="text-[14px] font-medium text-gray-700">피드형 보기</span>
 
-        {/* Sliding background */}
+        {/* Switch */}
         <div
-          className="absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] bg-white rounded-full shadow-sm transition-transform duration-200 ease-out"
-          style={{
-            transform: viewMode === "carrot" ? "translateX(calc(100% + 4px))" : "translateX(0)",
-          }}
-        />
-      </div>
+          className={`relative w-9 h-5 rounded-full transition-colors ${
+            isFeedMode ? "bg-black" : "bg-gray-300"
+          }`}
+        >
+          <div
+            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+              isFeedMode ? "translate-x-[18px]" : "translate-x-0.5"
+            }`}
+          />
+        </div>
+      </button>
     </div>
   );
 }
