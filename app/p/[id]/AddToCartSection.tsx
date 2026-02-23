@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getLoginRedirectUrl } from "@/lib/authHelpers";
 import type { UserRole } from "@prisma/client";
-import PriceText from "@/components/typography/PriceText";
 
 interface Variant {
   id: string;
@@ -18,7 +17,6 @@ interface Props {
   variants: Variant[];
   isSoldOut: boolean;
   userRole: UserRole | null;
-  priceKrw: number;
 }
 
 export default function AddToCartSection({
@@ -26,7 +24,6 @@ export default function AddToCartSection({
   variants,
   isSoldOut,
   userRole,
-  priceKrw,
 }: Props) {
   const router = useRouter();
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -178,12 +175,7 @@ export default function AddToCartSection({
   const maxQuantity = selectedVariant ? selectedVariant.stock : 99;
 
   return (
-    <div className="border border-gray-200 rounded-2xl p-4 space-y-4">
-      {/* Price at top */}
-      <div className="pb-3 border-b border-gray-100">
-        <PriceText amount={priceKrw} />
-      </div>
-
+    <div className="space-y-4">
       {/* Size selection with focus guidance */}
       {variants.length > 0 && (
         <div
@@ -207,7 +199,7 @@ export default function AddToCartSection({
                 setQuantity(Math.min(1, variant.stock));
               }
             }}
-            className="w-full h-10 px-3 py-2 text-[15px] rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-black transition-colors"
+            className="w-full py-3 px-4 text-base rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-black"
           >
             <option value="">선택하세요</option>
             {variants.map((v) => {
@@ -271,7 +263,7 @@ export default function AddToCartSection({
           <button
             type="button"
             onClick={handleCtaClickWithoutSelection}
-            className="w-full h-12 bg-gray-100 text-gray-400 rounded-lg text-[15px] font-medium transition-all active:scale-[0.98]"
+            className="w-full h-[52px] bg-gray-100 text-gray-400 rounded-lg text-base font-medium cursor-not-allowed"
           >
             옵션을 선택하세요
           </button>
@@ -281,7 +273,7 @@ export default function AddToCartSection({
               type="button"
               onClick={handleDirectPurchase}
               disabled={isSoldOut || loading}
-              className="flex-1 h-12 bg-black text-white rounded-lg text-[15px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="flex-1 h-[52px] bg-black text-white rounded-lg text-base font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? "처리 중..." : isSoldOut ? "품절" : "바로구매"}
             </button>
@@ -289,7 +281,7 @@ export default function AddToCartSection({
               type="button"
               onClick={handleAddToCart}
               disabled={isSoldOut || loading}
-              className="flex-1 h-12 border-2 border-black text-black rounded-lg text-[15px] font-bold active:bg-gray-50 transition-colors disabled:border-gray-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+              className="flex-1 h-[52px] border-2 border-black text-black rounded-lg text-base font-bold active:bg-gray-50 transition-colors disabled:border-gray-300 disabled:text-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? "처리 중..." : "장바구니"}
             </button>

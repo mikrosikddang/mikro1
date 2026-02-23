@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Instagram-style product grid with infinite scroll
+ * Product grid with two view modes: list (with details) and feed (images only)
  * Uses intersection observer to load more products when user scrolls
+ * Syncs with global HomeFeedViewMode from burger menu
  */
 
 import { useEffect, useRef, useState } from "react";
 import ProductGridTile from "./ProductGridTile";
+import { getHomeFeedViewMode } from "@/lib/uiPrefs";
 
 interface Product {
   id: string;
@@ -21,6 +23,8 @@ interface ProductGridProps {
   initialNextCursor: string | null;
 }
 
+type ViewMode = "list" | "feed";
+
 export default function ProductGrid({
   sellerId,
   initialProducts,
@@ -29,7 +33,29 @@ export default function ProductGrid({
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
   const [loading, setLoading] = useState(false);
+
+  // Map global HomeFeedViewMode to local ViewMode
+  // "carrot" (default) → "list", "feed" → "feed"
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "list";
+    const globalMode = getHomeFeedViewMode();
+    return globalMode === "feed" ? "feed" : "list";
+  });
+
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Listen to global view mode changes from burger menu
+  useEffect(() => {
+    const handleViewModeChange = (event: CustomEvent<{ mode: "feed" | "carrot" }>) => {
+      setViewMode(event.detail.mode === "feed" ? "feed" : "list");
+    };
+
+    window.addEventListener("homeFeedViewModeChange" as any, handleViewModeChange);
+
+    return () => {
+      window.removeEventListener("homeFeedViewModeChange" as any, handleViewModeChange);
+    };
+  }, []);
 
   // Load more products
   const loadMore = async () => {
@@ -83,16 +109,22 @@ export default function ProductGrid({
 
   return (
     <div className="pb-20">
-      {/* Product count */}
-      <div className="py-4 mb-2">
+      {/* Header: Product count only (toggle is in burger menu) */}
+      <div className="py-4 mb-2 px-4">
         <p className="text-sm text-gray-600">
           상품 <span className="font-bold text-black">{products.length}</span>
         </p>
       </div>
 
-      {/* Tight 3-column Instagram-style grid */}
+      {/* Product grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-3 gap-[1px]">
+        <div
+          className={
+            viewMode === "feed"
+              ? "grid grid-cols-3 gap-[1px]" // Feed: tight grid, no padding
+              : "grid grid-cols-3 gap-3 px-4" // List: breathing room + side padding
+          }
+        >
           {products.map((product) => (
             <ProductGridTile
               key={product.id}
@@ -100,6 +132,7 @@ export default function ProductGrid({
               title={product.title}
               priceKrw={product.priceKrw}
               imageUrl={product.imageUrl || undefined}
+              viewMode={viewMode}
             />
           ))}
         </div>

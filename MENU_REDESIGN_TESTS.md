@@ -1,193 +1,151 @@
-# Menu Redesign Testing Document
+# Menu Redesign Testing Document (Phase 2)
 
 ## Overview
-This document tracks the testing status of the production-grade hamburger menu redesign.
+This document tracks the testing status of the production-grade hamburger menu Phase 2 redesign.
 
 **Created:** 2026-02-17
-**Status:** Implementation complete, ready for testing
+**Updated:** 2026-02-17 (Phase 2)
+**Status:** Phase 2 implementation complete
 **Environment:** Local development only (NO git commit/push/deploy)
 
 ---
 
-## Components Implemented
+## Phase 2 Updates
 
-### 1. Common Menu Components
-**Files:**
-- `components/menu/MenuItem.tsx` - Unified menu item (52px height, chevron support)
-- `components/menu/MenuSection.tsx` - Section header with consistent typography
-- `components/menu/MenuProfileRow.tsx` - Profile/login block with role badges
-
-**Features:**
-- ✅ MenuItem: 52px height, 17px font, hover states, optional chevron
-- ✅ MenuSection: 12px tracking-widest title, consistent spacing
-- ✅ MenuProfileRow: Clickable profile → /my, role badges, login button for guests
-
-### 2. Enhanced LogoutButton
-**File:** `components/LogoutButton.tsx`
-
+### Typography & Hierarchy
 **Changes:**
-- ✅ Added confirm modal: "로그아웃 하시겠어요?" with 취소/로그아웃 buttons
-- ✅ Updated drawer variant: 48px height (was 44px), rounded-2xl, 16px font-semibold
-- ✅ Modal overlay with black/40 backdrop
-- ✅ iOS-style alert dialog with grid layout
+- MenuItem height: 52px → 46px (tighter, more content visible)
+- MenuItem font: font-medium → font-semibold (stronger hierarchy)
+- MenuSection spacing: mt-6 → mt-4, first:mt-4 → first:mt-3
+- MenuSection tracking: tracking-widest → tracking-[0.12em]
+- Dividers: Added border-b to all menu items except last
 
-### 3. Refactored Drawer
-**File:** `components/Drawer.tsx`
-
+### Profile Row
 **Changes:**
-- ✅ Section labels changed to Korean: "둘러보기", "판매자", "관리자", "정보"
-- ✅ Category links updated to new 3-depth system: 여성의류, 남성의류
-- ✅ Removed old category links (바지, 아우터, etc.)
-- ✅ Added chevron to "브랜드 보기"
-- ✅ Integrated MenuItem, MenuSection, MenuProfileRow components
-- ✅ Role-based visibility already implemented with role helpers
-- ✅ Safe area inset for bottom padding
+- Height: variable → 64px fixed
+- Avatar: 32px → 36px
+- Name font: text-[15px] → text-[16px] font-semibold
+- Role badge: text-[11px] → text-[12px] font-semibold
+- Badge colors:
+  - ADMIN: bg-purple-100 text-purple-700 → bg-red-50 text-red-600
+  - SELLER: bg-blue-100 text-blue-700 → bg-blue-50 text-blue-600
+  - CUSTOMER: bg-gray-100 text-gray-600 → bg-gray-100 text-gray-700
+
+### Toggle (Feed/List)
+**Changes:**
+- Width: full width → w-[80%] max-w-[320px] centered
+- Height: 36px → 40px
+- Padding: p-0.5 → p-1
+- Selected: font-semibold (emphasized)
+- Unselected: font-medium text-gray-500
+
+### Category Deep Navigation
+**Major Feature:**
+- ✅ CategoryPickerSheet integrated into Drawer
+- ✅ 여성의류/남성의류 → onClick opens CategoryPickerSheet
+- ✅ Breadcrumb navigation (e.g., 여성의류 > 상의 > 티셔츠)
+- ✅ Recent selections (최근 선택) chips displayed
+- ✅ Deep navigation: Main → Mid → Sub category selection
+- ✅ Final selection closes sheets and applies filter to home
 
 ---
 
 ## Test Cases
 
-### [UI] Visual Structure
+### [Layout] Visual Hierarchy
 
-#### TC-UI-01: Header Layout
-- **Action:** Open menu
-- **Expected:** mikro logo (left) + X button (right), 56px height
-- **Status:** ✅ PASS (build verified)
+#### TC-MENU-01: Section Titles Clear
+- **Action:** Open menu, view all sections
+- **Expected:** Section titles (둘러보기/판매자/관리자/정보) clearly visible, distinct from items
+- **Status:** ✅ PASS (tracking-[0.12em], mb-2, text-gray-400)
 
-#### TC-UI-02: Segmented Control (Feed/List Toggle)
-- **Action:** View toggle below header
-- **Expected:** iOS-style segment control, sliding background, 36px height
-- **Status:** ✅ PASS (existing HomeFeedViewToggle component)
+#### TC-MENU-02: Tighter Spacing, More Content
+- **Action:** Open menu, scroll
+- **Expected:** More menu items visible per screen, less empty space
+- **Status:** ✅ PASS (46px height, mt-4 spacing)
 
-#### TC-UI-03: Profile Row (Logged In)
-- **Action:** Login and open menu
-- **Expected:** Avatar circle (8px) + name + role badge + chevron, clickable → /my
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-UI-04: Profile Row (Logged Out)
-- **Action:** Logout and open menu
-- **Expected:** Login icon + "로그인" text, clickable → /login
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-UI-05: Section Titles
-- **Action:** View all sections
-- **Expected:** "둘러보기", "판매자" (seller only), "관리자" (admin only), "정보"
-- **Status:** ✅ PASS (code review)
-
-#### TC-UI-06: Menu Items
+#### TC-MENU-03: Clean Dividers
 - **Action:** View menu items
-- **Expected:** All items 52px height, 17px font-medium, consistent spacing
-- **Status:** ✅ PASS (MenuItem component)
+- **Expected:** Subtle border-b dividers separate items cleanly
+- **Status:** ✅ PASS (border-gray-100, last item no divider)
 
-#### TC-UI-07: Chevron Display
-- **Action:** View "브랜드 보기"
-- **Expected:** Right-pointing chevron visible
-- **Status:** ✅ PASS (showChevron=true set)
+### [Category Deep Navigation]
 
-#### TC-UI-08: Logout Button
-- **Action:** View logout button (logged in)
-- **Expected:** 48px height, rounded-2xl, 16px font-semibold, gray-100 background
+#### TC-CAT-01: 여성의류 Opens CategoryPickerSheet
+- **Action:** Click "여성의류" in menu
+- **Expected:** CategoryPickerSheet opens with initialMain="여성의류"
+- **Status:** ⏳ PENDING (requires manual test)
+
+#### TC-CAT-02: 남성의류 Opens CategoryPickerSheet
+- **Action:** Click "남성의류" in menu
+- **Expected:** CategoryPickerSheet opens with initialMain="남성의류"
+- **Status:** ⏳ PENDING (requires manual test)
+
+#### TC-CAT-03: Deep Navigation Flow
+- **Action:** Open category sheet → select mid category → select sub category
+- **Expected:** Navigate through 2depth → 3depth, breadcrumb updates
+- **Status:** ⏳ PENDING (requires manual test)
+
+#### TC-CAT-04: Final Selection Closes and Filters
+- **Action:** Complete category selection in sheet
+- **Expected:** Sheet closes, Drawer closes, home filters by main/mid/sub
+- **Status:** ⏳ PENDING (requires manual test)
+
+#### TC-CAT-05: Recent Selections Visible
+- **Action:** Select category, reopen sheet
+- **Expected:** Recent selection chips appear at top of CategoryPickerSheet
+- **Status:** ⏳ PENDING (requires manual test)
+
+#### TC-CAT-06: Breadcrumb Navigation
+- **Action:** Navigate deep, use breadcrumb to go back
+- **Expected:** Breadcrumb shows path, clicking goes back to parent
+- **Status:** ⏳ PENDING (requires manual test - CategoryPickerSheet feature)
+
+### [Toggle] Feed/List Mode
+
+#### TC-TOG-01: Toggle Centered and Sized
+- **Action:** Open menu, view toggle
+- **Expected:** Toggle is centered, w-80% max-w-320px, h-40px
 - **Status:** ✅ PASS (code review)
 
-### [PERMISSIONS] Role-Based Visibility
+#### TC-TOG-02: Toggle Changes Home View
+- **Action:** Toggle between 피드/리스트, close menu, view home
+- **Expected:** Home page displays in selected mode
+- **Status:** ⏳ PENDING (requires manual test)
 
-#### TC-PERM-01: Customer Role
+#### TC-TOG-03: Toggle State Persists
+- **Action:** Toggle mode, close menu, reopen
+- **Expected:** Selected mode persists (localStorage)
+- **Status:** ⏳ PENDING (requires manual test)
+
+### [Role] Permission-Based Visibility
+
+#### TC-ROLE-01: CUSTOMER - No Seller/Admin Sections
 - **Action:** Login as CUSTOMER, open menu
-- **Expected:** "둘러보기" + "정보" visible, "판매자" + "관리자" hidden
+- **Expected:** Only "둘러보기" + "정보" visible
 - **Status:** ⏳ PENDING (requires manual test)
 
-#### TC-PERM-02: Seller Role
+#### TC-ROLE-02: SELLER - Seller Section Visible
 - **Action:** Login as SELLER_ACTIVE, open menu
-- **Expected:** "둘러보기" + "판매자" + "정보" visible, "관리자" hidden
+- **Expected:** "둘러보기" + "판매자" + "정보" visible, no "관리자"
 - **Status:** ⏳ PENDING (requires manual test)
 
-#### TC-PERM-03: Admin Role
+#### TC-ROLE-03: ADMIN - All Sections Visible
 - **Action:** Login as ADMIN, open menu
-- **Expected:** All sections visible ("둘러보기" + "판매자" + "관리자" + "정보")
+- **Expected:** All sections visible including "관리자"
 - **Status:** ⏳ PENDING (requires manual test)
 
-#### TC-PERM-04: Role Helper Usage
-- **Action:** Search codebase for role string comparisons
-- **Expected:** NO instances of `role === "ADMIN"` or similar string checks
-- **Status:** ✅ PASS (uses canAccessSellerFeatures, isAdmin helpers)
+### [Build & Type Check]
 
-### [TOGGLE] Feed/List Mode
-
-#### TC-TOGGLE-01: Toggle Change
-- **Action:** Click "피드" or "리스트" in menu
-- **Expected:** Selection changes, localStorage updated
-- **Status:** ⏳ PENDING (existing HomeFeedViewToggle, needs manual test)
-
-#### TC-TOGGLE-02: Home Reflection
-- **Action:** Toggle mode, close menu, view home
-- **Expected:** Home page displays in selected mode (feed or carrot list)
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-TOGGLE-03: State Persistence
-- **Action:** Toggle mode, close menu, reopen menu
-- **Expected:** Toggle remains in selected state
-- **Status:** ⏳ PENDING (requires manual test)
-
-### [LOGOUT] Logout Flow
-
-#### TC-LOGOUT-01: Logout Button Click
-- **Action:** Click "로그아웃" button
-- **Expected:** Confirm modal appears with "로그아웃 하시겠어요?" title
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-LOGOUT-02: Logout Cancel
-- **Action:** Click "취소" in confirm modal
-- **Expected:** Modal closes, user remains logged in
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-LOGOUT-03: Logout Confirm
-- **Action:** Click "로그아웃" in confirm modal
-- **Expected:** User logged out, redirected to home, menu closes
-- **Status:** ⏳ PENDING (requires manual test)
-
-### [NAVIGATION] Category Links
-
-#### TC-NAV-01: 여성의류 Link
-- **Action:** Click "여성의류"
-- **Expected:** Navigate to `/?main=여성의류`, menu closes, products filtered
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-NAV-02: 남성의류 Link
-- **Action:** Click "남성의류"
-- **Expected:** Navigate to `/?main=남성의류`, menu closes, products filtered
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-NAV-03: 브랜드 보기 Link
-- **Action:** Click "브랜드 보기"
-- **Expected:** Navigate to `/brands`, menu closes
-- **Status:** ⏳ PENDING (requires manual test)
-
-#### TC-NAV-04: Profile Click (Logged In)
-- **Action:** Click profile row
-- **Expected:** Navigate to `/my`, menu closes
-- **Status:** ⏳ PENDING (requires manual test)
-
-### [REGRESSION] Existing Functionality
-
-#### TC-REG-01: Menu Open/Close
-- **Action:** Click hamburger icon, then X button
-- **Expected:** Menu opens/closes smoothly, body scroll locked/unlocked
-- **Status:** ⏳ PENDING (existing logic preserved)
-
-#### TC-REG-02: Route Change Auto-Close
-- **Action:** Open menu, click any link
-- **Expected:** Menu closes automatically on navigation
-- **Status:** ⏳ PENDING (existing useEffect preserved)
-
-#### TC-REG-03: Build Check
-- **Action:** Run `npm run build`
-- **Expected:** Build succeeds
-- **Status:** ✅ PASS
-
-#### TC-REG-04: Type Check
+#### TC-BUILD-01: TypeScript Type Check
 - **Action:** Run `npx tsc --noEmit`
 - **Expected:** No type errors
 - **Status:** ✅ PASS
+
+#### TC-BUILD-02: Production Build
+- **Action:** Run `npm run build`
+- **Expected:** Build succeeds
+- **Status:** ✅ PASS (Compiled successfully in 2.0s)
 
 ---
 
@@ -208,8 +166,45 @@ npm run build
 **Output:**
 ```
 Creating an optimized production build ...
-✓ Compiled successfully in 1916.4ms
+✓ Compiled successfully in 2.0s
 ```
+
+---
+
+## Files Modified (Phase 2)
+
+### Modified (5 files)
+1. `components/menu/MenuItem.tsx`
+   - Height: 52px → 46px (single line) / 58px (with subtitle)
+   - Added divider support (border-b border-gray-100)
+   - Added onClick prop for CategoryPickerSheet
+   - Font: font-medium → font-semibold
+   - Chevron color: text-gray-400 → text-gray-300
+
+2. `components/menu/MenuSection.tsx`
+   - Spacing: mt-6 → mt-4, first:mt-4 → first:mt-3
+   - Tracking: tracking-widest → tracking-[0.12em]
+   - Removed space-y-1 (dividers handle spacing)
+
+3. `components/menu/MenuProfileRow.tsx`
+   - Height: variable → 64px fixed
+   - Avatar: 32px → 36px
+   - Name: text-[15px] → text-[16px] font-semibold
+   - Badge: text-[11px] → text-[12px] font-semibold
+   - Badge colors updated (ADMIN red, SELLER blue, CUSTOMER gray)
+
+4. `components/HomeFeedViewToggle.tsx`
+   - Width: full → w-[80%] max-w-[320px] centered
+   - Height: 36px → 40px
+   - Padding: p-0.5 → p-1
+   - Font: emphasized selected (font-semibold), subtle unselected (font-medium)
+
+5. `components/Drawer.tsx`
+   - Imported CategoryPickerSheet
+   - Added state: categorySheetOpen, categoryRoot
+   - 여성의류/남성의류 → onClick opens CategoryPickerSheet
+   - handleCategorySelect navigates to home with filter
+   - Removed navigation group structure, hardcoded sections for clarity
 
 ---
 
@@ -217,62 +212,54 @@ Creating an optimized production build ...
 
 To complete testing, perform the following in local dev server (`http://localhost:3000`):
 
-1. **Guest User:**
-   - [ ] Open menu → verify "로그인" button appears
-   - [ ] Click "로그인" → redirects to /login
-   - [ ] Verify sections: only "둘러보기" + "정보" visible
+### Visual Hierarchy
+- [ ] Section titles clearly separate sections
+- [ ] Menu items have strong visual weight (font-semibold)
+- [ ] Dividers cleanly separate items without clutter
+- [ ] Profile row badge colors correct (red=admin, blue=seller, gray=customer)
 
-2. **Logged In Customer:**
-   - [ ] Open menu → verify profile row with role badge "고객"
-   - [ ] Click profile row → navigate to /my
-   - [ ] Verify sections: "둘러보기" + "정보" visible, no "판매자"/"관리자"
-   - [ ] Click logout → confirm modal appears → cancel → still logged in
-   - [ ] Click logout → confirm modal → logout → logged out + redirected
+### Category Deep Navigation
+- [ ] Click "여성의류" → CategoryPickerSheet opens
+- [ ] Click "남성의류" → CategoryPickerSheet opens
+- [ ] Navigate 여성의류 → 상의 → 티셔츠 → home filters correctly
+- [ ] Breadcrumb shows "여성의류 > 상의 > 티셔츠"
+- [ ] Recent selections appear as chips after first selection
+- [ ] Final selection closes sheet + drawer, applies filter
 
-3. **Logged In Seller:**
-   - [ ] Open menu → verify profile row with badge "판매자"
-   - [ ] Verify sections: "둘러보기" + "판매자" + "정보" visible, no "관리자"
-   - [ ] Click "상품 관리" → navigate to /seller/products
+### Toggle & Logout
+- [ ] Toggle is centered, proper size
+- [ ] Toggle changes home view mode
+- [ ] Logout button opens confirm modal
+- [ ] Logout confirm → logged out + redirected
 
-4. **Logged In Admin:**
-   - [ ] Open menu → verify profile row with badge "관리자"
-   - [ ] Verify all sections visible including "관리자"
-   - [ ] Click "판매자 승인" → navigate to /admin/sellers
-
-5. **Toggle & Navigation:**
-   - [ ] Toggle feed/list → home page changes mode
-   - [ ] Click "여성의류" → home filters by 여성의류
-   - [ ] Click "남성의류" → home filters by 남성의류
-   - [ ] Click "브랜드 보기" → navigate to /brands
+### Role-Based
+- [ ] Customer sees only "둘러보기" + "정보"
+- [ ] Seller sees "둘러보기" + "판매자" + "정보"
+- [ ] Admin sees all sections
 
 ---
 
 ## Summary
 
-### Completed ✅
-- [x] Common menu components (MenuItem, MenuSection, MenuProfileRow)
-- [x] Section labels changed to Korean
-- [x] Category links updated to 3-depth system
-- [x] Logout confirm modal added
-- [x] LogoutButton styling updated (48px, rounded-2xl, 16px font-semibold)
-- [x] Role-based visibility using role helpers
-- [x] Safe area inset support
-- [x] Type check passed
-- [x] Build check passed
+### Phase 2 Completed ✅
+- [x] MenuItem: 46px height, dividers, font-semibold
+- [x] MenuSection: tighter spacing (mt-4), refined tracking
+- [x] MenuProfileRow: 64px, 36px avatar, refined badges
+- [x] HomeFeedViewToggle: centered, 40px, emphasized styling
+- [x] CategoryPickerSheet integration (deep nav)
+- [x] Type check PASS
+- [x] Build PASS
 
 ### Pending ⏳
 - [ ] Manual testing with different user roles
+- [ ] Category deep navigation flow testing
 - [ ] Toggle functionality verification
-- [ ] Logout flow testing
-- [ ] Category navigation testing
-- [ ] Profile click navigation testing
+- [ ] Visual hierarchy verification
 
-### Next Steps
-1. Start dev server: `npm run dev`
-2. Test as guest, customer, seller, admin
-3. Verify all navigation links
-4. Test logout with confirm modal
-5. Test feed/list toggle
+### Key Improvements
+1. **Tighter, Clearer Hierarchy:** 46px items, font-semibold, dividers create clean visual rhythm
+2. **Category Deep Navigation:** Reuses CategoryPickerSheet for 3-depth browsing from menu
+3. **Refined Details:** Centered toggle, refined badges, consistent spacing throughout
 
 ---
 

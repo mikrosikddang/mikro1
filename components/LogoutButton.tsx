@@ -38,7 +38,7 @@ export default function LogoutButton({ variant = "default" }: LogoutButtonProps)
         <button
           onClick={openConfirm}
           disabled={loading}
-          className="w-full h-12 rounded-2xl bg-gray-100 text-gray-700 text-[16px] font-semibold active:bg-gray-200 transition-colors disabled:opacity-50"
+          className="w-full h-12 rounded-2xl bg-gray-100 text-gray-700 text-[16px] font-medium active:bg-gray-200 transition-colors disabled:opacity-50"
         >
           {loading ? "로그아웃 중..." : "로그아웃"}
         </button>

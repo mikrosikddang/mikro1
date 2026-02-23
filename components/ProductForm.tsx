@@ -134,27 +134,37 @@ export default function ProductForm({
   const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
   const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
 
-  // Color picker & color images
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  // Color images (auto-synced from variantTree)
   const [colorImages, setColorImages] = useState<ColorImageData[]>([]);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorImageManagerOpen, setColorImageManagerOpen] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
+
+  // Auto-extract colors from variantTree
+  const selectedColors = useMemo(() => {
+    const colors = variantTree
+      .map((group) => group.color)
+      .filter((color) => color !== "FREE" && color !== "");
+    return Array.from(new Set(colors)); // deduplicate
+  }, [variantTree]);
 
   // ---------- Color helpers ----------
-  function handleSelectColor(colorKey: string) {
-    if (!selectedColors.includes(colorKey)) {
-      setSelectedColors((prev) => [...prev, colorKey]);
-    }
-  }
-
-  function handleRemoveColor(colorKey: string) {
-    setSelectedColors((prev) => prev.filter((c) => c !== colorKey));
-    setColorImages((prev) => prev.filter((ci) => ci.colorKey !== colorKey));
-  }
-
   function handleColorImageseSave(newColorImages: ColorImageData[]) {
     setColorImages(newColorImages);
     setColorImageManagerOpen(false);
+  }
+
+  function openColorPickerForGroup(groupIndex: number) {
+    setColorPickerTargetGroup(groupIndex);
+    setColorPickerOpen(true);
+  }
+
+  function handleColorPickerSelect(colorKey: string) {
+    if (colorPickerTargetGroup !== null) {
+      updateColorGroupColor(colorPickerTargetGroup, colorKey);
+    }
+    setColorPickerOpen(false);
+    setColorPickerTargetGroup(null);
   }
 
   // ---------- Image helpers ----------
@@ -593,16 +603,16 @@ export default function ProductForm({
       />
 
       {/* ===== Color-Specific Images ===== */}
-      <section className="mb-6">
-        <label className="block text-[14px] font-medium text-gray-700 mb-2">
-          색상별 이미지 (선택)
-        </label>
-        <p className="text-[12px] text-gray-500 mb-3">
-          각 색상별로 다른 이미지를 설정할 수 있습니다. 최대 5장까지 등록 가능합니다.
-        </p>
+      {selectedColors.length > 0 && (
+        <section className="mb-6">
+          <label className="block text-[14px] font-medium text-gray-700 mb-2">
+            색상별 이미지 (선택)
+          </label>
+          <p className="text-[12px] text-gray-500 mb-3">
+            아래 옵션에서 선택한 색상별로 다른 이미지를 설정할 수 있습니다. 최대 5장까지 등록 가능합니다.
+          </p>
 
-        {/* Selected colors display */}
-        {selectedColors.length > 0 && (
+          {/* Selected colors display */}
           <div className="mb-3 flex flex-wrap gap-2">
             {selectedColors.map((colorKey) => {
               const color = getColorByKey(colorKey);
@@ -624,44 +634,22 @@ export default function ProductForm({
                   {imageCount > 0 && (
                     <span className="text-[11px] text-gray-500">({imageCount}장)</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveColor(colorKey)}
-                    disabled={submitting}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               );
             })}
           </div>
-        )}
 
-        {/* Action buttons */}
-        <div className="flex gap-2">
+          {/* Action button */}
           <button
             type="button"
-            onClick={() => setColorPickerOpen(true)}
+            onClick={() => setColorImageManagerOpen(true)}
             disabled={submitting}
-            className="flex-1 h-10 px-4 rounded-lg border border-gray-200 text-[14px] font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+            className="w-full h-10 px-4 rounded-lg bg-black text-white text-[14px] font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors disabled:opacity-50"
           >
-            + 색상 선택
+            색상별 이미지 설정
           </button>
-          {selectedColors.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setColorImageManagerOpen(true)}
-              disabled={submitting}
-              className="flex-1 h-10 px-4 rounded-lg bg-black text-white text-[14px] font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              색상별 이미지 설정
-            </button>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== Content Images ===== */}
       <ImagePickerSection
@@ -708,40 +696,37 @@ export default function ProductForm({
                 {/* Color Selection */}
                 <div>
                   <label className="block text-[12px] text-gray-600 mb-1.5">컬러</label>
-                  <select
-                    value={PRESET_COLORS.includes(colorGroup.color) ? colorGroup.color : ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === "") {
-                        // 직접입력 선택 → 빈 값으로 설정하여 input 표시
-                        updateColorGroupColor(groupIndex, "");
-                      } else {
-                        // 프리셋 선택
-                        updateColorGroupColor(groupIndex, value);
-                      }
-                    }}
-                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black"
+                  <button
+                    type="button"
+                    onClick={() => openColorPickerForGroup(groupIndex)}
                     disabled={submitting}
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center justify-between disabled:opacity-50"
                   >
-                    <option value="">직접입력...</option>
-                    {PRESET_COLORS.map((color) => (
-                      <option key={color} value={color}>
-                        {COLOR_LABELS[color]}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* 직접입력 선택 시 또는 커스텀 컬러인 경우 텍스트 입력창 표시 */}
-                  {!PRESET_COLORS.includes(colorGroup.color) && (
-                    <input
-                      type="text"
-                      value={colorGroup.color}
-                      onChange={(e) => updateColorGroupColor(groupIndex, e.target.value.toUpperCase())}
-                      placeholder="컬러명 입력 (예: 네이비, 브라운)"
-                      className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black mt-2"
-                      disabled={submitting}
-                    />
-                  )}
+                    {colorGroup.color ? (
+                      <span className="flex items-center gap-2">
+                        {(() => {
+                          const colorData = getColorByKey(colorGroup.color);
+                          if (colorData) {
+                            return (
+                              <>
+                                <span
+                                  className="w-4 h-4 rounded-full border border-gray-300"
+                                  style={{ backgroundColor: colorData.hex }}
+                                />
+                                <span>{colorData.labelKo}</span>
+                              </>
+                            );
+                          }
+                          return <span>{colorGroup.color}</span>;
+                        })()}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">색상 선택...</span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
                   {hasDuplicateColor && (
                     <p className="text-[12px] text-red-500 mt-1">중복된 컬러입니다</p>
@@ -1124,8 +1109,11 @@ export default function ProductForm({
       {/* Color Picker Sheet */}
       <ColorPickerSheet
         open={colorPickerOpen}
-        onClose={() => setColorPickerOpen(false)}
-        onSelectColor={handleSelectColor}
+        onClose={() => {
+          setColorPickerOpen(false);
+          setColorPickerTargetGroup(null);
+        }}
+        onSelectColor={handleColorPickerSelect}
       />
 
       {/* Color Image Manager */}

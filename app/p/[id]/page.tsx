@@ -10,6 +10,7 @@ import { renderDescriptionForCustomer } from "@/lib/descriptionSchema";
 import { getSession } from "@/lib/auth";
 import SellerNameText from "@/components/typography/SellerNameText";
 import ProductTitleText from "@/components/typography/ProductTitleText";
+import ProductSellerActions from "./ProductSellerActions";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -33,6 +34,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const shopName = product.seller.sellerProfile?.shopName ?? "알수없음";
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
   const isSoldOut = totalStock <= 0;
+  const isSelf = session ? session.userId === product.sellerId : false;
 
   // Split images by kind
   const mainImages = product.images.filter((i) => i.kind === "MAIN");
@@ -47,32 +49,41 @@ export default async function ProductDetailPage({ params }: Props) {
       />
 
       {/* Product info */}
-      <div className="py-5">
-        {/* Seller name + Product title - tight hierarchy */}
+      <div className="py-6">
+        {/* Seller name */}
         <SellerNameText sellerId={product.sellerId} shopName={shopName} />
-        <div className="mt-1">
-          <ProductTitleText title={product.title} />
+
+        {/* Product title */}
+        <div className="mt-2">
+          <h1 className="text-2xl font-bold text-black tracking-tight leading-snug">
+            {product.title}
+          </h1>
         </div>
 
-        {/* Sold out badge */}
-        {isSoldOut && (
-          <div className="mt-3">
-            <span className="inline-block px-3 py-1.5 rounded-full bg-red-500 text-white text-sm font-bold">
-              품절
-            </span>
-          </div>
-        )}
-
-        {/* Purchase panel card - contains price, options, CTA */}
-        <div className="mt-4">
-          <AddToCartSection
-            productId={product.id}
-            variants={product.variants}
-            isSoldOut={isSoldOut}
-            userRole={session?.role ?? null}
-            priceKrw={product.priceKrw}
-          />
+        {/* Price */}
+        <div className="mt-4 mb-6">
+          <span className="text-xl text-black">₩</span>
+          <span className="text-3xl font-bold text-black tracking-tight">
+            {product.priceKrw.toLocaleString()}
+          </span>
         </div>
+
+        {/* Seller Actions (self only) */}
+        {isSelf && <ProductSellerActions productId={product.id} />}
+
+        {/* Divider */}
+        <div className="border-t border-gray-100 my-6" />
+
+        {/* Size selection and CTA */}
+        <AddToCartSection
+          productId={product.id}
+          variants={product.variants}
+          isSoldOut={isSoldOut}
+          userRole={session?.role ?? null}
+        />
+
+        {/* Divider */}
+        <div className="border-t border-gray-100 my-6" />
 
         {/* Description */}
         {(() => {
