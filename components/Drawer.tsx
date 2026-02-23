@@ -188,8 +188,9 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             </MenuSection>
 
             {/* Seller Section */}
-            {isSeller && (
+            {isSeller && session && (
               <MenuSection title="판매자">
+                <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
                 <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
                 <MenuItem label="주문 관리" href="/seller/orders" isSubmenu />

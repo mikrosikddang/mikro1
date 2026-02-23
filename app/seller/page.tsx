@@ -182,7 +182,7 @@ export default async function SellerDashboardPage() {
             📦 상품 관리
           </Link>
           <Link
-            href={`/seller/shop/${sellerId}`}
+            href={`/s/${sellerId}`}
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
             🏪 내 상점 보기
