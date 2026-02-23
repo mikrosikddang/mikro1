@@ -7,7 +7,10 @@ import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
 import { validateVariantTree, formatValidationErrors } from "@/lib/variantValidation";
 import BulkPasteModal from "@/components/BulkPasteModal";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
+import ColorPickerSheet from "@/components/ColorPickerSheet";
+import ColorImageManager, { type ColorImageData } from "@/components/ColorImageManager";
 import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
+import { getColorByKey } from "@/lib/colors";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -130,6 +133,29 @@ export default function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
   const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
+
+  // Color picker & color images
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [colorImages, setColorImages] = useState<ColorImageData[]>([]);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [colorImageManagerOpen, setColorImageManagerOpen] = useState(false);
+
+  // ---------- Color helpers ----------
+  function handleSelectColor(colorKey: string) {
+    if (!selectedColors.includes(colorKey)) {
+      setSelectedColors((prev) => [...prev, colorKey]);
+    }
+  }
+
+  function handleRemoveColor(colorKey: string) {
+    setSelectedColors((prev) => prev.filter((c) => c !== colorKey));
+    setColorImages((prev) => prev.filter((ci) => ci.colorKey !== colorKey));
+  }
+
+  function handleColorImageseSave(newColorImages: ColorImageData[]) {
+    setColorImages(newColorImages);
+    setColorImageManagerOpen(false);
+  }
 
   // ---------- Image helpers ----------
   function handleFilePick(
@@ -475,6 +501,12 @@ export default function ProductForm({
         }
       }
 
+      // Build color images payload (with colorKey)
+      const colorImagesPayload = colorImages.map((ci) => ({
+        colorKey: ci.colorKey,
+        urls: ci.images,
+      }));
+
       // Build structured description
       const descriptionJson = {
         v: 1,
@@ -513,6 +545,7 @@ export default function ProductForm({
           descriptionJson,
           mainImages: mainUrls,
           contentImages: contentUrls.length > 0 ? contentUrls : undefined,
+          colorImages: colorImagesPayload.length > 0 ? colorImagesPayload : undefined,
           variants: flatVariants,
         }),
       });
@@ -558,6 +591,77 @@ export default function ProductForm({
         submitting={submitting}
         showMainBadge
       />
+
+      {/* ===== Color-Specific Images ===== */}
+      <section className="mb-6">
+        <label className="block text-[14px] font-medium text-gray-700 mb-2">
+          색상별 이미지 (선택)
+        </label>
+        <p className="text-[12px] text-gray-500 mb-3">
+          각 색상별로 다른 이미지를 설정할 수 있습니다. 최대 5장까지 등록 가능합니다.
+        </p>
+
+        {/* Selected colors display */}
+        {selectedColors.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {selectedColors.map((colorKey) => {
+              const color = getColorByKey(colorKey);
+              const colorImageData = colorImages.find((ci) => ci.colorKey === colorKey);
+              const imageCount = colorImageData?.images.length || 0;
+
+              return (
+                <div
+                  key={colorKey}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg"
+                >
+                  <div
+                    className="w-4 h-4 rounded-full border border-gray-300"
+                    style={{ backgroundColor: color?.hex || "#ccc" }}
+                  />
+                  <span className="text-[13px] font-medium text-gray-900">
+                    {color?.labelKo || colorKey}
+                  </span>
+                  {imageCount > 0 && (
+                    <span className="text-[11px] text-gray-500">({imageCount}장)</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveColor(colorKey)}
+                    disabled={submitting}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setColorPickerOpen(true)}
+            disabled={submitting}
+            className="flex-1 h-10 px-4 rounded-lg border border-gray-200 text-[14px] font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            + 색상 선택
+          </button>
+          {selectedColors.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setColorImageManagerOpen(true)}
+              disabled={submitting}
+              className="flex-1 h-10 px-4 rounded-lg bg-black text-white text-[14px] font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              색상별 이미지 설정
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* ===== Content Images ===== */}
       <ImagePickerSection
@@ -1016,6 +1120,23 @@ export default function ProductForm({
           "등록"
         )}
       </button>
+
+      {/* Color Picker Sheet */}
+      <ColorPickerSheet
+        open={colorPickerOpen}
+        onClose={() => setColorPickerOpen(false)}
+        onSelectColor={handleSelectColor}
+      />
+
+      {/* Color Image Manager */}
+      {colorImageManagerOpen && (
+        <ColorImageManager
+          colors={selectedColors}
+          initialColorImages={colorImages}
+          onSave={handleColorImageseSave}
+          onCancel={() => setColorImageManagerOpen(false)}
+        />
+      )}
     </form>
   );
 }

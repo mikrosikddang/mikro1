@@ -37,17 +37,37 @@ export async function GET(_req: NextRequest, { params }: Params) {
     }
 
     // Group images by kind
+    // mainImages: MAIN images without colorKey (common images)
     const mainImages = product.images
-      .filter((i) => i.kind === "MAIN")
+      .filter((i) => i.kind === "MAIN" && !i.colorKey)
       .map((i) => ({ id: i.id, url: i.url, sortOrder: i.sortOrder }));
+
     const contentImages = product.images
       .filter((i) => i.kind === "CONTENT")
       .map((i) => ({ id: i.id, url: i.url, sortOrder: i.sortOrder }));
+
+    // colorImages: MAIN images with colorKey (color-specific images)
+    const colorImagesMap = new Map<string, string[]>();
+    product.images
+      .filter((i) => i.kind === "MAIN" && i.colorKey)
+      .forEach((i) => {
+        const colorKey = i.colorKey!;
+        if (!colorImagesMap.has(colorKey)) {
+          colorImagesMap.set(colorKey, []);
+        }
+        colorImagesMap.get(colorKey)!.push(i.url);
+      });
+
+    const colorImages = Array.from(colorImagesMap.entries()).map(([colorKey, urls]) => ({
+      colorKey,
+      images: urls,
+    }));
 
     return NextResponse.json({
       ...product,
       mainImages,
       contentImages,
+      colorImages,
     });
   } catch (err) {
     console.error("product get error:", err);
@@ -79,6 +99,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       isActive,
       mainImages,
       contentImages,
+      colorImages,
       variants,
     } = body as {
       title?: string;
@@ -92,6 +113,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       isActive?: boolean;
       mainImages?: string[];
       contentImages?: string[];
+      colorImages?: { colorKey: string; urls: string[] }[];
       variants?: { id?: string; color?: string; sizeLabel: string; stock: number }[];
     };
 
@@ -173,7 +195,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // Check if anything to update
     const hasScalars = Object.keys(productData).length > 0;
-    const hasImages = mainImages !== undefined || contentImages !== undefined;
+    const hasImages = mainImages !== undefined || contentImages !== undefined || colorImages !== undefined;
     const hasVariants = variants !== undefined;
 
     if (!hasScalars && !hasImages && !hasVariants) {
@@ -210,6 +232,47 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               sortOrder: i,
             })),
           });
+        }
+      }
+
+      // Update color-specific images (replace all color-keyed MAIN images)
+      if (colorImages !== undefined) {
+        // Delete all MAIN images with colorKey (color-specific images)
+        await tx.productImage.deleteMany({
+          where: {
+            productId: id,
+            kind: "MAIN",
+            colorKey: { not: null }
+          }
+        });
+
+        // Create new color-specific images
+        if (colorImages.length > 0) {
+          const colorImageRecords: Array<{
+            productId: string;
+            url: string;
+            kind: "MAIN";
+            sortOrder: number;
+            colorKey: string;
+          }> = [];
+
+          colorImages.forEach((colorImage) => {
+            colorImage.urls.forEach((url, index) => {
+              colorImageRecords.push({
+                productId: id,
+                url,
+                kind: "MAIN" as const,
+                sortOrder: index,
+                colorKey: colorImage.colorKey,
+              });
+            });
+          });
+
+          if (colorImageRecords.length > 0) {
+            await tx.productImage.createMany({
+              data: colorImageRecords,
+            });
+          }
         }
       }
 

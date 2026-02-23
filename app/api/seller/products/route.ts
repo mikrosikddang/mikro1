@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       descriptionJson,
       mainImages,
       contentImages,
+      colorImages,
       variants,
     } = body as {
       title: string;
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       descriptionJson?: any;
       mainImages: string[];
       contentImages?: string[];
+      colorImages?: { colorKey: string; urls: string[] }[];
       variants: { color?: string; sizeLabel: string; stock: number }[];
     };
 
@@ -116,6 +118,35 @@ export async function POST(req: NextRequest) {
             sortOrder: i,
           })),
         });
+      }
+
+      // Create color-specific MAIN images
+      if (colorImages && colorImages.length > 0) {
+        const colorImageRecords: Array<{
+          productId: string;
+          url: string;
+          kind: "MAIN";
+          sortOrder: number;
+          colorKey: string;
+        }> = [];
+
+        colorImages.forEach((colorImage) => {
+          colorImage.urls.forEach((url, index) => {
+            colorImageRecords.push({
+              productId: p.id,
+              url,
+              kind: "MAIN" as const,
+              sortOrder: index,
+              colorKey: colorImage.colorKey,
+            });
+          });
+        });
+
+        if (colorImageRecords.length > 0) {
+          await tx.productImage.createMany({
+            data: colorImageRecords,
+          });
+        }
       }
 
       // Create variants (normalized)
