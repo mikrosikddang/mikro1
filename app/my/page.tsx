@@ -87,7 +87,7 @@ export default async function MyPage() {
             </Link>
           ) : session && isCustomer(session.role) ? (
             <Link
-              href="/seller/apply"
+              href="/apply/seller"
               className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
             >
               판매자 가입 신청

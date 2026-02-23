@@ -1,4 +1,4 @@
-# MIKRO — Multi-Agent Development Playbook (CLAUDE.md)
+# MIKRO — Multi-Agent Development Playbook (MIKRO_CLAUDE.md)
 
 > **Role tags**: `[ALL]` = 전원, `[SV]` = Supervisor, `[DEV]` = Developer, `[QA]` = Tester, `[PD]` = Product Designer  
 > **Project**: `mikro` (프로덕션급 패션/커머스 플랫폼)  
@@ -109,11 +109,14 @@
   - 토글은 “왔다갔다 큰 버튼” 금지. 다른 메뉴 타이포 스케일과 맞춘다.
 
 ### B) 상점(Seller) 페이지: 인스타 프로필 그리드
-- 3열 그리드가 화면을 **꽉 채움**(빈 공간 최소화).
+- 2가지 보기 모드(햄버거 메뉴 토글 연동):
+  - **피드형**: 3열 빈틈없는 그리드(gap-1px), 이미지만.
+  - **리스트형**: 3열 간격 그리드(gap-3, px-4), 이미지 + 상품명/가격.
 - 프로필 영역:
-  - 프로필 이미지(원형), 상점명, 소개글.
-  - 자기 상점일 때만: 상점명/소개글/프로필 이미지 “편집” 진입 가능.
-  - 팔로워 수/리스트는 **기본 비공개**. 자기 상점에서만 확인 가능.
+  - 아바타(80px 원형) + 상점명/소개글/위치/타입 (가로 배치).
+  - 자기 상점: "프로필 편집" + "상점관리" 버튼.
+  - 타인 상점: "팔로우" + "이메일 문의/채팅 문의" 버튼.
+  - 팔로워 수/리스트는 표시하지 않음.
 
 ### C) 카테고리 선택: Depth 탐색 + 최근
 - 바텀시트에서 “대분류 → 중분류 → 소분류”로 **연속 진입**.
@@ -152,16 +155,17 @@
 ## 9) File/Module starting points (update with your repo structure) `[DEV]`
 > SV는 실제 레포 구조에 맞춰 아래 경로를 최신화한다.
 
-- 메뉴/햄버거: `components/*Menu*` or `components/*Drawer*`
-- 메인 피드: `app/page.tsx`, `components/ProductCard.tsx`
-- 셀러 상점: `app/s/[sellerId]/page.tsx`, `components/ProductGrid.tsx`
-- 상품 폼: `app/seller/products/new`, `.../edit`, `components/ProductForm*`
+- 메뉴/햄버거: `components/Drawer.tsx`, `components/menu/MenuItem.tsx`, `components/menu/MenuSection.tsx`, `components/menu/MenuProfileRow.tsx`
+- 메인 피드: `app/page.tsx`, `components/ProductCard.tsx`, `components/HomeClientView.tsx`, `components/HomeCarrotList.tsx`
+- 셀러 상점: `app/s/[sellerId]/page.tsx`, `components/ProductGrid.tsx`, `components/SellerShopHeader.tsx`
+- 상품 폼: `app/seller/products/new`, `.../edit`, `components/ProductForm.tsx`
 - 카테고리/색상 피커: `components/CategoryPickerSheet.tsx`, `components/ColorPickerSheet.tsx`, `components/ColorImageManager.tsx`
+- 셀러 신청: `app/apply/seller/page.tsx`
 - Prisma schema: `prisma/schema.prisma`
 - Role helpers: `lib/roles.ts`, `lib/roleGuards.ts`, `lib/authTypes.ts`
 
 ---
 
 ## 10) Documentation freshness `[SV]` `[ALL]`
-- 이 파일(`CLAUDE.md`)은 “현재 운영 규칙/UX 기준/권한 원칙”의 단일 진실원.
+- 이 파일(`MIKRO_CLAUDE.md`)은 "현재 운영 규칙/UX 기준/권한 원칙"의 단일 진실원.
 - 규칙/구조가 바뀌면 **코드보다 먼저** 문서를 업데이트하고 시작한다(상호 불일치 금지).

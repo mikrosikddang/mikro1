@@ -109,7 +109,7 @@ function LoginForm() {
           <p className="text-[14px] text-gray-600">
             판매자로 가입하시겠어요?{" "}
             <a
-              href="/seller/apply"
+              href="/apply/seller"
               className="text-black font-medium underline"
             >
               판매자 가입 신청
