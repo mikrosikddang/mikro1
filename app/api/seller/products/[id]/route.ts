@@ -6,6 +6,7 @@ import { requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput, variantsEqual } from "@/lib/variantNormalize";
+import { validateCategory } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
@@ -69,7 +70,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const {
       title,
       priceKrw,
-      category,
+      category, // DEPRECATED
+      categoryMain,
+      categoryMid,
+      categorySub,
       description,
       descriptionJson,
       isActive,
@@ -79,7 +83,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     } = body as {
       title?: string;
       priceKrw?: number;
-      category?: string;
+      category?: string; // DEPRECATED
+      categoryMain?: string | null;
+      categoryMid?: string | null;
+      categorySub?: string | null;
       description?: string;
       descriptionJson?: any;
       isActive?: boolean;
@@ -109,7 +116,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       productData.priceKrw = priceKrw;
     }
     if (category !== undefined) {
-      productData.category = typeof category === "string" ? category.trim() || null : null;
+      productData.category = typeof category === "string" ? category.trim() || null : null; // DEPRECATED
+    }
+    // Validate and update new 3-depth category (all 3 must be present or all null)
+    if (categoryMain !== undefined || categoryMid !== undefined || categorySub !== undefined) {
+      if (!validateCategory(categoryMain, categoryMid, categorySub)) {
+        return NextResponse.json(
+          { error: "카테고리를 올바르게 선택해주세요 (성별 > 카테고리 > 세부 카테고리)" },
+          { status: 400 }
+        );
+      }
+      productData.categoryMain = categoryMain || null;
+      productData.categoryMid = categoryMid || null;
+      productData.categorySub = categorySub || null;
     }
     if (description !== undefined) {
       productData.description = typeof description === "string" ? description.trim() || null : null;

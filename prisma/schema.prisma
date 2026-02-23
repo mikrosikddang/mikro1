@@ -61,6 +61,10 @@ model User {
   cartItems     CartItem[]
 
   salesOrders   Order[] @relation("SellerOrders")
+
+  // Follow relationships
+  following     SellerFollow[] @relation("UserFollowing")
+  followers     SellerFollow[] @relation("UserFollowers")
 }
 
 model CartItem {
@@ -113,7 +117,11 @@ model SellerProfile {
 
   bizRegImageUrl String?              // S3 URL
   avatarUrl      String?              // Profile avatar URL
+  bio            String?              @db.VarChar(160) // 소개글 160자
+  locationText   String?              @db.VarChar(60)  // 위치 표시용 텍스트 (예: "동대문 · A층 · 101")
   csEmail        String?              // Customer service email for contact
+  csPhone        String?              @db.VarChar(30)  // CS 전화번호
+  csHours        String?              @db.VarChar(40)  // CS 운영시간 (예: "평일 10-18시")
   status         SellerApprovalStatus @default(PENDING)
   rejectedReason String?
 
@@ -132,7 +140,13 @@ model Product {
   title       String
   description String?       // Legacy plain text description (kept for backward compatibility)
   descriptionJson Json?     // Structured description (v1: spec, detail, csShipping)
-  category    String?       // 바지/아우터 등 (MVP는 string)
+  category    String?       // DEPRECATED: 기존 카테고리 (유지, 사용 안 함)
+
+  // 3-Depth Category Structure (여성의류/남성의류)
+  categoryMain String?      // 여성의류 / 남성의류
+  categoryMid  String?      // 상의 / 하의 / 원피스 / 아우터 등
+  categorySub  String?      // 티셔츠 / 데님 / 미니원피스 등
+
   priceKrw    Int
   isActive    Boolean       @default(true)
   isDeleted   Boolean       @default(false)
@@ -153,6 +167,7 @@ model ProductImage {
   url       String
   kind      ProductImageKind @default(MAIN)
   sortOrder Int              @default(0)
+  colorKey  String?          // 색상별 이미지 설정용 (정규화된 색상명)
 
   createdAt DateTime @default(now())
 }
@@ -272,4 +287,19 @@ model OrderAuditLog {
 
   @@index([orderId])
   @@index([adminId])
+}
+
+model SellerFollow {
+  id         String   @id @default(cuid())
+  followerId String   // User.id (누가)
+  sellerId   String   // User.id (누구를 - 판매자)
+
+  follower   User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  seller     User     @relation("UserFollowers", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([followerId, sellerId])
+  @@index([sellerId])
+  @@index([followerId])
 }

@@ -9,7 +9,7 @@ const STORAGE_KEYS = {
   HOME_FEED_VIEW_MODE: "homeFeedViewMode",
 };
 
-const DEFAULT_VIEW_MODE: HomeFeedViewMode = "feed";
+const DEFAULT_VIEW_MODE: HomeFeedViewMode = "carrot";
 
 /**
  * Get current home feed view mode

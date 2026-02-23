@@ -6,6 +6,7 @@ import { requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput } from "@/lib/variantNormalize";
+import { validateCategory } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,10 @@ export async function POST(req: NextRequest) {
     const {
       title,
       priceKrw,
-      category,
+      category, // DEPRECATED
+      categoryMain,
+      categoryMid,
+      categorySub,
       description,
       descriptionJson,
       mainImages,
@@ -28,7 +32,10 @@ export async function POST(req: NextRequest) {
     } = body as {
       title: string;
       priceKrw: number;
-      category?: string;
+      category?: string; // DEPRECATED
+      categoryMain?: string;
+      categoryMid?: string;
+      categorySub?: string;
       description?: string;
       descriptionJson?: any;
       mainImages: string[];
@@ -42,6 +49,13 @@ export async function POST(req: NextRequest) {
     }
     if (typeof priceKrw !== "number" || priceKrw < 0) {
       return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
+    }
+    // Validate 3-depth category (required)
+    if (!validateCategory(categoryMain, categoryMid, categorySub)) {
+      return NextResponse.json(
+        { error: "카테고리를 올바르게 선택해주세요 (성별 > 카테고리 > 세부 카테고리)" },
+        { status: 400 }
+      );
     }
     if (!mainImages || !Array.isArray(mainImages) || mainImages.length === 0) {
       return NextResponse.json({ error: "대표 이미지를 1장 이상 올려주세요" }, { status: 400 });
@@ -73,7 +87,10 @@ export async function POST(req: NextRequest) {
           sellerId,
           title: title.trim(),
           priceKrw,
-          category: category?.trim() || null,
+          category: category?.trim() || null, // DEPRECATED
+          categoryMain: categoryMain || null,
+          categoryMid: categoryMid || null,
+          categorySub: categorySub || null,
           description: description?.trim() || null,
           descriptionJson: descriptionJson ? (sanitizeDescriptionJson(descriptionJson) as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         },

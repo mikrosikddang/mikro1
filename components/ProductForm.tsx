@@ -6,6 +6,8 @@ import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
 import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
 import { validateVariantTree, formatValidationErrors } from "@/lib/variantValidation";
 import BulkPasteModal from "@/components/BulkPasteModal";
+import CategoryPickerSheet from "@/components/CategoryPickerSheet";
+import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -19,6 +21,14 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const PRESET_COLORS = ["BLACK", "CHARCOAL", "GRAY", "BEIGE", "WHITE"];
+
+const COLOR_LABELS: Record<string, string> = {
+  BLACK: "블랙",
+  CHARCOAL: "차콜",
+  GRAY: "그레이",
+  BEIGE: "베이지",
+  WHITE: "화이트",
+};
 
 // Default: Single FREE color with single FREE size
 const DEFAULT_TREE: VariantTree = [
@@ -46,7 +56,10 @@ type ImageSlot = {
 export type ProductFormInitialValues = {
   title: string;
   priceKrw: number;
-  category: string;
+  category: string; // DEPRECATED
+  categoryMain?: string | null;
+  categoryMid?: string | null;
+  categorySub?: string | null;
   description: string;
   descriptionJson?: any;
   mainImages: string[];
@@ -93,7 +106,11 @@ export default function ProductForm({
   const [priceKrw, setPriceKrw] = useState(
     initialValues?.priceKrw ? initialValues.priceKrw.toLocaleString("ko-KR") : "",
   );
-  const [category, setCategory] = useState(initialValues?.category ?? "");
+  const [category, setCategory] = useState(initialValues?.category ?? ""); // DEPRECATED
+  const [categoryMain, setCategoryMain] = useState<string | null>(initialValues?.categoryMain ?? null);
+  const [categoryMid, setCategoryMid] = useState<string | null>(initialValues?.categoryMid ?? null);
+  const [categorySub, setCategorySub] = useState<string | null>(initialValues?.categorySub ?? null);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [description, setDescription] = useState(initialValues?.description ?? "");
 
   // Structured description fields
@@ -418,6 +435,12 @@ export default function ProductForm({
       return;
     }
 
+    // Validate category (3-depth required)
+    if (!validateCategory(categoryMain, categoryMid, categorySub)) {
+      setError("카테고리를 선택해주세요 (성별 > 카테고리 > 세부 카테고리)");
+      return;
+    }
+
     // Validate variant tree
     const validationErrors = validateVariantTree(variantTree);
     if (validationErrors.length > 0) {
@@ -482,7 +505,10 @@ export default function ProductForm({
         body: JSON.stringify({
           title: title.trim(),
           priceKrw: price,
-          category: category || undefined,
+          category: category || undefined, // DEPRECATED
+          categoryMain: categoryMain,
+          categoryMid: categoryMid,
+          categorySub: categorySub,
           description: description.trim() || undefined,
           descriptionJson,
           mainImages: mainUrls,
@@ -578,41 +604,41 @@ export default function ProductForm({
                 {/* Color Selection */}
                 <div>
                   <label className="block text-[12px] text-gray-600 mb-1.5">컬러</label>
-                  <div className="flex gap-2 flex-wrap mb-2">
+                  <select
+                    value={PRESET_COLORS.includes(colorGroup.color) ? colorGroup.color : ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        // 직접입력 선택 → 빈 값으로 설정하여 input 표시
+                        updateColorGroupColor(groupIndex, "");
+                      } else {
+                        // 프리셋 선택
+                        updateColorGroupColor(groupIndex, value);
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black"
+                    disabled={submitting}
+                  >
+                    <option value="">직접입력...</option>
                     {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => updateColorGroupColor(groupIndex, color)}
-                        className={`px-3 py-1.5 text-[12px] rounded-lg border transition-colors ${
-                          colorGroup.color === color
-                            ? "bg-black text-white border-black"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                        }`}
-                        disabled={submitting}
-                      >
-                        {color}
-                      </button>
+                      <option key={color} value={color}>
+                        {COLOR_LABELS[color]}
+                      </option>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)) return;
-                        const customColor = prompt("컬러를 입력하세요 (예: NAVY, BROWN)");
-                        if (customColor) {
-                          updateColorGroupColor(groupIndex, customColor.trim().toUpperCase());
-                        }
-                      }}
-                      className={`px-3 py-1.5 text-[12px] rounded-lg border transition-colors ${
-                        colorGroup.color && !PRESET_COLORS.includes(colorGroup.color)
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                      }`}
+                  </select>
+
+                  {/* 직접입력 선택 시 또는 커스텀 컬러인 경우 텍스트 입력창 표시 */}
+                  {!PRESET_COLORS.includes(colorGroup.color) && (
+                    <input
+                      type="text"
+                      value={colorGroup.color}
+                      onChange={(e) => updateColorGroupColor(groupIndex, e.target.value.toUpperCase())}
+                      placeholder="컬러명 입력 (예: 네이비, 브라운)"
+                      className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black mt-2"
                       disabled={submitting}
-                    >
-                      {colorGroup.color && !PRESET_COLORS.includes(colorGroup.color) ? colorGroup.color : "직접입력"}
-                    </button>
-                  </div>
+                    />
+                  )}
+
                   {hasDuplicateColor && (
                     <p className="text-[12px] text-red-500 mt-1">중복된 컬러입니다</p>
                   )}
@@ -744,28 +770,34 @@ export default function ProductForm({
           })}
         </div>
 
-        {/* Add Color Group - Preset Buttons */}
-        <div className="mt-3 space-y-2">
-          <div className="flex gap-2 flex-wrap">
-            {PRESET_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => addColorGroupWithPreset(color)}
-                className="px-4 py-2 text-[13px] bg-white border border-gray-300 rounded-lg hover:bg-gray-100 active:bg-gray-200"
-                disabled={submitting}
-              >
-                + {color}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => addColorGroupWithPreset()}
-              className="px-4 py-2 text-[13px] bg-white border border-dashed border-gray-300 rounded-lg hover:bg-gray-50"
+        {/* Add Color Group - Dropdown */}
+        <div className="mt-3">
+          <div className="flex gap-2 items-center">
+            <label className="text-[13px] text-gray-600 whitespace-nowrap">새 컬러 그룹:</label>
+            <select
+              value=""
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "CUSTOM") {
+                  // 직접입력 선택 → 빈 컬러로 그룹 추가
+                  addColorGroupWithPreset();
+                } else if (value) {
+                  // 프리셋 선택 → 해당 컬러로 그룹 추가
+                  addColorGroupWithPreset(value);
+                }
+                // 선택 후 드랍다운 초기화 (value=""이므로 자동으로 초기화됨)
+              }}
+              className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black"
               disabled={submitting}
             >
-              + 기타 컬러
-            </button>
+              <option value="">선택하세요</option>
+              <option value="CUSTOM">직접입력...</option>
+              {PRESET_COLORS.map((color) => (
+                <option key={color} value={color}>
+                  {COLOR_LABELS[color]}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </section>
@@ -816,24 +848,39 @@ export default function ProductForm({
         </div>
       </section>
 
-      {/* ===== Category ===== */}
+      {/* ===== Category (3-Depth) ===== */}
       <section className="mb-5">
-        <label htmlFor="category" className="block text-[14px] font-medium text-gray-700 mb-1.5">
-          카테고리
+        <label className="block text-[14px] font-medium text-gray-700 mb-1.5">
+          카테고리 <span className="text-red-500">*</span>
         </label>
-        <select
-          id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] text-gray-900 bg-white focus:outline-none focus:border-black transition-colors appearance-none"
+        <button
+          type="button"
+          onClick={() => setCategoryPickerOpen(true)}
           disabled={submitting}
+          className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] bg-white focus:outline-none focus:border-black transition-colors text-left flex items-center justify-between"
         >
-          <option value="">선택안함</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
+          <span className={categoryMain && categoryMid && categorySub ? "text-gray-900" : "text-gray-400"}>
+            {getCategoryBreadcrumb(categoryMain, categoryMid, categorySub)}
+          </span>
+          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       </section>
+
+      {/* Category Picker Sheet */}
+      <CategoryPickerSheet
+        open={categoryPickerOpen}
+        onClose={() => setCategoryPickerOpen(false)}
+        initialMain={categoryMain}
+        initialMid={categoryMid}
+        initialSub={categorySub}
+        onChange={(selected) => {
+          setCategoryMain(selected.main);
+          setCategoryMid(selected.mid);
+          setCategorySub(selected.sub);
+        }}
+      />
 
       {/* ===== Structured Description ===== */}
       <section className="mb-8 space-y-6">

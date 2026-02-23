@@ -62,6 +62,8 @@ export default async function SellerShopPage({ params }: Props) {
         <SellerShopHeader
           sellerId={sellerId}
           shopName={profile.shopName}
+          bio={profile.bio}
+          locationText={profile.locationText}
           type={profile.type}
           marketBuilding={profile.marketBuilding}
           floor={profile.floor}

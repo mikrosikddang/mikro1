@@ -8,7 +8,7 @@ type HomeFeedViewToggleProps = {
 };
 
 export default function HomeFeedViewToggle({ onModeChange }: HomeFeedViewToggleProps) {
-  const [viewMode, setViewMode] = useState<HomeFeedViewMode>("feed");
+  const [viewMode, setViewMode] = useState<HomeFeedViewMode>(getHomeFeedViewMode());
   const [mounted, setMounted] = useState(false);
 
   // Initialize from localStorage after mount (avoid hydration mismatch)

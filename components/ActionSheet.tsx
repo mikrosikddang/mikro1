@@ -7,9 +7,10 @@ type ActionSheetProps = {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
+  headerRight?: React.ReactNode;
 };
 
-export default function ActionSheet({ open, onClose, children, title }: ActionSheetProps) {
+export default function ActionSheet({ open, onClose, children, title, headerRight }: ActionSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // Lock body scroll when open
@@ -64,8 +65,9 @@ export default function ActionSheet({ open, onClose, children, title }: ActionSh
 
         {/* Title */}
         {title && (
-          <div className="px-4 pb-2">
+          <div className="px-4 pb-2 flex items-center justify-between">
             <h3 className="text-[15px] font-semibold text-gray-900">{title}</h3>
+            {headerRight && <div>{headerRight}</div>}
           </div>
         )}
 
