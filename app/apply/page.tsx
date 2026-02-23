@@ -78,7 +78,7 @@ export default function ApplyPage() {
         {/* CTA */}
         <section className="space-y-4">
           <Link
-            href="/seller/apply"
+            href="/apply/seller"
             className="block w-full h-14 bg-black text-white rounded-xl text-[16px] font-bold flex items-center justify-center active:bg-gray-800 transition-colors"
           >
             지금 신청하기

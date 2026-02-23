@@ -40,7 +40,7 @@ export default function SellerApplyPage() {
       if (!res.ok) {
         // Not logged in, redirect to login
         if (res.status === 401) {
-          router.push("/login?next=/seller/apply");
+          router.push("/login?next=/apply/seller");
           return;
         }
         throw new Error("Failed to fetch profile");
