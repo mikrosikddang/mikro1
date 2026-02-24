@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("[orders/direct] Error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create order" },
+      { error: "주문 생성 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }

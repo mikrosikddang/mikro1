@@ -198,7 +198,7 @@ export async function POST(
 
     console.error("Admin override error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to override order status" },
+      { error: "주문 상태 변경 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }

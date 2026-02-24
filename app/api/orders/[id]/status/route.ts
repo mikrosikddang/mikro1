@@ -254,7 +254,7 @@ export async function PATCH(
 
     console.error("Order status update error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update order status" },
+      { error: "주문 상태 변경 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }
