@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import ActionSheet from "@/components/ActionSheet";
 
 type ProfileEditSheetProps = {
@@ -175,10 +176,12 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
               className="relative w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden active:opacity-70 transition-opacity"
             >
               {formData.avatarUrl ? (
-                <img
+                <Image
                   src={formData.avatarUrl}
                   alt="프로필"
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="96px"
+                  className="object-cover"
                 />
               ) : (
                 <svg

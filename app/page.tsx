@@ -9,6 +9,8 @@ import {
   type CategoryMain,
 } from "@/lib/categories";
 
+export const revalidate = 30; // ISR: 30초
+
 /** DEPRECATED: Old category mapping */
 const categoryMap: Record<string, string> = {
   pants: "바지",

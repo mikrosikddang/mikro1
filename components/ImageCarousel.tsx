@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 
 type Props = {
   images: { url: string }[];
@@ -109,11 +110,14 @@ export default function ImageCarousel({
   if (images.length === 1) {
     return (
       <div className={`relative ${className}`}>
-        <div className="w-full overflow-hidden" style={{ aspectRatio: aspect }}>
-          <img
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: aspect }}>
+          <Image
             src={images[0].url}
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 420px) 100vw, 420px"
+            className="object-cover"
+            priority
           />
         </div>
       </div>
@@ -136,14 +140,16 @@ export default function ImageCarousel({
         {images.map((img, i) => (
           <div
             key={i}
-            className="shrink-0 w-full snap-start overflow-hidden"
+            className="relative shrink-0 w-full snap-start overflow-hidden"
             style={{ aspectRatio: aspect }}
           >
-            <img
+            <Image
               src={img.url}
               alt=""
-              className="w-full h-full object-cover"
-              loading={i === 0 ? "eager" : "lazy"}
+              fill
+              sizes="(max-width: 420px) 100vw, 420px"
+              className="object-cover"
+              priority={i === 0}
             />
           </div>
         ))}

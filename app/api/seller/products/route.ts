@@ -7,6 +7,7 @@ import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
+import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
 
@@ -163,6 +164,7 @@ export async function POST(req: NextRequest) {
       return p;
     });
 
+    revalidatePath("/");
     return NextResponse.json({ id: product.id });
   } catch (err) {
     console.error("product creation error:", err);

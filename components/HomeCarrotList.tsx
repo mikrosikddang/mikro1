@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import ProductActionMenu from "@/components/ProductActionMenu";
 
@@ -39,11 +40,13 @@ function CarrotListItem({ product }: { product: Product }) {
       <Link href={`/p/${product.id}`} className="block">
         <div className="flex gap-3 py-4 px-4 border-b border-gray-100 active:bg-gray-50 transition-colors">
           {/* Thumbnail */}
-          <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
-            <img
+          <div className="relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
+            <Image
               src={imageUrl}
               alt={product.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="96px"
+              className="object-cover"
             />
           </div>
 

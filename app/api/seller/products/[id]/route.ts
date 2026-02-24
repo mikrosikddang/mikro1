@@ -7,6 +7,7 @@ import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput, variantsEqual } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
+import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
 
@@ -400,6 +401,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return updatedProduct;
     });
 
+    revalidatePath("/");
+    revalidatePath(`/p/${updated.id}`);
     return NextResponse.json({
       id: updated.id,
       isActive: updated.isActive,
@@ -442,6 +445,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     // TODO: 추후 주문 연동 시 hard delete 정책 확장 가능
     await prisma.product.update({ where: { id }, data: { isDeleted: true } });
 
+    revalidatePath("/");
+    revalidatePath(`/p/${id}`);
     return NextResponse.json({ id, deleted: "soft" });
   } catch (err) {
     console.error("product delete error:", err);

@@ -163,6 +163,11 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   orderItems  OrderItem[]
+
+  @@index([categoryMain, categoryMid, categorySub])
+  @@index([sellerId])
+  @@index([isActive, isDeleted])
+  @@index([createdAt])
 }
 
 model ProductImage {
@@ -231,6 +236,9 @@ model Order {
   items        OrderItem[]
   payment      Payment?
   shipment     Shipment?
+
+  @@index([buyerId])
+  @@index([sellerId])
 }
 
 model OrderItem {

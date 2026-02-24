@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
 
@@ -227,11 +228,13 @@ export default function CartPage() {
                 }`}
               >
                 {/* Image */}
-                <Link href={`/p/${product.id}`}>
-                  <img
+                <Link href={`/p/${product.id}`} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden">
+                  <Image
                     src={imageUrl}
                     alt={product.title}
-                    className={`w-20 h-20 rounded-lg object-cover ${
+                    fill
+                    sizes="80px"
+                    className={`object-cover ${
                       isUnavailable ? "opacity-50" : ""
                     }`}
                   />

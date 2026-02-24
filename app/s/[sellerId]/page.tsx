@@ -4,6 +4,8 @@ import Container from "@/components/Container";
 import SellerShopHeader from "@/components/SellerShopHeader";
 import ProductGrid from "@/components/ProductGrid";
 
+export const revalidate = 60; // ISR: 60초
+
 type Props = { params: Promise<{ sellerId: string }> };
 
 export default async function SellerShopPage({ params }: Props) {

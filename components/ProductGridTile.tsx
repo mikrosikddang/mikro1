@@ -5,6 +5,7 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 
 export interface ProductGridTileProps {
   id: string;
@@ -31,10 +32,12 @@ export default function ProductGridTile({
       <Link href={`/p/${id}`} className="block">
         <div className="relative aspect-square bg-gray-100 overflow-hidden">
           {imageUrl ? (
-            <img
+            <Image
               src={imageUrl}
               alt={title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 420px) 50vw, 210px"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
@@ -52,10 +55,12 @@ export default function ProductGridTile({
       {/* Image - 4:5 aspect ratio */}
       <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
         {imageUrl ? (
-          <img
+          <Image
             src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 420px) 50vw, 210px"
+            className="object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">

@@ -12,6 +12,8 @@ import SellerNameText from "@/components/typography/SellerNameText";
 import ProductTitleText from "@/components/typography/ProductTitleText";
 import ProductSellerActions from "./ProductSellerActions";
 
+export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
+
 type Props = { params: Promise<{ id: string }> };
 
 export default async function ProductDetailPage({ params }: Props) {
