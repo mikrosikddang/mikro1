@@ -7,11 +7,35 @@ import { getProductBadge } from "@/lib/productState";
 import ToggleActiveButton from "@/components/ToggleActiveButton";
 import StockAdjuster from "@/components/StockAdjuster";
 import WishlistButton from "@/components/WishlistButton";
+import { getColorByKey } from "@/lib/colors";
 import ImageCarousel from "@/components/ImageCarousel";
 import { isWishlisted, toggleWishlist } from "@/lib/wishlist";
 import FeedActionSheet from "@/components/FeedActionSheet";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
+
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
+
+type VariantItem = { id: string; color: string; sizeLabel: string; stock: number };
+
+function groupVariantsByColor(variants: VariantItem[]): [string, VariantItem[]][] {
+  const groups = new Map<string, VariantItem[]>();
+  for (const v of variants) {
+    const key = v.color || "FREE";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(v);
+  }
+  // Sort sizes within each group
+  for (const [, items] of groups) {
+    items.sort((a, b) => {
+      const ai = SIZE_ORDER.indexOf(a.sizeLabel);
+      const bi = SIZE_ORDER.indexOf(b.sizeLabel);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }
+  // Sort groups alphabetically by color
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], "ko"));
+}
 
 type ProductCardProps = {
   id: string;
@@ -30,7 +54,7 @@ type ProductCardProps = {
   /** e.g. "S:10 M:8 L:6" */
   variantSummary?: string;
   /** Variant data for stock adjusters (seller mode only) */
-  variants?: { id: string; sizeLabel: string; stock: number }[];
+  variants?: { id: string; color: string; sizeLabel: string; stock: number }[];
 };
 
 export default function ProductCard({
@@ -147,28 +171,50 @@ export default function ProductCard({
 
         {/* Product info */}
         <div className="px-4 py-3">
-          {/* Product title */}
+          {/* Product title + Price */}
           <Link href={`/seller/products/${id}/edit`}>
-            <h3 className="mt-1 text-[17px] font-semibold text-black leading-snug line-clamp-2">
-              {title}
-            </h3>
+            <div className="mt-1 flex items-baseline justify-between gap-4">
+              <h3 className="flex-1 min-w-0 text-[16px] font-semibold text-black leading-snug line-clamp-2">
+                {title}
+              </h3>
+              <span className="shrink-0 text-[16px] font-bold text-black">
+                {formatKrw(priceKrw)}
+              </span>
+            </div>
           </Link>
-
-          {/* Price */}
-          <p className="mt-1 text-[17px] font-bold text-black">
-            {formatKrw(priceKrw)}
-          </p>
 
           {/* Stock adjusters + actions */}
           {variants && variants.length > 0 && !isDeleted ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {variants.map((v) => (
-                <StockAdjuster
-                  key={v.id}
-                  variantId={v.id}
-                  sizeLabel={v.sizeLabel}
-                  initialStock={v.stock}
-                />
+            <div className="mt-2 space-y-2">
+              {groupVariantsByColor(variants).map(([color, colorVariants]) => (
+                <div key={color}>
+                  {color !== "FREE" && (
+                    <div className="flex items-center gap-1 mb-1">
+                      {(() => {
+                        const ci = getColorByKey(color);
+                        return ci ? (
+                          <span
+                            className="w-3 h-3 rounded-full border border-gray-300 shrink-0"
+                            style={{ backgroundColor: ci.hex }}
+                          />
+                        ) : null;
+                      })()}
+                      <span className="text-[11px] font-medium text-gray-600">
+                        {getColorByKey(color)?.labelKo ?? color}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {colorVariants.map((v) => (
+                      <StockAdjuster
+                        key={v.id}
+                        variantId={v.id}
+                        sizeLabel={v.sizeLabel}
+                        initialStock={v.stock}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (

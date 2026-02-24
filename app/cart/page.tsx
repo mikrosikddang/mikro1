@@ -12,6 +12,7 @@ interface CartItemData {
   quantity: number;
   variant: {
     id: string;
+    color: string;
     sizeLabel: string;
     stock: number;
     product: {
@@ -207,8 +208,10 @@ export default function CartPage() {
             const shopName =
               product.seller.sellerProfile?.shopName ?? "알수없음";
             const imageUrl = product.images[0]?.url || "/placeholder.png";
-            const sizeLabel =
-              variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
+            const optionLabel =
+              variant.color && variant.color !== "FREE"
+                ? `${variant.color} / ${variant.sizeLabel}`
+                : variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
             const subtotal = product.priceKrw * item.quantity;
 
             // Check if product is unavailable
@@ -249,7 +252,7 @@ export default function CartPage() {
                   </Link>
                   <p className="text-[13px] text-gray-500 mt-1">{shopName}</p>
                   <p className="text-[13px] text-gray-600 mt-1">
-                    사이즈: {sizeLabel}
+                    옵션: {optionLabel}
                   </p>
 
                   {isUnavailable && (

@@ -21,8 +21,8 @@ type CategoryPickerSheetProps = {
   initialSub?: string | null;
   onChange: (category: {
     main: string;
-    mid: string;
-    sub: string;
+    mid?: string;
+    sub?: string;
   }) => void;
 };
 
@@ -50,12 +50,17 @@ export default function CategoryPickerSheet({
 
   const [recentCategories, setRecentCategories] = useState<RecentCategory[]>([]);
 
-  // Load recent categories when sheet opens
+  // Sync selectedMain/Mid/Sub when initialMain or open changes
   useEffect(() => {
     if (open) {
+      setSelectedMain(initialMain || null);
+      setSelectedMid(initialMid || null);
+      setSelectedSub(initialSub || null);
+      // Auto-expand mid categories when initialMain is provided
+      setExpandedMid(initialMid || null);
       setRecentCategories(getRecentCategories());
     }
-  }, [open]);
+  }, [open, initialMain, initialMid, initialSub]);
 
   // Main 카테고리 선택
   const handleMainSelect = (main: string) => {
@@ -65,31 +70,37 @@ export default function CategoryPickerSheet({
     setExpandedMid(null);
   };
 
-  // Mid 카테고리 선택 (펼침/접힘)
+  // Mid 카테고리 선택 — 실시간 필터링 + 펼침
   const handleMidToggle = (mid: string) => {
     if (expandedMid === mid) {
-      // 이미 펼쳐져 있으면 접기
       setExpandedMid(null);
     } else {
-      // 펼치기
       setExpandedMid(mid);
       setSelectedMid(mid);
       setSelectedSub(null);
+
+      // Real-time filtering: navigate to main+mid (sheet stays open)
+      if (selectedMain) {
+        onChange({ main: selectedMain, mid });
+      }
     }
   };
 
-  // Sub 카테고리 선택 (완료)
+  // Sub 카테고리 선택 — 실시간 필터링 (시트 유지, 재탭으로 해제)
   const handleSubSelect = (sub: string) => {
     if (!selectedMain || !selectedMid) return;
 
-    setSelectedSub(sub);
-    pushRecentCategory(selectedMain, selectedMid, sub);
-    onChange({
-      main: selectedMain,
-      mid: selectedMid,
-      sub: sub,
-    });
-    onClose();
+    if (selectedSub === sub) {
+      // Re-tap: deselect sub → filter by main+mid only
+      setSelectedSub(null);
+      onChange({ main: selectedMain, mid: selectedMid });
+    } else {
+      // Select sub → filter by main+mid+sub
+      setSelectedSub(sub);
+      pushRecentCategory(selectedMain, selectedMid, sub);
+      onChange({ main: selectedMain, mid: selectedMid, sub });
+    }
+    // Sheet stays open for continued browsing
   };
 
   // 최근 선택 카테고리 클릭
@@ -148,7 +159,7 @@ export default function CategoryPickerSheet({
                 onClick={() => handleMainSelect(main)}
                 className={`h-11 px-4 rounded-lg text-sm font-medium transition-colors ${
                   selectedMain === main
-                    ? "bg-red-500 text-white"
+                    ? "bg-gray-900 text-white"
                     : "bg-gray-100 text-gray-700 active:bg-gray-200"
                 }`}
               >
@@ -180,7 +191,7 @@ export default function CategoryPickerSheet({
                       onClick={() => handleMidToggle(mid)}
                       className={`w-full h-11 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
                         selectedMid === mid
-                          ? "bg-red-500 text-white"
+                          ? "bg-gray-900 text-white"
                           : "bg-gray-100 text-gray-700 active:bg-gray-200"
                       }`}
                     >
@@ -212,7 +223,7 @@ export default function CategoryPickerSheet({
                             onClick={() => handleSubSelect(sub)}
                             className={`h-10 px-3 rounded-lg text-xs font-medium transition-colors ${
                               selectedSub === sub
-                                ? "bg-red-100 text-red-700 border border-red-300"
+                                ? "bg-gray-200 text-gray-900 border border-gray-400"
                                 : "bg-white border border-gray-200 text-gray-700 active:bg-gray-50"
                             }`}
                           >

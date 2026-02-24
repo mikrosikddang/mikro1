@@ -255,7 +255,7 @@ export default function ColorPickerSheet({
                       onClick={() => setSelectedGroup(group)}
                       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                         selectedGroup === group
-                          ? "bg-red-500 text-white"
+                          ? "bg-gray-900 text-white"
                           : "bg-gray-100 text-gray-600"
                       }`}
                     >

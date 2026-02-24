@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isAdmin } from "@/lib/roles";
 import { SellerApprovalStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -12,7 +13,16 @@ interface SellerApplyRequest {
   floor?: string;
   roomNo?: string;
   managerPhone: string;
-  csEmail: string;
+  bizRegImageUrl?: string;
+  csKakaoId?: string | null;
+  csPhone?: string | null;
+  csEmail?: string | null;
+  csAddress?: string;
+  csHours?: string;
+  shippingGuide?: string;
+  exchangeGuide?: string;
+  refundGuide?: string;
+  etcGuide?: string | null;
 }
 
 /**
@@ -33,6 +43,7 @@ export async function GET() {
     return NextResponse.json({
       exists: !!profile,
       profile: profile || null,
+      role: session.role,
     });
   } catch (error) {
     console.error("GET /api/seller/apply error:", error);
@@ -54,9 +65,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ADMIN cannot apply as seller
+    if (isAdmin(session.role)) {
+      return NextResponse.json(
+        { error: "관리자 계정은 판매자 신청이 불가합니다." },
+        { status: 403 }
+      );
+    }
+
     const body = (await request.json()) as SellerApplyRequest;
 
     // Validation
+    if (!body.bizRegImageUrl?.trim()) {
+      return NextResponse.json(
+        { error: "사업자등록증 이미지는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
     if (!body.shopName?.trim()) {
       return NextResponse.json(
         { error: "상점명은 필수입니다." },
@@ -71,6 +97,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!body.marketBuilding?.trim()) {
+      return NextResponse.json(
+        { error: "상가명은 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!body.floor?.trim()) {
+      return NextResponse.json(
+        { error: "층은 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!body.roomNo?.trim()) {
+      return NextResponse.json(
+        { error: "호수는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
     if (!body.managerPhone?.trim()) {
       return NextResponse.json(
         { error: "담당자 전화번호는 필수입니다." },
@@ -78,46 +125,80 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!body.csEmail?.trim()) {
+    // CS contact: at least one of csKakaoId, csPhone, csEmail must be provided
+    const hasCs = body.csKakaoId?.trim() || body.csPhone?.trim() || body.csEmail?.trim();
+    if (!hasCs) {
       return NextResponse.json(
-        { error: "고객센터 이메일은 필수입니다." },
+        { error: "CS 연락처는 필수입니다." },
         { status: 400 }
       );
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.csEmail)) {
+    if (!body.csAddress?.trim()) {
       return NextResponse.json(
-        { error: "유효한 이메일 주소를 입력해주세요." },
+        { error: "CS 주소는 필수입니다." },
         { status: 400 }
       );
     }
+
+    if (!body.csHours?.trim()) {
+      return NextResponse.json(
+        { error: "상담 시간은 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!body.shippingGuide?.trim()) {
+      return NextResponse.json(
+        { error: "배송 안내는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!body.exchangeGuide?.trim()) {
+      return NextResponse.json(
+        { error: "교환/반품 안내는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!body.refundGuide?.trim()) {
+      return NextResponse.json(
+        { error: "환불 안내는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    const profileData = {
+      shopName: body.shopName.trim(),
+      type: body.type.trim(),
+      marketBuilding: body.marketBuilding.trim(),
+      floor: body.floor.trim(),
+      roomNo: body.roomNo.trim(),
+      managerPhone: body.managerPhone.trim(),
+      bizRegImageUrl: body.bizRegImageUrl?.trim() || null,
+      csKakaoId: body.csKakaoId?.trim() || null,
+      csPhone: body.csPhone?.trim() || null,
+      csEmail: body.csEmail?.trim() || null,
+      csAddress: body.csAddress.trim(),
+      csHours: body.csHours.trim(),
+      shippingGuide: body.shippingGuide.trim(),
+      exchangeGuide: body.exchangeGuide.trim(),
+      refundGuide: body.refundGuide.trim(),
+      etcGuide: body.etcGuide?.trim() || null,
+    };
 
     const result = await prisma.$transaction(async (tx) => {
-      // Upsert seller profile
       const profile = await tx.sellerProfile.upsert({
         where: { userId: session.userId },
         create: {
           userId: session.userId,
-          shopName: body.shopName.trim(),
-          type: body.type.trim(),
-          marketBuilding: body.marketBuilding?.trim() || null,
-          floor: body.floor?.trim() || null,
-          roomNo: body.roomNo?.trim() || null,
-          managerPhone: body.managerPhone.trim(),
-          csEmail: body.csEmail.trim(),
+          ...profileData,
           status: SellerApprovalStatus.APPROVED,
         },
         update: {
-          shopName: body.shopName.trim(),
-          type: body.type.trim(),
-          marketBuilding: body.marketBuilding?.trim() || null,
-          floor: body.floor?.trim() || null,
-          roomNo: body.roomNo?.trim() || null,
-          managerPhone: body.managerPhone.trim(),
-          csEmail: body.csEmail.trim(),
-          status: SellerApprovalStatus.APPROVED, // Auto-approve immediately
+          ...profileData,
+          status: SellerApprovalStatus.APPROVED,
         },
       });
 

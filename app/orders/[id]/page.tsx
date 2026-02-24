@@ -130,10 +130,12 @@ export default async function OrderDetailPage({ params }: Props) {
           <div className="space-y-3">
             {order.items.map((item: any) => {
               const imageUrl = item.product.images[0]?.url || "/placeholder.png";
-              const sizeLabel =
-                item.variant?.sizeLabel === "FREE"
-                  ? "FREE"
-                  : item.variant?.sizeLabel || "N/A";
+              const optionLabel =
+                item.variant?.color && item.variant.color !== "FREE"
+                  ? `${item.variant.color} / ${item.variant?.sizeLabel || "N/A"}`
+                  : item.variant?.sizeLabel === "FREE"
+                    ? "FREE"
+                    : item.variant?.sizeLabel || "N/A";
               const subtotal = item.unitPriceKrw * item.quantity;
 
               return (
@@ -155,7 +157,7 @@ export default async function OrderDetailPage({ params }: Props) {
                       </h3>
                     </Link>
                     <p className="text-[13px] text-gray-500 mt-1">
-                      사이즈: {sizeLabel}
+                      옵션: {optionLabel}
                     </p>
                     <p className="text-[13px] text-gray-500">
                       수량: {item.quantity}개

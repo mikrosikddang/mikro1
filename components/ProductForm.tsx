@@ -966,8 +966,8 @@ export default function ProductForm({
         initialSub={categorySub}
         onChange={(selected) => {
           setCategoryMain(selected.main);
-          setCategoryMid(selected.mid);
-          setCategorySub(selected.sub);
+          setCategoryMid(selected.mid ?? null);
+          setCategorySub(selected.sub ?? null);
         }}
       />
 

@@ -1,7 +1,21 @@
 import Link from "next/link";
 import Container from "@/components/Container";
+import { getSession } from "@/lib/auth";
 
-export default function ApplyPage() {
+const MARKET_BUILDINGS = [
+  "APM",
+  "APM플레이스",
+  "APM럭스",
+  "누죤",
+  "디자이너클럽",
+  "퀸즈스퀘어",
+  "DDP패션몰",
+  "기타",
+];
+
+export default async function ApplyPage() {
+  const session = await getSession();
+  const ctaHref = session ? "/apply/seller" : "/login?next=/apply/seller";
   return (
     <Container>
       <div className="pt-4 pb-20">
@@ -23,14 +37,18 @@ export default function ApplyPage() {
             <div className="p-4 bg-gray-50 rounded-xl">
               <p className="text-[14px] font-medium text-gray-900">동대문 매장 운영</p>
               <p className="text-[13px] text-gray-500 mt-1">
-                APM, 누죤, 디자이너클럽, 밀리오레 등 동대문 상권 매장
+                동대문 상권 내 매장을 운영하는 사업자
               </p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="text-[14px] font-medium text-gray-900">자체 상품 보유</p>
-              <p className="text-[13px] text-gray-500 mt-1">
-                직접 제작 또는 독점 유통하는 패션 상품
-              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {MARKET_BUILDINGS.map((name) => (
+                  <span
+                    key={name}
+                    className="px-2.5 py-1 bg-gray-100 rounded-md text-[12px] text-gray-600"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -44,9 +62,9 @@ export default function ApplyPage() {
                 1
               </div>
               <div>
-                <p className="text-[14px] font-medium text-gray-900">문의 접수</p>
+                <p className="text-[14px] font-medium text-gray-900">고객용 회원가입</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">
-                  아래 이메일로 입점 문의를 보내주세요
+                  먼저 mikro에 일반 회원으로 가입하세요
                 </p>
               </div>
             </div>
@@ -55,9 +73,9 @@ export default function ApplyPage() {
                 2
               </div>
               <div>
-                <p className="text-[14px] font-medium text-gray-900">서류 제출</p>
+                <p className="text-[14px] font-medium text-gray-900">입점 신청</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">
-                  사업자등록증, 매장 사진, 대표 상품 이미지를 첨부해주세요
+                  회원가입 후 입점 신청서를 작성해 주세요
                 </p>
               </div>
             </div>
@@ -78,8 +96,8 @@ export default function ApplyPage() {
         {/* CTA */}
         <section className="space-y-4">
           <Link
-            href="/apply/seller"
-            className="block w-full h-14 bg-black text-white rounded-xl text-[16px] font-bold flex items-center justify-center active:bg-gray-800 transition-colors"
+            href={ctaHref}
+            className="w-full h-14 bg-black text-white rounded-xl text-[16px] font-bold flex items-center justify-center active:bg-gray-800 transition-colors"
           >
             지금 신청하기
           </Link>

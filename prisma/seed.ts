@@ -199,41 +199,207 @@ async function main() {
 
   const customers = [mvpCustomer, ...additionalCustomers];
 
-  const categories = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
-  const titleA = ["미니멀", "데일리", "스탠다드", "오버핏", "슬림핏", "빈티지", "캐주얼", "포멀"];
-  const titleB = ["자켓", "가디건", "티셔츠", "니트", "셔츠", "데님", "슬랙스", "원피스"];
+  // 3-Depth category definitions aligned with lib/categories.ts
+  const categoryDefs: { main: string; mid: string; sub: string; titleHint: string }[] = [
+    { main: "여성의류", mid: "상의", sub: "티셔츠", titleHint: "티셔츠" },
+    { main: "여성의류", mid: "상의", sub: "셔츠/블라우스", titleHint: "블라우스" },
+    { main: "여성의류", mid: "상의", sub: "니트/스웨터", titleHint: "니트" },
+    { main: "여성의류", mid: "상의", sub: "후드/맨투맨", titleHint: "맨투맨" },
+    { main: "여성의류", mid: "아우터", sub: "자켓", titleHint: "자켓" },
+    { main: "여성의류", mid: "아우터", sub: "가디건", titleHint: "가디건" },
+    { main: "여성의류", mid: "아우터", sub: "코트", titleHint: "코트" },
+    { main: "여성의류", mid: "하의", sub: "데님", titleHint: "데님" },
+    { main: "여성의류", mid: "하의", sub: "슬랙스", titleHint: "슬랙스" },
+    { main: "여성의류", mid: "스커트", sub: "미니", titleHint: "미니스커트" },
+    { main: "여성의류", mid: "스커트", sub: "미디", titleHint: "미디스커트" },
+    { main: "여성의류", mid: "원피스", sub: "미디", titleHint: "원피스" },
+    { main: "여성의류", mid: "원피스", sub: "미니", titleHint: "미니원피스" },
+    { main: "남성의류", mid: "상의", sub: "티셔츠", titleHint: "티셔츠" },
+    { main: "남성의류", mid: "상의", sub: "셔츠", titleHint: "셔츠" },
+    { main: "남성의류", mid: "상의", sub: "니트/스웨터", titleHint: "니트" },
+    { main: "남성의류", mid: "상의", sub: "후드/맨투맨", titleHint: "맨투맨" },
+    { main: "남성의류", mid: "아우터", sub: "자켓", titleHint: "자켓" },
+    { main: "남성의류", mid: "아우터", sub: "점퍼/바람막이", titleHint: "점퍼" },
+    { main: "남성의류", mid: "하의", sub: "데님", titleHint: "데님" },
+    { main: "남성의류", mid: "하의", sub: "슬랙스", titleHint: "슬랙스" },
+    { main: "남성의류", mid: "하의", sub: "숏팬츠", titleHint: "숏팬츠" },
+  ];
 
-  // Curated Unsplash fashion images
-  const fashionImages: string[] = [
-    "https://images.unsplash.com/photo-1581044777550-4cfa60707998?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1551803091-e20673f15770?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1581338834647-b0fb40704e21?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1495385794356-15371f348c31?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1434389677669-e08b4cda3a44?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1475180098004-ca77a66827be?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1562572159-4efc207f5aff?auto=format&fit=crop&w=900&q=80",
+  // Color sets for variants (from lib/colors.ts keys)
+  const variantColors = [
+    ["블랙", "화이트", "네이비"],
+    ["베이지", "그레이", "카키"],
+    ["아이보리", "블랙", "브라운"],
+    ["화이트", "연핑크", "스카이블루"],
+    ["차콜", "네이비", "베이지"],
+    ["블랙", "아이보리", "그레이"],
+    ["카멜", "블랙", "화이트"],
+    ["네이비", "화이트", "올리브"],
+  ];
+
+  const titleA = ["미니멀", "데일리", "스탠다드", "오버핏", "슬림핏", "빈티지", "캐주얼", "포멀"];
+
+  // Category-specific product images (Unsplash)
+  // Keys: "${gender}_${titleHint}" for gender-aware lookups
+  const IMG = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=80`;
+  const categoryImages: Record<string, string[]> = {
+    // ── 여성 상의 ──
+    "여성_티셔츠": [
+      IMG("photo-1521572163474-6864f9cf17ab"),
+      IMG("photo-1576566588028-4147f3842f27"),
+      IMG("photo-1618354691373-d851c5c3a990"),
+      IMG("photo-1503342217505-b0a15ec3261c"),
+    ],
+    "여성_블라우스": [
+      IMG("photo-1598554747436-c9293d6a588f"),
+      IMG("photo-1564257631407-4deb1f99d992"),
+      IMG("photo-1611312449408-fcece27cdbb7"),
+      IMG("photo-1516762689617-e1cffcef479d"),
+    ],
+    "여성_니트": [
+      IMG("photo-1576871337632-b9aef4c17ab9"),
+      IMG("photo-1620799140408-edc6dcb6d633"),
+      IMG("photo-1631541909061-71e349d1f203"),
+      IMG("photo-1584273143981-41c073dfe8f8"),
+    ],
+    "여성_맨투맨": [
+      IMG("photo-1556821840-3a63f95609a7"),
+      IMG("photo-1578768079052-aa76e52ff62e"),
+      IMG("photo-1572495532056-8583af1cbae0"),
+      IMG("photo-1609505848912-b7c3b8b4beda"),
+    ],
+    // ── 여성 아우터 ──
+    "여성_자켓": [
+      IMG("photo-1551028719-00167b16eac5"),
+      IMG("photo-1591047139829-d91aecb6caea"),
+      IMG("photo-1548624313-0396c75e4b1a"),
+      IMG("photo-1594938298603-c8148c4dae35"),
+    ],
+    "여성_가디건": [
+      IMG("photo-1583744946564-b52ac1c389c8"),
+      IMG("photo-1619603364904-c0498317e145"),
+      IMG("photo-1598300042247-d088f8ab3a91"),
+      IMG("photo-1620799140408-edc6dcb6d633"),
+    ],
+    "여성_코트": [
+      IMG("photo-1539533113208-f6df8cc8b543"),
+      IMG("photo-1591369822096-ffd140ec948f"),
+      IMG("photo-1544022613-e87ca75a784a"),
+      IMG("photo-1578587018452-892bacefd3f2"),
+    ],
+    // ── 여성 하의 ──
+    "여성_데님": [
+      IMG("photo-1541099649105-f69ad21f3246"),
+      IMG("photo-1542272604-787c3835535d"),
+      IMG("photo-1582418702059-97ebafb35d09"),
+      IMG("photo-1604176354204-9268737828e4"),
+    ],
+    "여성_슬랙스": [
+      IMG("photo-1506629082955-511b1aa562c8"),
+      IMG("photo-1594633312681-425c7b97ccd1"),
+      IMG("photo-1551854838-212c50b4c184"),
+      IMG("photo-1560243563-062bfc001d68"),
+    ],
+    // ── 여성 스커트 ──
+    "여성_미니스커트": [
+      IMG("photo-1515734674582-29010bb37906"),
+      IMG("photo-1585386959984-a4155224a1ad"),
+      IMG("photo-1577900232427-18219b9166a0"),
+      IMG("photo-1582142306909-195724d33ffc"),
+    ],
+    "여성_미디스커트": [
+      IMG("photo-1515734674582-29010bb37906"),
+      IMG("photo-1592301933927-35b597393c0a"),
+      IMG("photo-1577900232427-18219b9166a0"),
+      IMG("photo-1585386959984-a4155224a1ad"),
+    ],
+    // ── 여성 원피스 ──
+    "여성_원피스": [
+      IMG("photo-1572804013309-59a88b7e92f1"),
+      IMG("photo-1595777457583-95e059d581b8"),
+      IMG("photo-1612336307429-8a898d10e223"),
+      IMG("photo-1568252542512-9fe8fe9c87bb"),
+    ],
+    "여성_미니원피스": [
+      IMG("photo-1572804013309-59a88b7e92f1"),
+      IMG("photo-1612336307429-8a898d10e223"),
+      IMG("photo-1595777457583-95e059d581b8"),
+      IMG("photo-1568252542512-9fe8fe9c87bb"),
+    ],
+    // ── 남성 상의 ──
+    "남성_티셔츠": [
+      IMG("photo-1562157873-818bc0726f68"),
+      IMG("photo-1583743814966-8936f5b7be1a"),
+      IMG("photo-1521572163474-6864f9cf17ab"),
+      IMG("photo-1618354691373-d851c5c3a990"),
+    ],
+    "남성_셔츠": [
+      IMG("photo-1596755094514-f87e34085b2c"),
+      IMG("photo-1607345366928-199ea26cfe3e"),
+      IMG("photo-1594938328870-9623159c8c99"),
+      IMG("photo-1620012253295-c15cc3e65df4"),
+    ],
+    "남성_니트": [
+      IMG("photo-1576871337632-b9aef4c17ab9"),
+      IMG("photo-1620799140408-edc6dcb6d633"),
+      IMG("photo-1523381210434-271e8be1f52b"),
+      IMG("photo-1584273143981-41c073dfe8f8"),
+    ],
+    "남성_맨투맨": [
+      IMG("photo-1565693413579-8ff3fdc1b03b"),
+      IMG("photo-1556821840-3a63f95609a7"),
+      IMG("photo-1578768079052-aa76e52ff62e"),
+      IMG("photo-1609505848912-b7c3b8b4beda"),
+    ],
+    // ── 남성 아우터 ──
+    "남성_자켓": [
+      IMG("photo-1507679799987-c73779587ccf"),
+      IMG("photo-1551028719-00167b16eac5"),
+      IMG("photo-1591047139829-d91aecb6caea"),
+      IMG("photo-1548624313-0396c75e4b1a"),
+    ],
+    "남성_점퍼": [
+      IMG("photo-1544441893-675973e31985"),
+      IMG("photo-1544022613-e87ca75a784a"),
+      IMG("photo-1551028719-00167b16eac5"),
+      IMG("photo-1591047139829-d91aecb6caea"),
+    ],
+    // ── 남성 하의 ──
+    "남성_데님": [
+      IMG("photo-1542272604-787c3835535d"),
+      IMG("photo-1541099649105-f69ad21f3246"),
+      IMG("photo-1604176354204-9268737828e4"),
+      IMG("photo-1582418702059-97ebafb35d09"),
+    ],
+    "남성_슬랙스": [
+      IMG("photo-1624378439575-d8705ad7ae80"),
+      IMG("photo-1506629082955-511b1aa562c8"),
+      IMG("photo-1594633312681-425c7b97ccd1"),
+      IMG("photo-1473966968600-fa801b869a1a"),
+    ],
+    "남성_숏팬츠": [
+      IMG("photo-1591195853828-11db59a44f6b"),
+      IMG("photo-1565084888279-aca607ecce0c"),
+      IMG("photo-1560243563-062bfc001d68"),
+      IMG("photo-1542272604-787c3835535d"),
+    ],
+  };
+
+  // Fallback images (generic clothing product shots)
+  const fallbackImages: string[] = [
+    IMG("photo-1489987707025-afc232f7ea0f"),
+    IMG("photo-1558171813-4c088753af8f"),
+    IMG("photo-1490481651871-ab68de25d43d"),
+    IMG("photo-1445205170230-053b83016050"),
   ];
 
   // Content-style images (detail / look-book feel)
   const contentStyleImages: string[] = [
-    "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1617137968427-85924c800a22?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1558191053-0b52a0b9e3de?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1603344797033-f0f4f587ab60?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1507680434567-5739c80be1ac?auto=format&fit=crop&w=900&q=80",
@@ -245,20 +411,35 @@ async function main() {
   const products = [];
   for (let i = 0; i < 30; i++) {
     const seller = pick(sellers);
-    const category = pick(categories);
-    const title = `${pick(titleA)} ${pick(titleB)} ${randInt(1, 99)}`;
+    const catDef = pick(categoryDefs);
+    const colors = pick(variantColors);
+    const title = `${pick(titleA)} ${catDef.titleHint} ${randInt(1, 99)}`;
     const price = randInt(19000, 129000);
 
-    // Pick 3 MAIN images and 2 CONTENT images
-    const mainImgs = pickN(fashionImages, 3);
+    // Pick 3 MAIN images from category-specific pool
+    const gender = catDef.main === "남성의류" ? "남성" : "여성";
+    const catKey = `${gender}_${catDef.titleHint}`;
+    const mainImgs = pickN(categoryImages[catKey] || fallbackImages, 3);
     const contentImgs = pickN(contentStyleImages, 2);
+
+    // Create variants: each color × each size
+    const variantData = colors.flatMap((color) =>
+      sizes.map((s) => ({
+        color,
+        sizeLabel: s,
+        stock: randInt(3, 30),
+      }))
+    );
 
     const product = await prisma.product.create({
       data: {
         sellerId: seller.id,
         title,
         description: "MVP 목데이터 상품입니다. 실제 설명은 판매자가 입력합니다.",
-        category,
+        category: catDef.mid,
+        categoryMain: catDef.main,
+        categoryMid: catDef.mid,
+        categorySub: catDef.sub,
         priceKrw: price,
         images: {
           create: [
@@ -277,11 +458,7 @@ async function main() {
           ],
         },
         variants: {
-          create: sizes.map((s) => ({
-            color: "FREE",
-            sizeLabel: s,
-            stock: randInt(3, 30),
-          })),
+          create: variantData,
         },
       },
       include: { variants: true },

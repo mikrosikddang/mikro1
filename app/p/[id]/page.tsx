@@ -53,18 +53,13 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Seller name */}
         <SellerNameText sellerId={product.sellerId} shopName={shopName} />
 
-        {/* Product title */}
-        <div className="mt-2">
-          <h1 className="text-2xl font-bold text-black tracking-tight leading-snug">
+        {/* Product title + Price */}
+        <div className="mt-2 flex items-baseline justify-between gap-4">
+          <h1 className="flex-1 min-w-0 text-[18px] font-bold text-black tracking-tight leading-snug">
             {product.title}
           </h1>
-        </div>
-
-        {/* Price */}
-        <div className="mt-4 mb-6">
-          <span className="text-xl text-black">₩</span>
-          <span className="text-3xl font-bold text-black tracking-tight">
-            {product.priceKrw.toLocaleString()}
+          <span className="shrink-0 text-[20px] font-bold text-black tracking-tight">
+            ₩{product.priceKrw.toLocaleString()}
           </span>
         </div>
 

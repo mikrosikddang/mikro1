@@ -12,6 +12,25 @@ interface Variant {
   stock: number;
 }
 
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
+
+function sortVariants(variants: Variant[]): Variant[] {
+  return [...variants].sort((a, b) => {
+    // Primary: color alphabetical
+    const colorCmp = a.color.localeCompare(b.color, "ko");
+    if (colorCmp !== 0) return colorCmp;
+    // Secondary: sizeLabel by SIZE_ORDER index
+    const ai = SIZE_ORDER.indexOf(a.sizeLabel);
+    const bi = SIZE_ORDER.indexOf(b.sizeLabel);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+}
+
+function variantLabel(v: Variant): string {
+  if (v.color === "FREE" || !v.color) return v.sizeLabel;
+  return `${v.color} / ${v.sizeLabel}`;
+}
+
 interface Props {
   productId: string;
   variants: Variant[];
@@ -21,10 +40,11 @@ interface Props {
 
 export default function AddToCartSection({
   productId,
-  variants,
+  variants: rawVariants,
   isSoldOut,
   userRole,
 }: Props) {
+  const variants = sortVariants(rawVariants);
   const router = useRouter();
   const selectRef = useRef<HTMLSelectElement>(null);
   const optionCardRef = useRef<HTMLDivElement>(null);
@@ -33,6 +53,7 @@ export default function AddToCartSection({
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showFocusRing, setShowFocusRing] = useState(false);
+  const [showCartPopup, setShowCartPopup] = useState(false);
 
   const selectedVariant = variants.find((v) => v.id === selectedVariantId);
 
@@ -99,8 +120,7 @@ export default function AddToCartSection({
         throw new Error(data.error || "장바구니 담기 실패");
       }
 
-      setMessage("장바구니에 담았습니다");
-      setTimeout(() => setMessage(null), 2000);
+      setShowCartPopup(true);
     } catch (err: any) {
       setMessage(err.message || "오류가 발생했습니다");
       setTimeout(() => setMessage(null), 3000);
@@ -203,7 +223,7 @@ export default function AddToCartSection({
           >
             <option value="">선택하세요</option>
             {variants.map((v) => {
-              const label = v.sizeLabel === "FREE" ? "FREE" : v.sizeLabel;
+              const label = variantLabel(v);
               const outOfStock = v.stock <= 0;
               return (
                 <option
@@ -288,6 +308,44 @@ export default function AddToCartSection({
           </div>
         )}
       </div>
+
+      {/* Cart confirmation popup */}
+      {showCartPopup && (
+        <>
+          <div
+            className="fixed inset-0 z-[100] bg-black/40"
+            onClick={() => setShowCartPopup(false)}
+          />
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-[300px] w-full overflow-hidden">
+              <div className="p-6 text-center">
+                <svg className="w-10 h-10 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <h3 className="text-[17px] font-bold text-gray-900">
+                  장바구니에 담았습니다
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCartPopup(false)}
+                  className="h-12 text-[15px] font-medium text-gray-600 active:bg-gray-50"
+                >
+                  쇼핑 계속하기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/cart")}
+                  className="h-12 text-[15px] font-bold text-black active:bg-gray-50 border-l border-gray-200"
+                >
+                  장바구니 보기
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

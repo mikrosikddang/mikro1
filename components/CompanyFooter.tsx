@@ -1,6 +1,6 @@
 export default function CompanyFooter() {
   return (
-    <footer className="bg-gray-50 border-t border-gray-200 py-8 px-5 mt-12">
+    <footer className="bg-gray-50 border-t border-gray-200 pt-8 pb-14 px-5 mt-12">
       <div className="max-w-[420px] mx-auto">
         <div className="space-y-4 text-[13px] text-gray-600">
           {/* Company Info */}

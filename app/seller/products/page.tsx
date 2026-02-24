@@ -10,10 +10,13 @@ type Props = {
   searchParams: Promise<{ tab?: string }>;
 };
 
-/** Build variant summary string like "S:10 M:8 L:6" */
-function buildVariantSummary(variants: { sizeLabel: string; stock: number }[]): string {
+/** Build variant summary string like "블랙/S:10 블랙/M:8" */
+function buildVariantSummary(variants: { color: string; sizeLabel: string; stock: number }[]): string {
   if (variants.length <= 1 && variants[0]?.sizeLabel === "FREE") return "";
-  return variants.map((v) => `${v.sizeLabel}:${v.stock}`).join(" ");
+  return variants.map((v) => {
+    const prefix = v.color && v.color !== "FREE" ? `${v.color}/` : "";
+    return `${prefix}${v.sizeLabel}:${v.stock}`;
+  }).join(" ");
 }
 
 export default async function SellerProductsPage({ searchParams }: Props) {
@@ -111,6 +114,7 @@ export default async function SellerProductsPage({ searchParams }: Props) {
             variantSummary={product.variantSummary}
             variants={product.variants.map((v) => ({
               id: v.id,
+              color: v.color,
               sizeLabel: v.sizeLabel,
               stock: v.stock,
             }))}

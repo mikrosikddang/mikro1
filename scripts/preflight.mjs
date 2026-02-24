@@ -261,18 +261,16 @@ check('(11) Cart uses variantId', () => {
 });
 
 // Check 12: Footer rules
-check('(12) Footer hidden on "/" path', () => {
-  const footerPath = 'components/ConditionalFooter.tsx';
+check('(12) CompanyFooter shown on all pages', () => {
+  const footerPath = 'components/CompanyFooter.tsx';
   if (!existsSync(join(rootDir, footerPath))) {
-    throw new Error('ConditionalFooter.tsx not found');
+    throw new Error('CompanyFooter.tsx not found');
   }
-  if (!fileContains(footerPath, 'pathname === "/"')) {
-    throw new Error('pathname check not found');
+  const layoutPath = 'app/layout.tsx';
+  if (!fileContains(layoutPath, 'CompanyFooter')) {
+    throw new Error('CompanyFooter not used in root layout');
   }
-  if (!fileContains(footerPath, 'return null')) {
-    throw new Error('return null not found');
-  }
-  return 'pathname === "/" → return null';
+  return 'CompanyFooter rendered in root layout for all pages';
 });
 
 // Check 13: Footer business info (HARD FAIL for legal compliance)
@@ -280,7 +278,7 @@ check('(13) Footer required business info', () => {
   const footerPath = 'components/CompanyFooter.tsx';
   const requiredFields = [
     '미크로',
-    '김동현',
+    '정땅',
     '443-65-00701',
     '2025-서울구로-0131',
     'mikrobrand25@gmail.com',

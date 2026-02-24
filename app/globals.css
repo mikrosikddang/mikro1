@@ -42,3 +42,12 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Category chip level transition */
+@keyframes chipFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.chip-fade-in {
+  animation: chipFadeIn 150ms ease-out;
+}

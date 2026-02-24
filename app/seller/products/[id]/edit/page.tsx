@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { getColorByKey } from "@/lib/colors";
 
 const CATEGORIES = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
 const MAX_MAIN = 10;
 const MAX_CONTENT = 20;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -18,6 +20,7 @@ type ImageSlot = {
 };
 
 type VariantRow = {
+  color: string;
   sizeLabel: string;
   stock: number;
 };
@@ -78,14 +81,22 @@ export default function EditProductPage() {
 
         // Load existing variants
         if (data.variants && data.variants.length > 0) {
-          setVariants(
-            data.variants.map((v: { sizeLabel: string; stock: number }) => ({
-              sizeLabel: v.sizeLabel,
-              stock: v.stock,
-            })),
-          );
+          const loaded = data.variants.map((v: { color: string; sizeLabel: string; stock: number }) => ({
+            color: v.color || "FREE",
+            sizeLabel: v.sizeLabel,
+            stock: v.stock,
+          }));
+          // Sort by color then SIZE_ORDER
+          loaded.sort((a: VariantRow, b: VariantRow) => {
+            const cc = a.color.localeCompare(b.color, "ko");
+            if (cc !== 0) return cc;
+            const ai = SIZE_ORDER.indexOf(a.sizeLabel);
+            const bi = SIZE_ORDER.indexOf(b.sizeLabel);
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          });
+          setVariants(loaded);
         } else {
-          setVariants([{ sizeLabel: "FREE", stock: 0 }]);
+          setVariants([{ color: "FREE", sizeLabel: "FREE", stock: 0 }]);
         }
 
         setLoading(false);
@@ -219,7 +230,7 @@ export default function EditProductPage() {
   }
 
   function addVariant() {
-    setVariants((prev) => [...prev, { sizeLabel: "", stock: 0 }]);
+    setVariants((prev) => [...prev, { color: "FREE", sizeLabel: "", stock: 0 }]);
   }
 
   function removeVariant(index: number) {
@@ -291,6 +302,7 @@ export default function EditProductPage() {
           mainImages: mainUrls,
           contentImages: contentUrls,
           variants: variants.map((v) => ({
+            color: v.color,
             sizeLabel: v.sizeLabel.trim(),
             stock: v.stock,
           })),
@@ -391,43 +403,74 @@ export default function EditProductPage() {
       {/* ===== Variants ===== */}
       <section className="mb-6">
         <label className="block text-[14px] font-medium text-gray-700 mb-2">
-          사이즈/재고 <span className="text-red-500">*</span>
+          옵션/재고 <span className="text-red-500">*</span>
         </label>
-        <div className="space-y-2">
-          {variants.map((v, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                type="text"
-                value={v.sizeLabel}
-                onChange={(e) => updateVariant(i, "sizeLabel", e.target.value)}
-                placeholder="사이즈"
-                className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black"
-                disabled={submitting}
-              />
-              <input
-                type="number"
-                inputMode="numeric"
-                value={v.stock}
-                onChange={(e) => updateVariant(i, "stock", Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="재고"
-                className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black"
-                min={0}
-                disabled={submitting}
-              />
-              {variants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeVariant(i)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
-                  disabled={submitting}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))}
+        <div className="space-y-3">
+          {(() => {
+            // Group variants by color for display
+            const groups = new Map<string, { variant: VariantRow; index: number }[]>();
+            variants.forEach((v, i) => {
+              const key = v.color || "FREE";
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push({ variant: v, index: i });
+            });
+            return [...groups.entries()].map(([color, items]) => (
+              <div key={color}>
+                {color !== "FREE" && (
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    {(() => {
+                      const ci = getColorByKey(color);
+                      return ci ? (
+                        <span
+                          className="w-3 h-3 rounded-full border border-gray-300 shrink-0"
+                          style={{ backgroundColor: ci.hex }}
+                        />
+                      ) : null;
+                    })()}
+                    <span className="text-[12px] font-medium text-gray-600">
+                      {getColorByKey(color)?.labelKo ?? color}
+                    </span>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {items.map(({ variant: v, index: i }) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={v.sizeLabel}
+                        onChange={(e) => updateVariant(i, "sizeLabel", e.target.value)}
+                        placeholder="사이즈"
+                        className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black"
+                        disabled={submitting}
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={v.stock}
+                        onChange={(e) => updateVariant(i, "stock", Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="재고"
+                        className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black"
+                        min={0}
+                        disabled={submitting}
+                      />
+                      {variants.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(i)}
+                          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500"
+                          disabled={submitting}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
         <button
           type="button"

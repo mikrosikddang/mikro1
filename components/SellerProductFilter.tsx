@@ -44,7 +44,7 @@ export default function SellerProductFilter({
       </span>
 
       {soldOutCount > 0 && (
-        <span className="h-8 px-3 flex items-center rounded-full bg-red-100 text-red-600 text-[12px] font-medium">
+        <span className="h-8 px-3 flex items-center rounded-full bg-amber-100 text-amber-700 text-[12px] font-medium">
           품절 {soldOutCount}
         </span>
       )}
@@ -66,7 +66,7 @@ export default function SellerProductFilter({
         onClick={() => toggle("showDeleted", showDeleted)}
         className={`h-8 px-3 flex items-center rounded-full text-[12px] font-medium transition-colors ${
           showDeleted
-            ? "bg-red-500 text-white"
+            ? "bg-gray-900 text-white"
             : "bg-gray-100 text-gray-500"
         }`}
       >

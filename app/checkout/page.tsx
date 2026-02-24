@@ -23,6 +23,7 @@ interface CartItemData {
   quantity: number;
   variant: {
     id: string;
+    color: string;
     sizeLabel: string;
     stock: number;
     product: {
@@ -126,6 +127,7 @@ export default function CheckoutPage() {
         quantity: item.quantity,
         variant: {
           id: item.variant.id,
+          color: item.variant.color,
           sizeLabel: item.variant.sizeLabel,
           stock: item.variant.stock,
           product: item.product,
@@ -542,8 +544,10 @@ export default function CheckoutPage() {
                     const product = item.variant.product;
                     const variant = item.variant;
                     const imageUrl = product.images[0]?.url || "/placeholder.png";
-                    const sizeLabel =
-                      variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
+                    const optionLabel =
+                      variant.color && variant.color !== "FREE"
+                        ? `${variant.color} / ${variant.sizeLabel}`
+                        : variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
                     const subtotal = product.priceKrw * item.quantity;
 
                     return (
@@ -561,7 +565,7 @@ export default function CheckoutPage() {
                             {product.title}
                           </h4>
                           <p className="text-[13px] text-gray-500">
-                            사이즈: {sizeLabel} / 수량: {item.quantity}개
+                            옵션: {optionLabel} / 수량: {item.quantity}개
                           </p>
                           <p className="text-[14px] font-bold text-black mt-1">
                             {formatKrw(subtotal)}

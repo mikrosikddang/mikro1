@@ -121,7 +121,13 @@ model SellerProfile {
   locationText   String?              @db.VarChar(60)  // 위치 표시용 텍스트 (예: "동대문 · A층 · 101")
   csEmail        String?              // Customer service email for contact
   csPhone        String?              @db.VarChar(30)  // CS 전화번호
+  csKakaoId      String?              // CS 카카오톡 ID
+  csAddress      String?              // CS/교환/반품 주소
   csHours        String?              @db.VarChar(40)  // CS 운영시간 (예: "평일 10-18시")
+  shippingGuide  String?              @db.Text         // 배송 안내
+  exchangeGuide  String?              @db.Text         // 교환/반품 안내
+  refundGuide    String?              @db.Text         // 환불 안내
+  etcGuide       String?              @db.Text         // 기타 안내
   status         SellerApprovalStatus @default(PENDING)
   rejectedReason String?
 

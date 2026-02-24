@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
+import { canAccessSellerFeatures, isAdmin, isSellerActive } from "@/lib/roles";
+import { getSellerMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
+import SellerModeToggle from "@/components/SellerModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
@@ -28,6 +30,22 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
   const isSeller = session ? canAccessSellerFeatures(session.role) : false;
   const isAdminUser = session ? isAdmin(session.role) : false;
+  const isSellerActiveUser = session ? isSellerActive(session.role) : false;
+
+  const [sellerMode, setSellerModeState] = useState(false);
+
+  useEffect(() => {
+    if (isSellerActiveUser) {
+      setSellerModeState(getSellerMode() === "seller");
+    }
+
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setSellerModeState(detail.mode === "seller");
+    };
+    window.addEventListener("sellerModeChange", handler);
+    return () => window.removeEventListener("sellerModeChange", handler);
+  }, [isSellerActiveUser]);
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -51,19 +69,22 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
   const handleCategorySelect = (category: {
     main: string;
-    mid: string;
-    sub: string;
+    mid?: string;
+    sub?: string;
   }) => {
-    // Navigate to home with category filter
-    router.push(
-      `/?main=${encodeURIComponent(category.main)}&mid=${encodeURIComponent(
-        category.mid
-      )}&sub=${encodeURIComponent(category.sub)}`
-    );
+    // Build URL based on selection depth
+    let url = `/?main=${encodeURIComponent(category.main)}`;
+    if (category.mid) {
+      url += `&mid=${encodeURIComponent(category.mid)}`;
+    }
+    if (category.sub) {
+      url += `&sub=${encodeURIComponent(category.sub)}`;
+    }
 
-    // Close sheets
-    setCategorySheetOpen(false);
-    onClose();
+    // Navigate — sheet stays open for continued browsing
+    // pathname doesn't change (all queries on /), so Drawer's
+    // route-change listener won't fire → sheet remains open
+    router.push(url);
   };
 
   const openCategorySheet = (root: string) => {
@@ -158,7 +179,8 @@ export default function Drawer({ open, onClose }: DrawerProps) {
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {/* Home feed view toggle */}
-          <HomeFeedViewToggle />
+          <HomeFeedViewToggle compact={isSellerActiveUser} />
+          <SellerModeToggle onToggle={onClose} />
 
           {/* Navigation sections */}
           <div className="flex-1">
@@ -167,6 +189,16 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuSection title="계정">
                 <MenuItem label="로그인" href="/login" isSubmenu />
                 <MenuItem label="회원가입" href="/signup" isSubmenu />
+              </MenuSection>
+            )}
+
+            {/* Seller Section - shown above browse when seller mode is ON */}
+            {isSeller && session && sellerMode && (
+              <MenuSection title="판매자">
+                <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
+                <MenuItem label="대시보드" href="/seller" isSubmenu />
+                <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
+                <MenuItem label="주문 관리" href="/seller/orders" isSubmenu />
               </MenuSection>
             )}
 
@@ -187,8 +219,8 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuItem label="브랜드 보기" href="/brands" showChevron isSubmenu />
             </MenuSection>
 
-            {/* Seller Section */}
-            {isSeller && session && (
+            {/* Seller Section - shown below browse when seller mode is OFF */}
+            {isSeller && session && !sellerMode && (
               <MenuSection title="판매자">
                 <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />

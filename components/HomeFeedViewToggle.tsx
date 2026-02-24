@@ -5,9 +5,10 @@ import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from 
 
 type HomeFeedViewToggleProps = {
   onModeChange?: (mode: HomeFeedViewMode) => void;
+  compact?: boolean;
 };
 
-export default function HomeFeedViewToggle({ onModeChange }: HomeFeedViewToggleProps) {
+export default function HomeFeedViewToggle({ onModeChange, compact }: HomeFeedViewToggleProps) {
   const [viewMode, setViewMode] = useState<HomeFeedViewMode>(getHomeFeedViewMode());
   const [mounted, setMounted] = useState(false);
 
@@ -38,14 +39,14 @@ export default function HomeFeedViewToggle({ onModeChange }: HomeFeedViewToggleP
   // Don't render until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <div className="mx-4 mt-2 mb-3">
+      <div className={`mx-4 mt-2 ${compact ? "mb-1" : "mb-3"}`}>
         <div className="h-10 px-3 rounded-2xl bg-gray-50 border border-gray-100" />
       </div>
     );
   }
 
   return (
-    <div className="mx-4 mt-2 mb-3">
+    <div className={`mx-4 mt-2 ${compact ? "mb-1" : "mb-3"}`}>
       <button
         type="button"
         onClick={toggleSwitch}
