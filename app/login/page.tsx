@@ -108,34 +108,6 @@ function LoginForm() {
           </p>
         </div>
 
-        {/* Hint */}
-        <div className="mt-8 p-4 bg-gray-50 rounded-xl">
-          <p className="text-[12px] text-gray-500 text-center mb-2">
-            MVP 테스트 계정
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                setId("1");
-                setPw("1");
-              }}
-              className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[12px] text-gray-700 active:bg-gray-100 transition-colors"
-            >
-              👤 고객 (1/1)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setId("s");
-                setPw("s");
-              }}
-              className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[12px] text-gray-700 active:bg-gray-100 transition-colors"
-            >
-              🏪 판매자 (s/s)
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
