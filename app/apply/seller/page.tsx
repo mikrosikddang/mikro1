@@ -172,8 +172,6 @@ export default function SellerApplyPage() {
 
     if (!formData.shopName.trim())
       newErrors.shopName = "상점명을 입력해주세요.";
-    if (!formData.bizLicenseImage)
-      newErrors.bizLicenseImage = "사업자등록증을 업로드해주세요.";
     if (!formData.type) newErrors.type = "상점 유형을 선택해주세요.";
     if (!formData.marketBuilding)
       newErrors.marketBuilding = "상가명을 선택해주세요.";
@@ -392,7 +390,7 @@ export default function SellerApplyPage() {
           {/* 사업자등록증 */}
           <div className="mb-4">
             <label className="block text-[14px] font-medium text-gray-700 mb-2">
-              사업자등록증 <span className="text-red-500">*</span>
+              사업자등록증 <span className="text-gray-400">(선택)</span>
             </label>
             {formData.bizLicenseImage ? (
               <div className="relative inline-block">

@@ -76,13 +76,6 @@ export async function POST(request: Request) {
     const body = (await request.json()) as SellerApplyRequest;
 
     // Validation
-    if (!body.bizRegImageUrl?.trim()) {
-      return NextResponse.json(
-        { error: "사업자등록증 이미지는 필수입니다." },
-        { status: 400 }
-      );
-    }
-
     if (!body.shopName?.trim()) {
       return NextResponse.json(
         { error: "상점명은 필수입니다." },
