@@ -217,10 +217,12 @@ export default async function OrderSuccessPage({ searchParams }: PageProps) {
                 {/* Items */}
                 <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
                   {order.items.map((item) => {
-                    const sizeLabel =
-                      item.variant?.sizeLabel === "FREE"
-                        ? "FREE"
-                        : item.variant?.sizeLabel || "";
+                    const optionLabel =
+                      item.variant?.color && item.variant.color !== "FREE"
+                        ? `${item.variant.color} / ${item.variant?.sizeLabel || "N/A"}`
+                        : item.variant?.sizeLabel === "FREE"
+                          ? "FREE"
+                          : item.variant?.sizeLabel || "N/A";
                     const lineTotal = item.unitPriceKrw * item.quantity;
 
                     return (
@@ -230,7 +232,7 @@ export default async function OrderSuccessPage({ searchParams }: PageProps) {
                             {item.product.title}
                           </p>
                           <p className="text-[13px] text-gray-500 mt-1">
-                            {sizeLabel && `사이즈: ${sizeLabel} / `}수량:{" "}
+                            옵션: {optionLabel} / 수량:{" "}
                             {item.quantity}개
                           </p>
                         </div>
