@@ -47,6 +47,18 @@ export default function FollowButton({
     checkFollowStatus();
   }, [checkFollowStatus]);
 
+  // Sync follow state across all FollowButtons for the same seller
+  useEffect(() => {
+    const handleFollowChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.sellerId === sellerId) {
+        setFollowing(detail.followed);
+      }
+    };
+    window.addEventListener("followChange", handleFollowChange);
+    return () => window.removeEventListener("followChange", handleFollowChange);
+  }, [sellerId]);
+
   // 팔로우/언팔로우 토글
   const handleClick = useCallback(
     async (e: React.MouseEvent) => {
@@ -80,6 +92,9 @@ export default function FollowButton({
 
         const data = await res.json();
         setFollowing(data.followed);
+        window.dispatchEvent(
+          new CustomEvent("followChange", { detail: { sellerId, followed: data.followed } })
+        );
       } catch (error) {
         console.error("Failed to toggle follow:", error);
         alert("오류가 발생했습니다");

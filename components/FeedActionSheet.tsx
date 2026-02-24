@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import ActionSheet, { ActionSheetItem } from "@/components/ActionSheet";
 
 type FeedActionSheetProps = {
   productId: string;
@@ -30,6 +29,7 @@ export default function FeedActionSheet({
   const session = useSession();
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isSelf = session ? session.userId === sellerId : false;
 
@@ -48,11 +48,49 @@ export default function FeedActionSheet({
     }
   }, [session, sellerId, isSelf]);
 
-  // 시트 열릴 때 팔로우 상태 확인
+  // 팝오버 열릴 때 팔로우 상태 확인
   useEffect(() => {
     checkFollowStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // followChange 이벤트 동기화
+  useEffect(() => {
+    const handleFollowChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.sellerId === sellerId) {
+        setFollowing(detail.followed);
+      }
+    };
+    window.addEventListener("followChange", handleFollowChange);
+    return () => window.removeEventListener("followChange", handleFollowChange);
+  }, [sellerId]);
+
+  // 바깥 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    // requestAnimationFrame to avoid closing on the same click that opened it
+    const id = requestAnimationFrame(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    });
+    return () => {
+      cancelAnimationFrame(id);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+  // ESC key to close
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
 
   // 팔로우/언팔로우 토글
   const handleFollowToggle = useCallback(async () => {
@@ -79,6 +117,9 @@ export default function FeedActionSheet({
 
       const data = await res.json();
       setFollowing(data.followed);
+      window.dispatchEvent(
+        new CustomEvent("followChange", { detail: { sellerId, followed: data.followed } })
+      );
     } catch (error) {
       console.error("Failed to toggle follow:", error);
       alert("오류가 발생했습니다");
@@ -96,6 +137,7 @@ export default function FeedActionSheet({
     }
 
     onWishlistToggle();
+    onClose();
   }, [session, onWishlistToggle, router, onClose]);
 
   // 업체 정보 보기
@@ -112,76 +154,92 @@ export default function FeedActionSheet({
     onClose();
   }, [onProfileEdit, onClose]);
 
+  const itemClass =
+    "w-full px-4 py-2.5 flex items-center gap-2.5 text-left text-[14px] text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+
   return (
-    <ActionSheet open={true} onClose={onClose} title={shopName}>
+    <div
+      ref={menuRef}
+      className="absolute right-0 top-full mt-1 z-30 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 overflow-hidden"
+    >
       {/* self: 프로필 편집 / non-self: 팔로우/언팔로우 */}
       {isSelf ? (
-        <ActionSheetItem
-          label="프로필 편집"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          }
+        <button
+          type="button"
           onClick={handleProfileEdit}
           disabled={loading}
-        />
+          className={itemClass}
+        >
+          <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+          프로필 편집
+        </button>
       ) : (
-        <ActionSheetItem
-          label={following ? "팔로우 취소" : "팔로우"}
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d={
-                  following
-                    ? "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" // user icon
-                    : "M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" // user-add icon
-                }
-              />
-            </svg>
-          }
+        <button
+          type="button"
           onClick={handleFollowToggle}
           disabled={loading}
-        />
+          className={itemClass}
+        >
+          <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d={
+                following
+                  ? "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  : "M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              }
+            />
+          </svg>
+          {following ? "팔로잉" : "팔로우"}
+        </button>
       )}
 
       {/* 포스팅 즐겨찾기 */}
-      <ActionSheetItem
-        label={wishlisted ? "즐겨찾기 해제" : "즐겨찾기"}
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        }
+      <button
+        type="button"
         onClick={handleWishlistToggle}
         disabled={loading}
-      />
+        className={itemClass}
+      >
+        <svg
+          className={`w-4 h-4 shrink-0 ${wishlisted ? "text-red-500" : "text-gray-500"}`}
+          fill={wishlisted ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth={wishlisted ? 0 : 2}
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+          />
+        </svg>
+        {wishlisted ? "즐겨찾기 해제" : "즐겨찾기"}
+      </button>
 
       {/* 업체 정보 보기 */}
-      <ActionSheetItem
-        label="업체 정보 보기"
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        }
+      <button
+        type="button"
         onClick={handleViewShop}
         disabled={loading}
-      />
-    </ActionSheet>
+        className={itemClass}
+      >
+        <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        업체 정보 보기
+      </button>
+    </div>
   );
 }

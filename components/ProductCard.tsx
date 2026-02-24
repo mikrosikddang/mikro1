@@ -271,22 +271,37 @@ export default function ProductCard({
         <div className="flex items-center gap-2">
           <FollowButton sellerId={sellerId} size="sm" />
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setActionSheetOpen(true);
-            }}
-            aria-label="옵션"
-            className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-black active:scale-90 transition-all"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-              <circle cx="8" cy="3" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="8" cy="13" r="1.5" />
-            </svg>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActionSheetOpen(!actionSheetOpen);
+              }}
+              aria-label="옵션"
+              className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-black active:scale-90 transition-all"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
+                <circle cx="8" cy="3" r="1.5" />
+                <circle cx="8" cy="8" r="1.5" />
+                <circle cx="8" cy="13" r="1.5" />
+              </svg>
+            </button>
+
+            {/* Popover menu */}
+            {actionSheetOpen && (
+              <FeedActionSheet
+                productId={id}
+                sellerId={sellerId}
+                shopName={shopName}
+                onClose={() => setActionSheetOpen(false)}
+                wishlisted={wishlisted}
+                onWishlistToggle={handleWishlistToggleSimple}
+                onProfileEdit={() => setProfileEditOpen(true)}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -359,19 +374,6 @@ export default function ProductCard({
           </div>
         </div>
       </div>
-
-      {/* Action Sheet */}
-      {actionSheetOpen && (
-        <FeedActionSheet
-          productId={id}
-          sellerId={sellerId}
-          shopName={shopName}
-          onClose={() => setActionSheetOpen(false)}
-          wishlisted={wishlisted}
-          onWishlistToggle={handleWishlistToggleSimple}
-          onProfileEdit={() => setProfileEditOpen(true)}
-        />
-      )}
 
       {/* Profile Edit Sheet */}
       {profileEditOpen && (
