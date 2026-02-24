@@ -3,6 +3,8 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getSession } from "@/lib/auth";
 
+export const runtime = "nodejs";
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 

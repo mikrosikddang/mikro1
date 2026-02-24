@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Container from "@/components/Container";
 
 const SHOP_TYPES = ["남성복", "여성복", "유니섹스"];
@@ -397,7 +396,8 @@ export default function SellerApplyPage() {
             </label>
             {formData.bizLicenseImage ? (
               <div className="relative inline-block">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={formData.bizLicenseImage}
                   alt="사업자등록증"
                   width={200}
