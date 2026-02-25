@@ -291,7 +291,7 @@ export default async function SellerDashboardPage() {
               return (
                 <Link
                   key={product.id}
-                  href={`/seller/products/${product.id}`}
+                  href={`/seller/products/${product.id}/edit`}
                   className="flex gap-3 p-2.5 bg-white border border-gray-200 rounded-lg active:bg-gray-50 transition-colors"
                 >
                   <img
