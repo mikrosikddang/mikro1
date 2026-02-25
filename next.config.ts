@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "*.s3.ap-northeast-2.amazonaws.com" },
+      { protocol: "https", hostname: "*.s3.amazonaws.com" },
     ],
   },
   async headers() {
@@ -17,7 +19,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' https://images.unsplash.com data: blob:",
+              "img-src 'self' https://images.unsplash.com https://*.s3.ap-northeast-2.amazonaws.com https://*.s3.amazonaws.com data: blob:",
               "font-src 'self' data:",
               "connect-src 'self' https://*.s3.ap-northeast-2.amazonaws.com https://*.s3.amazonaws.com",
               "frame-ancestors 'none'",
