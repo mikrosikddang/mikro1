@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession, canAccessSellerFeatures } from "@/lib/auth";
+import { buildDescriptionInitialValues } from "@/lib/descriptionSchema";
 import ProductForm, { type ProductFormInitialValues } from "@/components/ProductForm";
 
 type Props = {
@@ -12,10 +13,10 @@ export default async function NewProductPage({ searchParams }: Props) {
 
   let initialValues: ProductFormInitialValues | undefined;
 
-  if (cloneFrom) {
-    const session = await getSession();
-    if (!session || !canAccessSellerFeatures(session.role)) notFound();
+  const session = await getSession();
+  if (!session || !canAccessSellerFeatures(session.role)) notFound();
 
+  if (cloneFrom) {
     const product = await prisma.product.findUnique({
       where: { id: cloneFrom },
       include: {
@@ -41,6 +42,25 @@ export default async function NewProductPage({ searchParams }: Props) {
         sizeLabel: v.sizeLabel,
         stock: 0,
       })),
+    };
+  } else {
+    // 새 상품: 셀러 프로필에서 CS/배송 정보 프리필
+    const seller = await prisma.user.findUnique({
+      where: { id: session.userId },
+      include: { sellerProfile: true },
+    });
+
+    initialValues = {
+      title: "",
+      priceKrw: 0,
+      category: "",
+      description: "",
+      descriptionJson: buildDescriptionInitialValues({
+        sellerProfile: seller?.sellerProfile,
+      }),
+      mainImages: [],
+      contentImages: [],
+      variants: [],
     };
   }
 

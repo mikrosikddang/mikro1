@@ -82,23 +82,29 @@ export function buildDescriptionInitialValues(options: {
   sellerProfile?: {
     managerPhone?: string | null;
     shopName?: string;
+    csPhone?: string | null;
+    csEmail?: string | null;
+    csAddress?: string | null;
+    shippingGuide?: string | null;
   } | null;
 }): ProductDescriptionV1 {
   const { descriptionJson, descriptionLegacy, sellerProfile } = options;
 
-  // If structured data exists, use it
+  // If structured data exists, use it (기존 상품 수정 시 기존 값 유지)
   if (descriptionJson && typeof descriptionJson === "object" && descriptionJson.v === 1) {
     return sanitizeDescriptionJson(descriptionJson);
   }
 
-  // Otherwise, migrate from legacy + prefill CS info
+  // Otherwise, migrate from legacy + prefill CS info from seller profile
   return {
     v: 1,
     spec: {},
     detail: descriptionLegacy || "",
     csShipping: {
-      csPhone: sellerProfile?.managerPhone || undefined,
-      note: sellerProfile?.shopName ? `${sellerProfile.shopName}에서 발송합니다.` : undefined,
+      csPhone: sellerProfile?.csPhone || sellerProfile?.managerPhone || undefined,
+      csEmail: sellerProfile?.csEmail || undefined,
+      returnAddress: sellerProfile?.csAddress || undefined,
+      note: sellerProfile?.shippingGuide || undefined,
     },
   };
 }
