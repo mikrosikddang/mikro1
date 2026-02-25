@@ -457,11 +457,6 @@ placeholder ("준비 중인 기능입니다"), 로그인 필요
 | POST | `/api/payments/simulate-fail` | 결제 실패 시뮬레이션 `{orderIds}`, Payment.status=FAILED 설정 (Order는 PENDING 유지) |
 | POST | `/api/payments/confirm` | 실제 결제 확인 (Toss Payments 연동, 향후 구현) |
 
-### 디버그
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | `/api/debug/env` | 환경변수 존재 여부 확인 (프로덕션 디버그용) |
-
 ---
 
 ## 재사용 컴포넌트
