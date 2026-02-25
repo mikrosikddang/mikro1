@@ -12,7 +12,6 @@ frontend:
       commands:
         - env | grep -e DATABASE_URL -e AUTH_SECRET -e MVP_SELLER_ID -eS3_BUCKET >> .env
         - env | grep -e NEXT_PUBLIC_ >> .env || true
-        - npx prisma migrate deploy || echo "WARN: migrate skipped (advisory lock timeout — run manually if new migrations exist)"
         - npm run build
   artifacts:
     baseDirectory: .next
