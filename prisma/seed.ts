@@ -33,7 +33,28 @@ function pickN<T>(arr: T[], n: number): T[] {
 }
 
 async function main() {
-  // Clean start
+  // ========================================
+  // SEED 재실행 방지 — 이미 데이터가 있으면 중단
+  // ========================================
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.error("❌ SEED 중단: DB에 이미 사용자 " + existingUsers + "명이 존재합니다.");
+    console.error("   시드를 다시 실행하면 모든 운영 데이터가 삭제됩니다.");
+    console.error("   정말로 초기화하려면 --force 플래그를 사용하세요:");
+    console.error("   npx prisma db seed -- --force");
+
+    const forceFlag = process.argv.includes("--force");
+    if (!forceFlag) {
+      console.error("\n🛑 시드 실행이 취소되었습니다. 데이터는 안전합니다.");
+      process.exit(1);
+    }
+
+    console.warn("\n⚠️  --force 플래그 감지. 모든 데이터를 삭제하고 재생성합니다...");
+    console.warn("   5초 후 실행됩니다. 취소하려면 Ctrl+C");
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+
+  // Clean start (--force이거나 빈 DB일 때만 실행)
   await prisma.shipment.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.orderItem.deleteMany();
