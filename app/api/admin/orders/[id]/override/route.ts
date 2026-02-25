@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isAdmin } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
+import { notifyOrderStatusChange } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -182,6 +183,17 @@ export async function POST(
         warnings: warnings.length > 0 ? warnings : undefined,
       };
     });
+
+    // Send notifications after successful override (fire-and-forget)
+    if (result.ok && !result.alreadyDone && result.order) {
+      notifyOrderStatusChange(
+        result.order.id,
+        result.order.orderNo,
+        result.order.buyerId,
+        result.order.sellerId,
+        result.order.status,
+      );
+    }
 
     return NextResponse.json(result);
   } catch (error: any) {

@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
 
   let userId: string;
   let role: Role;
+  let userName: string | undefined;
+  let userEmail: string | undefined;
 
   try {
     let user;
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest) {
     // Use actual DB user ID and role (preserve exact role from DB)
     userId = user.id;
     role = user.role as Role;
+    userName = user.name || undefined;
+    userEmail = user.email || undefined;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(
@@ -87,7 +91,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const session: Session = { userId, role, issuedAt: Date.now() };
+  const session: Session = {
+    userId,
+    role,
+    name: userName,
+    email: userEmail,
+    issuedAt: Date.now(),
+  };
   const token = signSession(session);
 
   const res = NextResponse.json({ ok: true, role });

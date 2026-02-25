@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     } = body as {
       title: string;
       priceKrw: number;
+      salePriceKrw?: number | null;
       category?: string; // DEPRECATED
       categoryMain?: string;
       categoryMid?: string;
@@ -46,12 +47,22 @@ export async function POST(req: NextRequest) {
       variants: { color?: string; sizeLabel: string; stock: number }[];
     };
 
+    const salePriceKrw = body.salePriceKrw;
+
     // ---- Validation ----
     if (!title || typeof title !== "string" || title.trim().length === 0) {
       return NextResponse.json({ error: "상품명을 입력해주세요" }, { status: 400 });
     }
     if (typeof priceKrw !== "number" || priceKrw < 0) {
       return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
+    }
+    if (salePriceKrw != null) {
+      if (typeof salePriceKrw !== "number" || salePriceKrw < 0) {
+        return NextResponse.json({ error: "할인가를 올바르게 입력해주세요" }, { status: 400 });
+      }
+      if (salePriceKrw >= priceKrw) {
+        return NextResponse.json({ error: "할인가는 정가보다 낮아야 합니다" }, { status: 400 });
+      }
     }
     // Validate 3-depth category (required)
     if (!validateCategory(categoryMain, categoryMid, categorySub)) {
@@ -90,6 +101,7 @@ export async function POST(req: NextRequest) {
           sellerId,
           title: title.trim(),
           priceKrw,
+          salePriceKrw: salePriceKrw ?? null,
           category: category?.trim() || null, // DEPRECATED
           categoryMain: categoryMain || null,
           categoryMid: categoryMid || null,

@@ -6,6 +6,17 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
 import AddressForm from "@/components/AddressForm";
+import ActionSheet from "@/components/ActionSheet";
+
+interface AvailableCoupon {
+  id: string;
+  name: string;
+  discountType: "PERCENT" | "FIXED";
+  discountValue: number;
+  minOrderAmount: number | null;
+  maxDiscountAmount: number | null;
+  expiresAt: string | null;
+}
 
 interface Address {
   id: string;
@@ -72,6 +83,13 @@ export default function CheckoutPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [checkoutAttemptId, setCheckoutAttemptId] = useState<string | null>(null);
+
+  // Coupon state
+  const [showCouponSheet, setShowCouponSheet] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
+  const [selectedCoupon, setSelectedCoupon] = useState<AvailableCoupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   useEffect(() => {
     if (directOrderId) {
@@ -144,7 +162,7 @@ export default function CheckoutPage() {
         sellerId: order.sellerId,
         shopName,
         items: cartItems,
-        subtotal: order.itemsSubtotalKrw || order.totalAmountKrw,
+        subtotal: order.itemsSubtotalKrw,
         shippingFee: order.shippingFeeKrw,
         freeShippingThreshold:
           product.seller?.sellerProfile?.freeShippingThreshold || 50000,
@@ -444,7 +462,58 @@ export default function CheckoutPage() {
 
   const totalAmount = sellerGroups.reduce((sum, g) => sum + g.subtotal, 0);
   const totalShipping = sellerGroups.reduce((sum, g) => sum + g.shippingFee, 0);
-  const totalPay = totalAmount + totalShipping;
+  const totalPay = totalAmount - couponDiscount + totalShipping;
+
+  const handleOpenCouponSheet = async () => {
+    setShowCouponSheet(true);
+    setCouponLoading(true);
+    try {
+      const res = await fetch("/api/my/coupons?status=available");
+      if (!res.ok) return;
+      const data = await res.json();
+      setAvailableCoupons(
+        (data.coupons || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          discountType: c.discountType,
+          discountValue: c.discountValue,
+          minOrderAmount: c.minOrderAmount,
+          maxDiscountAmount: c.maxDiscountAmount,
+          expiresAt: c.expiresAt,
+        }))
+      );
+    } catch {
+      // silently fail
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleSelectCoupon = async (coupon: AvailableCoupon) => {
+    try {
+      const res = await fetch("/api/coupons/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ couponId: coupon.id, orderAmount: totalAmount }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "쿠폰을 적용할 수 없습니다");
+        return;
+      }
+      const data = await res.json();
+      setSelectedCoupon(coupon);
+      setCouponDiscount(data.discountAmount);
+      setShowCouponSheet(false);
+    } catch {
+      alert("쿠폰 적용에 실패했습니다");
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setSelectedCoupon(null);
+    setCouponDiscount(0);
+  };
 
   if (loading) {
     return (
@@ -624,6 +693,32 @@ export default function CheckoutPage() {
               자세히 보기
             </Link>
           </p>
+          {/* Coupon */}
+          <div className="flex justify-between items-center text-[14px]">
+            <span className="text-gray-600">쿠폰 할인</span>
+            {selectedCoupon ? (
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-red-500">
+                  -{formatKrw(couponDiscount)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="text-[12px] text-gray-400 active:text-gray-600"
+                >
+                  취소
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleOpenCouponSheet}
+                className="px-3 py-1 border border-gray-200 rounded-lg text-[13px] text-gray-700 active:bg-gray-50 transition-colors"
+              >
+                쿠폰 적용
+              </button>
+            )}
+          </div>
           <div className="pt-2 border-t border-gray-200 flex justify-between items-center">
             <span className="text-[16px] font-bold text-black">총 결제 금액</span>
             <span className="text-[24px] font-bold text-black">
@@ -782,6 +877,71 @@ export default function CheckoutPage() {
             </div>
           </div>
         )}
+
+        {/* Coupon Selection Sheet */}
+        <ActionSheet
+          open={showCouponSheet}
+          onClose={() => setShowCouponSheet(false)}
+          title="쿠폰 선택"
+        >
+          <div className="px-3 pb-4 max-h-[60vh] overflow-y-auto">
+            {couponLoading ? (
+              <div className="py-8 text-center text-gray-400 text-[14px]">
+                불러오는 중...
+              </div>
+            ) : availableCoupons.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-[14px]">
+                사용 가능한 쿠폰이 없습니다
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {availableCoupons.map((coupon) => {
+                  const meetsMinimum =
+                    !coupon.minOrderAmount || totalAmount >= coupon.minOrderAmount;
+                  return (
+                    <button
+                      key={coupon.id}
+                      type="button"
+                      onClick={() => meetsMinimum && handleSelectCoupon(coupon)}
+                      disabled={!meetsMinimum}
+                      className={`w-full p-4 rounded-xl border text-left transition-colors ${
+                        meetsMinimum
+                          ? "border-gray-200 active:bg-gray-50"
+                          : "border-gray-100 opacity-50 cursor-not-allowed"
+                      }`}
+                    >
+                      <p className="text-[15px] font-bold text-black">
+                        {coupon.discountType === "PERCENT"
+                          ? `${coupon.discountValue}% 할인`
+                          : `${formatKrw(coupon.discountValue)} 할인`}
+                      </p>
+                      <p className="text-[13px] text-gray-600 mt-0.5">
+                        {coupon.name}
+                      </p>
+                      <div className="mt-1 space-y-0.5">
+                        {coupon.minOrderAmount != null && coupon.minOrderAmount > 0 && (
+                          <p className={`text-[12px] ${meetsMinimum ? "text-gray-400" : "text-red-400"}`}>
+                            {formatKrw(coupon.minOrderAmount)} 이상 주문 시 사용
+                          </p>
+                        )}
+                        {coupon.discountType === "PERCENT" && coupon.maxDiscountAmount != null && (
+                          <p className="text-[12px] text-gray-400">
+                            최대 {formatKrw(coupon.maxDiscountAmount)} 할인
+                          </p>
+                        )}
+                        {coupon.expiresAt && (
+                          <p className="text-[12px] text-gray-400">
+                            ~{new Date(coupon.expiresAt).toLocaleDateString("ko-KR")}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </ActionSheet>
       </div>
     </Container>
   );

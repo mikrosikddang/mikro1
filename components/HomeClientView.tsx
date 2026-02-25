@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { getHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
+import { useSession } from "@/components/SessionProvider";
+import { checkWishlistDB } from "@/lib/wishlist";
 import ProductCard from "@/components/ProductCard";
 import HomeCarrotList from "@/components/HomeCarrotList";
 
@@ -24,8 +26,10 @@ type HomeClientViewProps = {
 };
 
 export default function HomeClientView({ products }: HomeClientViewProps) {
+  const session = useSession();
   const [viewMode, setViewMode] = useState<HomeFeedViewMode>("feed");
   const [mounted, setMounted] = useState(false);
+  const [wishlistMap, setWishlistMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     // Initialize from localStorage
@@ -42,6 +46,18 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
       window.removeEventListener("homeFeedViewModeChange", handleModeChange as EventListener);
     };
   }, []);
+
+  // Batch wishlist check for logged-in users
+  useEffect(() => {
+    if (!session || products.length === 0) return;
+    const productIds = products.map((p) => p.id);
+    const loadWishlist = () => {
+      checkWishlistDB(productIds).then(setWishlistMap);
+    };
+    loadWishlist();
+    window.addEventListener("wishlist-change", loadWishlist);
+    return () => window.removeEventListener("wishlist-change", loadWishlist);
+  }, [session, products]);
 
   // Show placeholder during hydration
   if (!mounted) {
@@ -70,6 +86,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
           images={product.images.map((i) => ({ url: i.url }))}
           shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
           sellerId={product.sellerId}
+          initialWishlisted={session ? (wishlistMap[product.id] ?? false) : undefined}
         />
       ))}
     </div>

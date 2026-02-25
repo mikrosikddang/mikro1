@@ -11,6 +11,7 @@ export interface ProductGridTileProps {
   id: string;
   title: string;
   priceKrw: number;
+  salePriceKrw?: number | null;
   imageUrl?: string;
   shopName?: string;
   sellerId?: string;
@@ -21,11 +22,15 @@ export default function ProductGridTile({
   id,
   title,
   priceKrw,
+  salePriceKrw,
   imageUrl,
   shopName,
   sellerId,
   viewMode = "list",
 }: ProductGridTileProps) {
+  const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
+  const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
+  const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
   // Feed mode: Instagram-style, image only, square
   if (viewMode === "feed") {
     return (
@@ -75,9 +80,23 @@ export default function ProductGridTile({
       </h3>
 
       {/* Price */}
-      <p className="mt-1 text-base font-semibold text-black">
-        ₩{priceKrw.toLocaleString()}
-      </p>
+      {hasDiscount ? (
+        <div className="mt-1">
+          <div className="flex items-baseline gap-1">
+            <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
+            <span className="text-base font-semibold text-black">
+              ₩{displayPrice.toLocaleString()}
+            </span>
+          </div>
+          <p className="text-[13px] text-gray-400 line-through">
+            ₩{priceKrw.toLocaleString()}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-1 text-base font-semibold text-black">
+          ₩{priceKrw.toLocaleString()}
+        </p>
+      )}
     </Link>
   );
 }

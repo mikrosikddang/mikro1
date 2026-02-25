@@ -40,8 +40,7 @@ export default function MenuProfileRow() {
   const isSeller = canAccessSellerFeatures(session.role);
   const isAdminUser = isAdmin(session.role);
 
-  // Use userId for display name (first 8 characters)
-  const displayName = session.userId.substring(0, 8);
+  const displayName = session.name || session.email || session.userId.substring(0, 8);
   const roleLabel = isAdminUser ? "관리자" : isSeller ? "판매자" : "고객";
   const roleBadgeColor = isAdminUser
     ? "bg-red-50 text-red-600"
@@ -49,8 +48,7 @@ export default function MenuProfileRow() {
     ? "bg-blue-50 text-blue-600"
     : "bg-gray-100 text-gray-700";
 
-  // Avatar initial (use role initial)
-  const initial = roleLabel.charAt(0);
+  const initial = session.name ? session.name.charAt(0) : roleLabel.charAt(0);
 
   return (
     <div className="border-b border-gray-100">

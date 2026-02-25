@@ -10,6 +10,7 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -42,6 +43,7 @@ function SignupForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name.trim() || undefined,
           email: email.trim(),
           password: password.trim(),
         }),
@@ -76,6 +78,18 @@ function SignupForm() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="이름 (선택)"
+              autoComplete="name"
+              className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+              disabled={loading}
+            />
+          </div>
+
           <div>
             <input
               type="email"

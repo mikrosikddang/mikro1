@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl } = body;
+    const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl, bizRegNo } = body;
 
     // Validation
     if (shopName !== undefined) {
@@ -126,6 +126,7 @@ export async function PATCH(req: NextRequest) {
         ...(csPhone !== undefined && { csPhone: csPhone.trim() || null }),
         ...(csHours !== undefined && { csHours: csHours.trim() || null }),
         ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
       },
     });
 

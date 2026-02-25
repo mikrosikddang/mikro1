@@ -26,7 +26,7 @@ export default async function MyPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-[15px] font-medium text-gray-900">
-                  {canAccessSellerFeatures(session.role) ? "판매자" : "고객"}
+                  {session.name || session.email || (canAccessSellerFeatures(session.role) ? "판매자" : "고객")}
                 </p>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -39,7 +39,7 @@ export default async function MyPage() {
                 </span>
               </div>
               <p className="text-[12px] text-gray-400 mt-0.5">
-                {session.userId.slice(0, 12)}...
+                {session.email || session.userId.slice(0, 12) + "..."}
               </p>
             </div>
             <LogoutButton />
@@ -66,6 +66,14 @@ export default async function MyPage() {
             className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
           >
             주문내역
+            {chevronSvg}
+          </Link>
+
+          <Link
+            href="/my/coupons"
+            className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+          >
+            내 쿠폰
             {chevronSvg}
           </Link>
 

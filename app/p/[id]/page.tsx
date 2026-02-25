@@ -11,6 +11,8 @@ import { getSession } from "@/lib/auth";
 import SellerNameText from "@/components/typography/SellerNameText";
 import ProductTitleText from "@/components/typography/ProductTitleText";
 import ProductSellerActions from "./ProductSellerActions";
+import ReviewSection, { ReviewSummary } from "./ReviewSection";
+import InquirySection from "./InquirySection";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -60,10 +62,31 @@ export default async function ProductDetailPage({ params }: Props) {
           <h1 className="flex-1 min-w-0 text-[18px] font-bold text-black tracking-tight leading-snug">
             {product.title}
           </h1>
-          <span className="shrink-0 text-[20px] font-bold text-black tracking-tight">
-            ₩{product.priceKrw.toLocaleString()}
-          </span>
+          <div className="shrink-0 text-right">
+            {product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
+              <>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">
+                    {Math.round((1 - product.salePriceKrw / product.priceKrw) * 100)}%
+                  </span>
+                  <span className="text-[20px] font-bold text-black tracking-tight">
+                    ₩{product.salePriceKrw.toLocaleString()}
+                  </span>
+                </div>
+                <span className="text-[13px] text-gray-400 line-through">
+                  ₩{product.priceKrw.toLocaleString()}
+                </span>
+              </>
+            ) : (
+              <span className="text-[20px] font-bold text-black tracking-tight">
+                ₩{product.priceKrw.toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Review Summary */}
+        <ReviewSummary productId={product.id} />
 
         {/* Seller Actions (self only) */}
         {isSelf && <ProductSellerActions productId={product.id} />}
@@ -165,6 +188,12 @@ export default async function ProductDetailPage({ params }: Props) {
             ))}
           </div>
         )}
+
+        {/* Reviews */}
+        <ReviewSection productId={product.id} />
+
+        {/* Inquiries */}
+        <InquirySection productId={product.id} />
 
         {/* Wishlist button */}
         <div className="mt-4 flex justify-end">

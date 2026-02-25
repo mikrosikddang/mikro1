@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { isWishlisted, toggleWishlist } from "@/lib/wishlist";
+import { useSession } from "@/components/SessionProvider";
+import {
+  isWishlisted,
+  toggleWishlist,
+  addWishlistDB,
+  removeWishlistDB,
+  checkWishlistDB,
+} from "@/lib/wishlist";
 
 type Props = {
   productId: string;
@@ -10,11 +17,20 @@ type Props = {
 };
 
 export default function WishlistButton({ productId, variant = "card" }: Props) {
+  const session = useSession();
   const [active, setActive] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
-  const sync = useCallback(() => {
-    setActive(isWishlisted(productId));
-  }, [productId]);
+  const sync = useCallback(async () => {
+    if (session) {
+      // Logged in: check from DB
+      const result = await checkWishlistDB([productId]);
+      setActive(result[productId] ?? false);
+    } else {
+      // Not logged in: check localStorage
+      setActive(isWishlisted(productId));
+    }
+  }, [productId, session]);
 
   useEffect(() => {
     sync();
@@ -22,10 +38,28 @@ export default function WishlistButton({ productId, variant = "card" }: Props) {
     return () => window.removeEventListener("wishlist-change", sync);
   }, [sync]);
 
-  function handleClick(e: React.MouseEvent) {
+  async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    toggleWishlist(productId);
+
+    if (toggling) return;
+
+    if (session) {
+      // Logged in: use DB API
+      setToggling(true);
+      const newActive = !active;
+      setActive(newActive); // Optimistic update
+      const ok = newActive
+        ? await addWishlistDB(productId)
+        : await removeWishlistDB(productId);
+      if (!ok) {
+        setActive(!newActive); // Revert on failure
+      }
+      setToggling(false);
+    } else {
+      // Not logged in: use localStorage
+      toggleWishlist(productId);
+    }
   }
 
   const isCard = variant === "card";
@@ -34,6 +68,7 @@ export default function WishlistButton({ productId, variant = "card" }: Props) {
     <button
       type="button"
       onClick={handleClick}
+      disabled={toggling}
       aria-label={active ? "관심목록에서 제거" : "관심목록에 추가"}
       className={
         isCard

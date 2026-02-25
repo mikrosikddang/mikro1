@@ -43,6 +43,11 @@ enum ProductImageKind {
   CONTENT
 }
 
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String?  @unique
@@ -65,6 +70,12 @@ model User {
   // Follow relationships
   following     SellerFollow[] @relation("UserFollowing")
   followers     SellerFollow[] @relation("UserFollowers")
+
+  reviews       Review[]
+  inquiries     Inquiry[]
+  coupons       UserCoupon[]
+  wishlistItems Wishlist[]
+  notifications Notification[]
 }
 
 model CartItem {
@@ -115,6 +126,7 @@ model SellerProfile {
   managerName    String?
   managerPhone   String?
 
+  bizRegNo       String?              // 사업자등록번호 (전자상거래법 표시용)
   bizRegImageUrl String?              // S3 URL
   avatarUrl      String?              // Profile avatar URL
   bio            String?              @db.VarChar(160) // 소개글 160자
@@ -153,7 +165,8 @@ model Product {
   categoryMid  String?      // 상의 / 하의 / 원피스 / 아우터 등
   categorySub  String?      // 티셔츠 / 데님 / 미니원피스 등
 
-  priceKrw    Int
+  priceKrw      Int
+  salePriceKrw  Int?           // 할인가 (null이면 할인 없음)
   isActive    Boolean       @default(true)
   isDeleted   Boolean       @default(false)
 
@@ -163,6 +176,9 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   orderItems  OrderItem[]
+  reviews     Review[]
+  inquiries   Inquiry[]
+  wishlistItems Wishlist[]
 
   @@index([categoryMain, categoryMid, categorySub])
   @@index([sellerId])
@@ -239,6 +255,8 @@ model Order {
 
   @@index([buyerId])
   @@index([sellerId])
+  @@index([sellerId, status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -316,4 +334,99 @@ model SellerFollow {
   @@unique([followerId, sellerId])
   @@index([sellerId])
   @@index([followerId])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItemId String   @unique
+  rating      Int      // 1-5
+  content     String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, orderItemId])
+  @@index([productId])
+  @@index([userId])
+}
+
+model Inquiry {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  question    String    @db.Text
+  answer      String?   @db.Text
+  answeredBy  String?   // seller userId
+  answeredAt  DateTime?
+  isSecret    Boolean   @default(false) // 비밀글
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+}
+
+model Coupon {
+  id                String       @id @default(cuid())
+  code              String       @unique
+  name              String
+  discountType      DiscountType
+  discountValue     Int          // 퍼센트(1-100) 또는 원단위
+  minOrderAmount    Int?         // 최소 주문 금액
+  maxDiscountAmount Int?         // 최대 할인 금액 (PERCENT일 때)
+  totalCount        Int?         // 총 발급 가능 수 (null=무제한)
+  isActive          Boolean      @default(true)
+  expiresAt         DateTime?
+  createdAt         DateTime     @default(now())
+
+  userCoupons       UserCoupon[]
+}
+
+model UserCoupon {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couponId  String
+  coupon    Coupon    @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  usedAt    DateTime?
+  orderId   String?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, couponId])
+  @@index([userId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // ORDER_STATUS, REVIEW, INQUIRY_ANSWER, COUPON 등
+  title     String
+  body      String?
+  isRead    Boolean  @default(false)
+  link      String?  // 클릭 시 이동할 경로
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }

@@ -36,6 +36,7 @@ export default function EditProductPage() {
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [title, setTitle] = useState("");
   const [priceKrw, setPriceKrw] = useState("");
+  const [salePriceKrw, setSalePriceKrw] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -51,6 +52,7 @@ export default function EditProductPage() {
       .then((data) => {
         setTitle(data.title ?? "");
         setPriceKrw(data.priceKrw ? Number(data.priceKrw).toLocaleString("ko-KR") : "");
+        setSalePriceKrw(data.salePriceKrw ? Number(data.salePriceKrw).toLocaleString("ko-KR") : "");
         setCategory(data.category ?? "");
         setDescription(data.description ?? "");
         setIsActive(data.isActive ?? true);
@@ -246,6 +248,15 @@ export default function EditProductPage() {
     setPriceKrw(Number(digits).toLocaleString("ko-KR"));
   }
 
+  function handleSalePriceChange(value: string) {
+    const digits = value.replace(/[^0-9]/g, "");
+    if (digits === "") {
+      setSalePriceKrw("");
+      return;
+    }
+    setSalePriceKrw(Number(digits).toLocaleString("ko-KR"));
+  }
+
   // ---------- Submit ----------
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -263,6 +274,18 @@ export default function EditProductPage() {
     if (isNaN(price) || price < 0) {
       setError("가격을 올바르게 입력해주세요");
       return;
+    }
+    let salePrice: number | null = null;
+    if (salePriceKrw.trim()) {
+      salePrice = parseInt(salePriceKrw.replace(/,/g, ""), 10);
+      if (isNaN(salePrice) || salePrice < 0) {
+        setError("할인가를 올바르게 입력해주세요");
+        return;
+      }
+      if (salePrice >= price) {
+        setError("할인가는 정가보다 낮아야 합니다");
+        return;
+      }
     }
     if (variants.length === 0) {
       setError("사이즈/재고를 1개 이상 입력해주세요");
@@ -297,6 +320,7 @@ export default function EditProductPage() {
         body: JSON.stringify({
           title: title.trim(),
           priceKrw: price,
+          salePriceKrw: salePrice,
           category: category || undefined,
           description: description.trim() || undefined,
           mainImages: mainUrls,
@@ -517,6 +541,45 @@ export default function EditProductPage() {
             disabled={submitting}
           />
         </div>
+      </section>
+
+      {/* ===== Sale Price ===== */}
+      <section className="mb-5">
+        <label htmlFor="salePrice" className="block text-[14px] font-medium text-gray-700 mb-1.5">
+          할인가 (원) <span className="text-gray-400">(선택)</span>
+        </label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">₩</span>
+          <input
+            id="salePrice"
+            type="text"
+            inputMode="numeric"
+            value={salePriceKrw}
+            onChange={(e) => handleSalePriceChange(e.target.value)}
+            placeholder="0"
+            className="w-full h-12 pl-9 pr-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+            disabled={submitting}
+          />
+        </div>
+        {salePriceKrw && priceKrw && (() => {
+          const sp = parseInt(salePriceKrw.replace(/,/g, ""), 10);
+          const op = parseInt(priceKrw.replace(/,/g, ""), 10);
+          if (!isNaN(sp) && !isNaN(op) && sp < op) {
+            return (
+              <p className="mt-1 text-[12px] text-red-500 font-medium">
+                {Math.round((1 - sp / op) * 100)}% 할인
+              </p>
+            );
+          }
+          if (!isNaN(sp) && !isNaN(op) && sp >= op) {
+            return (
+              <p className="mt-1 text-[12px] text-red-500">
+                할인가는 정가보다 낮아야 합니다
+              </p>
+            );
+          }
+          return null;
+        })()}
       </section>
 
       {/* ===== Category ===== */}

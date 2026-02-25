@@ -6,6 +6,8 @@ import type { UserRole } from "@prisma/client";
 export type ClientSession = {
   userId: string;
   role: UserRole;
+  name?: string;
+  email?: string;
 } | null;
 
 const SessionContext = createContext<ClientSession>(null);

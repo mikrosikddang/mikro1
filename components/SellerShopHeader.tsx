@@ -22,6 +22,7 @@ export interface SellerShopHeaderProps {
   roomNo?: string | null;
   avatarUrl?: string | null;
   csEmail?: string | null;
+  bizRegNo?: string | null;
 }
 
 export default function SellerShopHeader({
@@ -35,6 +36,7 @@ export default function SellerShopHeader({
   roomNo,
   avatarUrl,
   csEmail,
+  bizRegNo,
 }: SellerShopHeaderProps) {
   const session = useSession();
   const isSelf = session ? session.userId === sellerId : false;
@@ -97,6 +99,11 @@ export default function SellerShopHeader({
               <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-gray-100 text-[11px] font-medium text-gray-600">
                 {type}
               </span>
+            )}
+            {bizRegNo && (
+              <p className="text-[12px] text-gray-400 mt-1">
+                사업자등록번호: {bizRegNo}
+              </p>
             )}
           </div>
         </div>

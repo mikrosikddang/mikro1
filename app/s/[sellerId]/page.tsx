@@ -72,6 +72,7 @@ export default async function SellerShopPage({ params }: Props) {
           roomNo={profile.roomNo}
           avatarUrl={profile.avatarUrl}
           csEmail={profile.csEmail}
+          bizRegNo={profile.bizRegNo}
         />
       </Container>
 

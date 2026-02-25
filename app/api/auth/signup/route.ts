@@ -16,9 +16,9 @@ export const runtime = "nodejs";
  * - 자동 로그인 (쿠키 발급)
  */
 export async function POST(req: NextRequest) {
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; name?: string };
   try {
-    body = (await req.json()) as { email?: string; password?: string };
+    body = (await req.json()) as { email?: string; password?: string; name?: string };
   } catch {
     return NextResponse.json(
       { error: "잘못된 요청입니다" },
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { email, password } = body;
+  const { email, password, name } = body;
 
   // 입력 검증
   if (!email || !password) {
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         role: "CUSTOMER",
+        name: name?.trim() || undefined,
       },
     });
 
@@ -82,6 +83,8 @@ export async function POST(req: NextRequest) {
     const session: Session = {
       userId: user.id,
       role: "CUSTOMER",
+      name: user.name || undefined,
+      email: user.email || undefined,
       issuedAt: Date.now(),
     };
     const token = signSession(session);

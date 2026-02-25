@@ -14,6 +14,7 @@ interface SellerApplyRequest {
   roomNo?: string;
   managerPhone: string;
   bizRegImageUrl?: string;
+  bizRegNo?: string | null;
   csKakaoId?: string | null;
   csPhone?: string | null;
   csEmail?: string | null;
@@ -169,6 +170,7 @@ export async function POST(request: Request) {
       floor: body.floor.trim(),
       roomNo: body.roomNo.trim(),
       managerPhone: body.managerPhone.trim(),
+      bizRegNo: body.bizRegNo?.trim() || null,
       bizRegImageUrl: body.bizRegImageUrl?.trim() || null,
       csKakaoId: body.csKakaoId?.trim() || null,
       csPhone: body.csPhone?.trim() || null,

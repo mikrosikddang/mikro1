@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { cancelPayment } from "@/lib/toss";
+import { notifyOrderStatusChange } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -116,13 +117,12 @@ export async function POST(req: NextRequest) {
 
   // Optional amount verification
   if (amount !== undefined) {
-    const orderTotal = order.totalAmountKrw + order.shippingFeeKrw;
-    if (orderTotal !== amount) {
+    if (order.totalPayKrw !== amount) {
       return json(
         {
           ok: false,
           code: "AMOUNT_MISMATCH",
-          message: `결제 금액 불일치: expected ${orderTotal}, got ${amount}`,
+          message: `결제 금액 불일치: expected ${order.totalPayKrw}, got ${amount}`,
         },
         400,
       );
@@ -196,6 +196,16 @@ export async function POST(req: NextRequest) {
                 rawResponse: { failureReason: "OUT_OF_STOCK", productId: item.productId },
               },
             });
+          } else {
+            await tx.payment.create({
+              data: {
+                orderId,
+                status: PaymentStatus.FAILED,
+                amountKrw: order.totalPayKrw,
+                paymentKey,
+                rawResponse: { failureReason: "OUT_OF_STOCK", productId: item.productId },
+              },
+            });
           }
 
           // Commit the failure state (do NOT throw — we want this committed)
@@ -211,12 +221,22 @@ export async function POST(req: NextRequest) {
           data: { status: OrderStatus.PAID },
         });
 
-        // Update payment record
+        // Update or create payment record
         if (order.payment) {
           await tx.payment.update({
             where: { id: order.payment.id },
             data: {
               status: PaymentStatus.CONFIRMED,
+              paymentKey,
+              approvedAt: new Date(),
+            },
+          });
+        } else {
+          await tx.payment.create({
+            data: {
+              orderId,
+              status: PaymentStatus.CONFIRMED,
+              amountKrw: order.totalPayKrw,
               paymentKey,
               approvedAt: new Date(),
             },
@@ -292,6 +312,14 @@ export async function POST(req: NextRequest) {
   });
 
   if (finalOrder?.status === OrderStatus.PAID) {
+    // Send payment notification (fire-and-forget)
+    notifyOrderStatusChange(
+      order.id,
+      order.orderNo,
+      order.buyerId,
+      order.sellerId,
+      "PAID",
+    );
     return json({ ok: true, code: "CONFIRMED", orderId });
   }
 

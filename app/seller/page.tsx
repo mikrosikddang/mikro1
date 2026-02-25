@@ -19,7 +19,7 @@ export default async function SellerDashboardPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, recentProducts, allProducts] = await Promise.all([
+  const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, recentProducts, allProducts, unansweredInquiries] = await Promise.all([
     // Unprocessed orders (PENDING + PAID)
     prisma.order.count({
       where: { sellerId, status: { in: ["PENDING", "PAID"] } },
@@ -69,6 +69,13 @@ export default async function SellerDashboardPage() {
       where: { sellerId, isDeleted: false },
       include: { variants: true },
     }),
+    // Unanswered inquiries count
+    prisma.inquiry.count({
+      where: {
+        product: { sellerId },
+        answer: null,
+      },
+    }).catch(() => 0),
   ]);
 
   const todaySales = todayRevenue._sum.totalPayKrw || 0;
@@ -157,6 +164,17 @@ export default async function SellerDashboardPage() {
           <p className="text-[13px] text-gray-500 mb-1">오늘 매출</p>
           <p className="text-[24px] font-bold text-black">{formatKrw(todaySales)}</p>
         </Link>
+        {unansweredInquiries > 0 && (
+          <Link
+            href="/seller/inquiries?status=unanswered"
+            className="col-span-2 p-3 bg-amber-50 rounded-lg border border-amber-200 active:bg-amber-100 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] text-amber-700">미답변 문의</p>
+              <p className="text-[20px] font-bold text-amber-600">{unansweredInquiries}</p>
+            </div>
+          </Link>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -180,6 +198,12 @@ export default async function SellerDashboardPage() {
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
             📦 상품 관리
+          </Link>
+          <Link
+            href="/seller/inquiries"
+            className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
+          >
+            💬 문의 관리
           </Link>
           <Link
             href={`/s/${sellerId}`}
@@ -251,7 +275,7 @@ export default async function SellerDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-[13px] font-bold text-black">
-                    {formatKrw(order.totalPayKrw || order.totalAmountKrw)}
+                    {formatKrw(order.totalPayKrw)}
                   </p>
                   {getOrderActionHint(order.status) && (
                     <p className="text-[12px] text-blue-600 font-medium">

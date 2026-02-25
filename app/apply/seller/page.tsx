@@ -35,6 +35,7 @@ export default function SellerApplyPage() {
 
   const [formData, setFormData] = useState({
     shopName: "",
+    bizRegNo: "",
     bizLicenseImage: "",
     type: "",
     marketBuilding: "",
@@ -96,6 +97,7 @@ export default function SellerApplyPage() {
         );
         setFormData({
           shopName: p.shopName || "",
+          bizRegNo: p.bizRegNo || "",
           bizLicenseImage: p.bizRegImageUrl || "",
           type: p.type || "",
           marketBuilding: isPreset
@@ -232,6 +234,7 @@ export default function SellerApplyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shopName: formData.shopName.trim(),
+          bizRegNo: formData.bizRegNo.trim() || null,
           type: formData.type,
           marketBuilding: resolvedMarketBuilding,
           floor: formData.floor.trim(),
@@ -385,6 +388,24 @@ export default function SellerApplyPage() {
               disabled={submitting}
             />
             {inlineError("shopName")}
+          </div>
+
+          {/* 사업자등록번호 */}
+          <div className="mb-4">
+            <label className="block text-[14px] font-medium text-gray-700 mb-2">
+              사업자등록번호 <span className="text-gray-400">(선택)</span>
+            </label>
+            <input
+              type="text"
+              value={formData.bizRegNo}
+              onChange={(e) => updateField("bizRegNo", e.target.value)}
+              placeholder="예: 123-45-67890"
+              className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] focus:outline-none focus:border-black transition-colors"
+              disabled={submitting}
+            />
+            <p className="mt-1 text-[12px] text-gray-500">
+              전자상거래법에 따라 상점 페이지에 표시됩니다.
+            </p>
           </div>
 
           {/* 사업자등록증 */}

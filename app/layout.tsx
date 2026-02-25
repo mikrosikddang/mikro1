@@ -30,7 +30,7 @@ export default async function RootLayout({
 }>) {
   const session = await getSession();
   const clientSession: ClientSession = session
-    ? { userId: session.userId, role: session.role }
+    ? { userId: session.userId, role: session.role, name: session.name, email: session.email }
     : null;
 
   return (

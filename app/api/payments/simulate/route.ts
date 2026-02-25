@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, canAccessSellerFeatures } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
+import { notifyOrderStatusChange } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Collect order info for notifications (outside txn scope)
+    const paidOrderInfos: { id: string; orderNo: string; buyerId: string; sellerId: string }[] = [];
 
     const result = await prisma.$transaction(async (tx) => {
       const orders = [];
@@ -117,6 +121,13 @@ export async function POST(request: Request) {
           },
         });
 
+        paidOrderInfos.push({
+          id: order.id,
+          orderNo: order.orderNo,
+          buyerId: order.buyerId,
+          sellerId: order.sellerId,
+        });
+
         if (order.payment) {
           await tx.payment.update({
             where: { id: order.payment.id },
@@ -146,6 +157,11 @@ export async function POST(request: Request) {
 
       return { ok: true, alreadyPaid: false };
     });
+
+    // Send payment notifications (fire-and-forget)
+    for (const info of paidOrderInfos) {
+      notifyOrderStatusChange(info.id, info.orderNo, info.buyerId, info.sellerId, "PAID");
+    }
 
     return NextResponse.json(result);
   } catch (error: any) {

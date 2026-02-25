@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSession } from "@/components/SessionProvider";
 import { getWishlist } from "@/lib/wishlist";
+import { formatKrw } from "@/lib/format";
 import Container from "@/components/Container";
 import ProductCard from "@/components/ProductCard";
 
@@ -10,16 +12,57 @@ type ProductData = {
   id: string;
   title: string;
   priceKrw: number;
-  sellerId: string;
+  salePriceKrw?: number | null;
+  sellerId?: string;
   images: { url: string }[];
-  seller: { sellerProfile?: { shopName: string } | null };
+  seller?: { sellerProfile?: { shopName: string } | null };
+  shopName?: string | null;
+  imageUrl?: string | null;
+  isAvailable?: boolean;
 };
 
+interface WishlistItem {
+  id: string;
+  productId: string;
+  title: string;
+  priceKrw: number;
+  salePriceKrw: number | null;
+  imageUrl: string | null;
+  shopName: string | null;
+  isAvailable: boolean;
+}
+
 export default function WishlistPage() {
+  const session = useSession();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchFromDB = useCallback(async () => {
+    try {
+      const res = await fetch("/api/wishlist");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const items: WishlistItem[] = data.items || [];
+      setProducts(
+        items
+          .filter((item) => item.isAvailable)
+          .map((item) => ({
+            id: item.productId,
+            title: item.title,
+            priceKrw: item.priceKrw,
+            salePriceKrw: item.salePriceKrw,
+            images: item.imageUrl ? [{ url: item.imageUrl }] : [],
+            shopName: item.shopName,
+          }))
+      );
+    } catch {
+      console.error("Failed to load wishlist from DB");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchFromLocalStorage = useCallback(async () => {
     const ids = getWishlist();
     if (ids.length === 0) {
       setProducts([]);
@@ -42,6 +85,14 @@ export default function WishlistPage() {
       setIsLoading(false);
     }
   }, []);
+
+  const fetchProducts = useCallback(() => {
+    if (session) {
+      fetchFromDB();
+    } else {
+      fetchFromLocalStorage();
+    }
+  }, [session, fetchFromDB, fetchFromLocalStorage]);
 
   useEffect(() => {
     fetchProducts();
@@ -81,17 +132,25 @@ export default function WishlistPage() {
           </div>
         ) : (
           <div className="flex flex-col">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                title={product.title}
-                priceKrw={product.priceKrw}
-                images={product.images.map((i) => ({ url: i.url }))}
-                shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
-                sellerId={product.sellerId}
-              />
-            ))}
+            {products.map((product) => {
+              const shopName =
+                product.shopName ??
+                product.seller?.sellerProfile?.shopName ??
+                "알수없음";
+              const sellerId = product.sellerId ?? "";
+              return (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  title={product.title}
+                  priceKrw={product.priceKrw}
+                  salePriceKrw={product.salePriceKrw}
+                  images={product.images.map((i) => ({ url: i.url }))}
+                  shopName={shopName}
+                  sellerId={sellerId}
+                />
+              );
+            })}
           </div>
         )}
       </div>

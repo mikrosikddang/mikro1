@@ -9,10 +9,17 @@ import StockAdjuster from "@/components/StockAdjuster";
 import WishlistButton from "@/components/WishlistButton";
 import { getColorByKey } from "@/lib/colors";
 import ImageCarousel from "@/components/ImageCarousel";
-import { isWishlisted, toggleWishlist } from "@/lib/wishlist";
+import {
+  isWishlisted,
+  toggleWishlist,
+  addWishlistDB,
+  removeWishlistDB,
+  checkWishlistDB,
+} from "@/lib/wishlist";
 import FeedActionSheet from "@/components/FeedActionSheet";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
+import { useSession } from "@/components/SessionProvider";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
 
@@ -41,6 +48,8 @@ type ProductCardProps = {
   id: string;
   title: string;
   priceKrw: number;
+  /** Sale price (discount) - shown when lower than priceKrw */
+  salePriceKrw?: number | null;
   /** Multiple MAIN images for swipe carousel */
   images: { url: string }[];
   shopName: string;
@@ -55,12 +64,15 @@ type ProductCardProps = {
   variantSummary?: string;
   /** Variant data for stock adjusters (seller mode only) */
   variants?: { id: string; color: string; sizeLabel: string; stock: number }[];
+  /** Initial wishlist state from batch check (skips individual API call on mount) */
+  initialWishlisted?: boolean;
 };
 
 export default function ProductCard({
   id,
   title,
   priceKrw,
+  salePriceKrw,
   images,
   shopName,
   sellerId,
@@ -70,39 +82,83 @@ export default function ProductCard({
   totalStock,
   variantSummary,
   variants,
+  initialWishlisted,
 }: ProductCardProps) {
+  const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
+  const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
+  const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
   const stock = totalStock ?? 0;
   const isSoldOut = stock <= 0;
 
+  const session = useSession();
   // Wishlist state (customer mode only)
-  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlisted, setWishlisted] = useState(initialWishlisted ?? false);
+  const [wishlistToggling, setWishlistToggling] = useState(false);
   // Action sheet state (customer mode only)
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   // Profile edit sheet state (customer mode only, self only)
   const [profileEditOpen, setProfileEditOpen] = useState(false);
 
-  const syncWishlist = useCallback(() => {
-    if (!sellerMode) {
+  const syncWishlist = useCallback(async () => {
+    if (sellerMode) return;
+    if (session) {
+      const result = await checkWishlistDB([id]);
+      setWishlisted(result[id] ?? false);
+    } else {
       setWishlisted(isWishlisted(id));
     }
-  }, [id, sellerMode]);
+  }, [id, sellerMode, session]);
 
   useEffect(() => {
     if (!sellerMode) {
-      syncWishlist();
-      window.addEventListener("wishlist-change", syncWishlist);
-      return () => window.removeEventListener("wishlist-change", syncWishlist);
+      if (initialWishlisted === undefined) {
+        syncWishlist();
+        window.addEventListener("wishlist-change", syncWishlist);
+        return () => window.removeEventListener("wishlist-change", syncWishlist);
+      }
     }
-  }, [syncWishlist, sellerMode]);
+  }, [syncWishlist, sellerMode, initialWishlisted]);
 
-  const handleWishlistToggle = (e: React.MouseEvent) => {
+  useEffect(() => {
+    if (initialWishlisted !== undefined) {
+      setWishlisted(initialWishlisted);
+    }
+  }, [initialWishlisted]);
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleWishlist(id);
+    if (wishlistToggling) return;
+
+    if (session) {
+      setWishlistToggling(true);
+      const newActive = !wishlisted;
+      setWishlisted(newActive);
+      const ok = newActive
+        ? await addWishlistDB(id)
+        : await removeWishlistDB(id);
+      if (!ok) setWishlisted(!newActive);
+      setWishlistToggling(false);
+    } else {
+      toggleWishlist(id);
+    }
   };
 
-  const handleWishlistToggleSimple = () => {
-    toggleWishlist(id);
+  const handleWishlistToggleSimple = async () => {
+    if (wishlistToggling) return;
+
+    if (session) {
+      setWishlistToggling(true);
+      const newActive = !wishlisted;
+      setWishlisted(newActive);
+      const ok = newActive
+        ? await addWishlistDB(id)
+        : await removeWishlistDB(id);
+      if (!ok) setWishlisted(!newActive);
+      setWishlistToggling(false);
+    } else {
+      toggleWishlist(id);
+    }
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -177,9 +233,16 @@ export default function ProductCard({
               <h3 className="flex-1 min-w-0 text-[16px] font-semibold text-black leading-snug line-clamp-2">
                 {title}
               </h3>
-              <span className="shrink-0 text-[16px] font-bold text-black">
-                {formatKrw(priceKrw)}
-              </span>
+              <div className="shrink-0 text-right">
+                {hasDiscount && (
+                  <span className="block text-[13px] text-gray-400 line-through tabular-nums">
+                    {formatKrw(priceKrw)}
+                  </span>
+                )}
+                <span className="text-[16px] font-bold text-black">
+                  {formatKrw(displayPrice)}
+                </span>
+              </div>
             </div>
           </Link>
 
@@ -318,11 +381,26 @@ export default function ProductCard({
             <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
               {title}
             </h3>
-            <div className="mt-1 flex items-baseline gap-0.5">
-              <span className="text-[13px] text-black align-baseline">₩</span>
-              <span className="text-[16px] font-semibold text-black tabular-nums">
-                {priceKrw.toLocaleString()}
-              </span>
+            <div className="mt-1">
+              {hasDiscount ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
+                  <span className="text-[13px] text-black align-baseline">₩</span>
+                  <span className="text-[16px] font-semibold text-black tabular-nums">
+                    {displayPrice.toLocaleString()}
+                  </span>
+                  <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
+                    ₩{priceKrw.toLocaleString()}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-[13px] text-black align-baseline">₩</span>
+                  <span className="text-[16px] font-semibold text-black tabular-nums">
+                    {priceKrw.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           </Link>
 

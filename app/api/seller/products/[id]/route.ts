@@ -105,6 +105,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     } = body as {
       title?: string;
       priceKrw?: number;
+      salePriceKrw?: number | null;
       category?: string; // DEPRECATED
       categoryMain?: string | null;
       categoryMid?: string | null;
@@ -137,6 +138,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
       }
       productData.priceKrw = priceKrw;
+    }
+    if (body.salePriceKrw !== undefined) {
+      if (body.salePriceKrw === null) {
+        productData.salePriceKrw = null;
+      } else {
+        if (typeof body.salePriceKrw !== "number" || body.salePriceKrw < 0) {
+          return NextResponse.json({ error: "할인가를 올바르게 입력해주세요" }, { status: 400 });
+        }
+        const effectivePrice = priceKrw ?? existing.priceKrw;
+        if (body.salePriceKrw >= effectivePrice) {
+          return NextResponse.json({ error: "할인가는 정가보다 낮아야 합니다" }, { status: 400 });
+        }
+        productData.salePriceKrw = body.salePriceKrw;
+      }
     }
     if (category !== undefined) {
       productData.category = typeof category === "string" ? category.trim() || null : null; // DEPRECATED

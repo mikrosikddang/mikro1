@@ -131,7 +131,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
                 {/* User name + role pill */}
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-[18px] font-semibold text-gray-900 leading-tight truncate">
-                    {session.userId}
+                    {session.name || session.email || "사용자"}
                   </h2>
                   <span
                     className={`inline-block text-[11px] font-semibold px-2 py-[3px] rounded-full flex-shrink-0 ${

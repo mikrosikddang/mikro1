@@ -11,5 +11,7 @@ export type Role = UserRole;
 export interface Session {
   userId: string;
   role: UserRole;
+  name?: string;
+  email?: string;
   issuedAt: number;
 }

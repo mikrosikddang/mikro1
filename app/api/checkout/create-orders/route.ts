@@ -190,10 +190,11 @@ export async function POST(request: Request) {
         const firstItem = items[0];
         const sellerProfile = firstItem.variant.product.seller.sellerProfile;
 
-        // Calculate items subtotal
+        // Calculate items subtotal (할인가 우선 적용)
         let itemsSubtotalKrw = 0;
         for (const item of items) {
-          itemsSubtotalKrw += item.variant.product.priceKrw * item.quantity;
+          const effectivePrice = item.variant.product.salePriceKrw ?? item.variant.product.priceKrw;
+          itemsSubtotalKrw += effectivePrice * item.quantity;
         }
 
         // Calculate shipping fee based on seller's rules
@@ -238,7 +239,7 @@ export async function POST(request: Request) {
               productId: cartItem.variant.product.id,
               variantId: cartItem.variantId,
               quantity: cartItem.quantity,
-              unitPriceKrw: cartItem.variant.product.priceKrw, // Snapshot
+              unitPriceKrw: cartItem.variant.product.salePriceKrw ?? cartItem.variant.product.priceKrw, // Snapshot (할인가 우선)
             },
           });
         }

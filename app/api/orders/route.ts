@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
           if (!variant) throw new Error("Variant disappeared");
 
-          const unitPrice = variant.product.priceKrw;
+          const unitPrice = variant.product.salePriceKrw ?? variant.product.priceKrw;
           totalAmountKrw += unitPrice * item.quantity;
 
           orderItemsData.push({
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         orderId: orders[0].id,
-        totalAmount: orders[0].totalAmountKrw,
+        totalAmount: orders[0].totalPayKrw,
       });
     } else {
       return NextResponse.json({
@@ -194,7 +194,7 @@ export async function POST(request: Request) {
         orders: orders.map((o) => ({
           orderId: o.id,
           sellerId: o.sellerId,
-          totalAmount: o.totalAmountKrw,
+          totalAmount: o.totalPayKrw,
         })),
       });
     }

@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Calculate pricing SERVER-SIDE
-    const unitPriceKrw = product.priceKrw;
+    // 4. Calculate pricing SERVER-SIDE (할인가 우선)
+    const unitPriceKrw = product.salePriceKrw ?? product.priceKrw;
     const itemsSubtotalKrw = unitPriceKrw * body.quantity;
 
     const sellerProfile = product.seller.sellerProfile;

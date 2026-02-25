@@ -59,6 +59,7 @@ type ImageSlot = {
 export type ProductFormInitialValues = {
   title: string;
   priceKrw: number;
+  salePriceKrw?: number | null;
   category: string; // DEPRECATED
   categoryMain?: string | null;
   categoryMid?: string | null;
@@ -108,6 +109,9 @@ export default function ProductForm({
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [priceKrw, setPriceKrw] = useState(
     initialValues?.priceKrw ? initialValues.priceKrw.toLocaleString("ko-KR") : "",
+  );
+  const [salePriceKrw, setSalePriceKrw] = useState(
+    initialValues?.salePriceKrw ? initialValues.salePriceKrw.toLocaleString("ko-KR") : "",
   );
   const [category, setCategory] = useState(initialValues?.category ?? ""); // DEPRECATED
   const [categoryMain, setCategoryMain] = useState<string | null>(initialValues?.categoryMain ?? null);
@@ -471,6 +475,20 @@ export default function ProductForm({
       return;
     }
 
+    // Validate sale price
+    let salePrice: number | null = null;
+    if (salePriceKrw.trim()) {
+      salePrice = parseInt(salePriceKrw.replace(/,/g, ""), 10);
+      if (isNaN(salePrice) || salePrice < 0) {
+        setError("할인가를 올바르게 입력해주세요");
+        return;
+      }
+      if (salePrice >= price) {
+        setError("할인가는 정가보다 낮아야 합니다");
+        return;
+      }
+    }
+
     // Validate category (3-depth required)
     if (!validateCategory(categoryMain, categoryMid, categorySub)) {
       setError("카테고리를 선택해주세요 (성별 > 카테고리 > 세부 카테고리)");
@@ -547,6 +565,7 @@ export default function ProductForm({
         body: JSON.stringify({
           title: title.trim(),
           priceKrw: price,
+          salePriceKrw: salePrice,
           category: category || undefined, // DEPRECATED
           categoryMain: categoryMain,
           categoryMid: categoryMid,
@@ -580,6 +599,15 @@ export default function ProductForm({
       return;
     }
     setPriceKrw(Number(digits).toLocaleString("ko-KR"));
+  }
+
+  function handleSalePriceChange(value: string) {
+    const digits = value.replace(/[^0-9]/g, "");
+    if (digits === "") {
+      setSalePriceKrw("");
+      return;
+    }
+    setSalePriceKrw(Number(digits).toLocaleString("ko-KR"));
   }
 
   return (
@@ -935,6 +963,45 @@ export default function ProductForm({
             disabled={submitting}
           />
         </div>
+      </section>
+
+      {/* ===== Sale Price ===== */}
+      <section className="mb-5">
+        <label htmlFor="salePrice" className="block text-[14px] font-medium text-gray-700 mb-1.5">
+          할인가 (원) <span className="text-gray-400">(선택)</span>
+        </label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">₩</span>
+          <input
+            id="salePrice"
+            type="text"
+            inputMode="numeric"
+            value={salePriceKrw}
+            onChange={(e) => handleSalePriceChange(e.target.value)}
+            placeholder="0"
+            className="w-full h-12 pl-9 pr-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+            disabled={submitting}
+          />
+        </div>
+        {salePriceKrw && priceKrw && (() => {
+          const sp = parseInt(salePriceKrw.replace(/,/g, ""), 10);
+          const op = parseInt(priceKrw.replace(/,/g, ""), 10);
+          if (!isNaN(sp) && !isNaN(op) && sp < op) {
+            return (
+              <p className="mt-1 text-[12px] text-red-500 font-medium">
+                {Math.round((1 - sp / op) * 100)}% 할인
+              </p>
+            );
+          }
+          if (!isNaN(sp) && !isNaN(op) && sp >= op) {
+            return (
+              <p className="mt-1 text-[12px] text-red-500">
+                할인가는 정가보다 낮아야 합니다
+              </p>
+            );
+          }
+          return null;
+        })()}
       </section>
 
       {/* ===== Category (3-Depth) ===== */}

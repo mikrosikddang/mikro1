@@ -67,7 +67,7 @@ export async function POST(request: Request) {
             data: {
               orderId: order.id,
               status: PaymentStatus.FAILED,
-              amountKrw: order.totalPayKrw || order.totalAmountKrw,
+              amountKrw: order.totalPayKrw,
               method: "TEST_SIMULATION",
             },
           });

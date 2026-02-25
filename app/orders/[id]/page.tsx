@@ -6,6 +6,7 @@ import { formatKrw } from "@/lib/format";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
+import ReviewButton from "./ReviewButton";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -60,6 +61,19 @@ export default async function OrderDetailPage({ params }: Props) {
         </div>
       </Container>
     );
+  }
+
+  // Check which items already have reviews (for COMPLETED orders, buyer only)
+  let reviewedItemIds = new Set<string>();
+  if (order.status === "COMPLETED" && isBuyer) {
+    const existingReviews = await prisma.review.findMany({
+      where: {
+        orderItemId: { in: order.items.map((i: any) => i.id) },
+        userId: session.userId,
+      },
+      select: { orderItemId: true },
+    });
+    reviewedItemIds = new Set(existingReviews.map((r) => r.orderItemId));
   }
 
   const shopName = order.seller.sellerProfile?.shopName ?? "알수없음";
@@ -165,6 +179,16 @@ export default async function OrderDetailPage({ params }: Props) {
                     <p className="text-[16px] font-bold text-black mt-2">
                       {formatKrw(subtotal)}
                     </p>
+                    {order.status === "COMPLETED" && isBuyer && (
+                      <div className="mt-2">
+                        <ReviewButton
+                          orderItemId={item.id}
+                          productId={item.productId}
+                          productTitle={item.product.title}
+                          hasReview={reviewedItemIds.has(item.id)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -177,7 +201,7 @@ export default async function OrderDetailPage({ params }: Props) {
           <div className="flex justify-between text-[14px]">
             <span className="text-gray-600">상품 금액</span>
             <span className="font-medium text-black">
-              {formatKrw(order.totalAmountKrw)}
+              {formatKrw(order.itemsSubtotalKrw)}
             </span>
           </div>
           <div className="flex justify-between text-[14px]">
@@ -189,7 +213,7 @@ export default async function OrderDetailPage({ params }: Props) {
           <div className="pt-2 border-t border-gray-200 flex justify-between items-center">
             <span className="text-[16px] font-bold text-black">총 결제 금액</span>
             <span className="text-[24px] font-bold text-black">
-              {formatKrw(order.totalAmountKrw + order.shippingFeeKrw)}
+              {formatKrw(order.totalPayKrw)}
             </span>
           </div>
         </div>
