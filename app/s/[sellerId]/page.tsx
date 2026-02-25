@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import Container from "@/components/Container";
 import SellerShopHeader from "@/components/SellerShopHeader";
 import ProductGrid from "@/components/ProductGrid";
@@ -17,7 +18,13 @@ export default async function SellerShopPage({ params }: Props) {
     include: { sellerProfile: true },
   });
 
-  if (!seller || !seller.sellerProfile) notFound();
+  if (!seller || !seller.sellerProfile) {
+    const session = await getSession();
+    if (session && session.userId === sellerId) {
+      redirect("/apply/seller");
+    }
+    notFound();
+  }
 
   const profile = seller.sellerProfile;
 

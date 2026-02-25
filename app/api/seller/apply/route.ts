@@ -66,13 +66,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ADMIN cannot apply as seller
-    if (isAdmin(session.role)) {
-      return NextResponse.json(
-        { error: "관리자 계정은 판매자 신청이 불가합니다." },
-        { status: 403 }
-      );
-    }
+    const userIsAdmin = isAdmin(session.role);
 
     const body = (await request.json()) as SellerApplyRequest;
 
@@ -198,10 +192,13 @@ export async function POST(request: Request) {
       });
 
       // Update user role to SELLER_ACTIVE (auto-approved)
-      await tx.user.update({
-        where: { id: session.userId },
-        data: { role: "SELLER_ACTIVE" },
-      });
+      // ADMIN keeps their role — only creates sellerProfile
+      if (!userIsAdmin) {
+        await tx.user.update({
+          where: { id: session.userId },
+          data: { role: "SELLER_ACTIVE" },
+        });
+      }
 
       return profile;
     });
