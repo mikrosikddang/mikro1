@@ -208,6 +208,7 @@ QA → 원인 분석 → 해당 역할 수정 → 재검증
 |--------|---------------|--------|
 | S3 이미지 업로드 | connect-src | `*.s3.ap-northeast-2.amazonaws.com`, `*.s3.amazonaws.com` |
 | Unsplash 이미지 | img-src | `images.unsplash.com` |
+| Daum 우편번호 | script-src | `t1.daumcdn.net` |
 | Next.js 폰트 | font-src | `data:` |
 | Blob/Data URI | img-src | `data:`, `blob:` |
 

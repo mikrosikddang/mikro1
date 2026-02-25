@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https://images.unsplash.com data: blob:",
               "font-src 'self' data:",
