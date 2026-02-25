@@ -151,7 +151,7 @@ export async function PATCH(request: Request, { params }: Props) {
   } catch (error) {
     console.error("PATCH /api/orders/[id] error:", error);
     return NextResponse.json(
-      { error: "Failed to update order" },
+      { error: "주문 수정 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }
