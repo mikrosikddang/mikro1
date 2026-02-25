@@ -6,7 +6,7 @@ const s3 = new S3Client({
   requestChecksumCalculation: "WHEN_REQUIRED",
   responseChecksumValidation: "WHEN_REQUIRED",
 });
-const BUCKET = process.env.S3_BUCKET!;
+const BUCKET = process.env.S3_BUCKET ?? "";
 
 /* ---------- Upload safety limits ---------- */
 const ALLOWED_CONTENT_TYPES = new Set([

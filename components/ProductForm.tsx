@@ -252,7 +252,7 @@ export default function ProductForm({
     });
     if (!presignRes.ok) {
       const data = await presignRes.json().catch(() => ({}));
-      throw new Error(data.error || "Presign failed");
+      throw new Error(data.error || "이미지 업로드 준비에 실패했습니다. 다시 시도해주세요.");
     }
     const { uploadUrl, publicUrl } = await presignRes.json();
 
@@ -267,7 +267,7 @@ export default function ProductForm({
       body: file,
       headers: { "Content-Type": file.type },
     });
-    if (!putRes.ok) throw new Error("S3 upload failed");
+    if (!putRes.ok) throw new Error("이미지 업로드에 실패했습니다. 다시 시도해주세요.");
 
     setter((prev) => {
       const copy = [...prev];
@@ -969,6 +969,7 @@ export default function ProductForm({
           setCategoryMid(selected.mid ?? null);
           setCategorySub(selected.sub ?? null);
         }}
+        autoCloseOnSub
       />
 
       {/* ===== Structured Description ===== */}

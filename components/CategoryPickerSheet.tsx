@@ -24,6 +24,8 @@ type CategoryPickerSheetProps = {
     mid?: string;
     sub?: string;
   }) => void;
+  /** sub 선택 시 자동으로 시트 닫기 (상품 등록용) */
+  autoCloseOnSub?: boolean;
 };
 
 export default function CategoryPickerSheet({
@@ -33,6 +35,7 @@ export default function CategoryPickerSheet({
   initialMid,
   initialSub,
   onChange,
+  autoCloseOnSub = false,
 }: CategoryPickerSheetProps) {
   const [selectedMain, setSelectedMain] = useState<string | null>(
     initialMain || null
@@ -99,8 +102,10 @@ export default function CategoryPickerSheet({
       setSelectedSub(sub);
       pushRecentCategory(selectedMain, selectedMid, sub);
       onChange({ main: selectedMain, mid: selectedMid, sub });
+      if (autoCloseOnSub) {
+        onClose();
+      }
     }
-    // Sheet stays open for continued browsing
   };
 
   // 최근 선택 카테고리 클릭
@@ -120,7 +125,23 @@ export default function CategoryPickerSheet({
   const breadcrumb = getCategoryBreadcrumb(selectedMain, selectedMid, selectedSub);
 
   return (
-    <ActionSheet open={open} onClose={onClose} title="카테고리 선택">
+    <ActionSheet
+      open={open}
+      onClose={onClose}
+      title="카테고리 선택"
+      headerRight={
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      }
+    >
       <div className="px-4 py-4">
         {/* Breadcrumb */}
         <div className="mb-4 pb-3 border-b border-gray-200">

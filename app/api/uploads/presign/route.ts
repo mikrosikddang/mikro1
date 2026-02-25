@@ -8,6 +8,14 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    // S3 설정 확인
+    if (!process.env.S3_BUCKET) {
+      return NextResponse.json(
+        { error: "이미지 업로드 서비스가 설정되지 않았습니다. 관리자에게 문의하세요." },
+        { status: 503 },
+      );
+    }
+
     // Auth guard: SELLER only
     const _session = await getSession();
     const session = requireSeller(_session);

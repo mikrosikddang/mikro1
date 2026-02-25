@@ -55,7 +55,7 @@ const RATE_RULES: {
   {
     pattern: /^\/api\/uploads/,
     method: "POST",
-    limit: 5,
+    limit: 20,
     windowMs: 60_000,
     keyPrefix: "uploads",
   },
