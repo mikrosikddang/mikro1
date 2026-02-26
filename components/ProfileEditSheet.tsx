@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ActionSheet from "@/components/ActionSheet";
+import { resizeImage } from "@/lib/imageResize";
 
 type ProfileEditSheetProps = {
   open: boolean;
@@ -94,8 +95,14 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
 
     setUploading(true);
     try {
+      // Resize avatar (max 512×512, JPEG 85%)
+      const resized = await resizeImage(file, 512, 512, 0.85);
+      const uploadFile = resized instanceof File
+        ? resized
+        : new File([resized], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
 
       const res = await fetch("/api/uploads/avatar", {
         method: "POST",

@@ -11,6 +11,7 @@ import ColorPickerSheet from "@/components/ColorPickerSheet";
 import ColorImageManager, { type ColorImageData } from "@/components/ColorImageManager";
 import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
 import { getColorByKey } from "@/lib/colors";
+import { resizeImage } from "@/lib/imageResize";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -245,13 +246,18 @@ export default function ProductForm({
       return copy;
     });
 
+    // Resize image before upload (max 1080×1350, JPEG 80%)
+    const resized = await resizeImage(file);
+    const uploadContentType = resized instanceof File ? file.type : "image/jpeg";
+    const uploadSize = resized.size;
+
     const presignRes = await fetch("/api/uploads/presign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         fileName: file.name,
-        contentType: file.type,
-        fileSize: file.size,
+        contentType: uploadContentType,
+        fileSize: uploadSize,
       }),
     });
     if (!presignRes.ok) {
@@ -268,8 +274,8 @@ export default function ProductForm({
 
     const putRes = await fetch(uploadUrl, {
       method: "PUT",
-      body: file,
-      headers: { "Content-Type": file.type },
+      body: resized,
+      headers: { "Content-Type": uploadContentType },
     });
     if (!putRes.ok) throw new Error("이미지 업로드에 실패했습니다. 다시 시도해주세요.");
 
