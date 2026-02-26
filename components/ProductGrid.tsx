@@ -42,7 +42,6 @@ export default function ProductGrid({
   const [orderedProducts, setOrderedProducts] = useState<Product[]>(initialProducts);
   const [saving, setSaving] = useState(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIndexRef = useRef<number | null>(null);
 
@@ -160,7 +159,9 @@ export default function ProductGrid({
 
   const handlePointerDown = (e: React.PointerEvent, index: number) => {
     e.preventDefault();
-    const el = gridRef.current?.children[index] as HTMLElement | undefined;
+    const grid = gridRef.current;
+    if (!grid) return;
+    const el = grid.children[index] as HTMLElement | undefined;
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
@@ -185,48 +186,71 @@ export default function ProductGrid({
     // 2. Dim original element as placeholder (no React re-render)
     el.style.opacity = "0.3";
 
+    // 3. Cache all tile rects once at drag start
+    const cachedRects = Array.from(grid.children).map(
+      (child) => child.getBoundingClientRect()
+    );
+
     dragIndexRef.current = index;
-    setDropTarget(null);
 
     const dropTargetLocal = { current: null as number | null };
+    let prevDropEl: HTMLElement | null = null;
+    let rafId: number | null = null;
 
     const handleMove = (ev: PointerEvent) => {
-      if (dragIndexRef.current === null || !gridRef.current) return;
+      if (dragIndexRef.current === null) return;
+      if (rafId) return; // Skip if previous frame still pending
 
-      // Move clone with pointer
-      clone.style.left = `${rect.left + (ev.clientX - startX)}px`;
-      clone.style.top = `${rect.top + (ev.clientY - startY)}px`;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
 
-      // Calculate drop target
-      const children = Array.from(gridRef.current.children);
-      let found = false;
-      for (let i = 0; i < children.length; i++) {
-        if (i === dragIndexRef.current) continue;
-        const childRect = children[i].getBoundingClientRect();
-        const inBounds =
-          ev.clientX >= childRect.left &&
-          ev.clientX <= childRect.right &&
-          ev.clientY >= childRect.top &&
-          ev.clientY <= childRect.bottom;
+        // Move clone with pointer
+        clone.style.left = `${rect.left + (ev.clientX - startX)}px`;
+        clone.style.top = `${rect.top + (ev.clientY - startY)}px`;
 
-        if (inBounds) {
-          dropTargetLocal.current = i;
-          setDropTarget(i);
-          found = true;
-          break;
+        // Clear previous drop target highlight
+        if (prevDropEl) {
+          prevDropEl.classList.remove("ring-2", "ring-black", "ring-inset", "ring-offset-1");
+          prevDropEl = null;
         }
-      }
-      if (!found) {
-        dropTargetLocal.current = null;
-        setDropTarget(null);
-      }
+
+        // Find drop target using cached rects
+        let found = false;
+        for (let i = 0; i < cachedRects.length; i++) {
+          if (i === dragIndexRef.current) continue;
+          const r = cachedRects[i];
+          if (
+            ev.clientX >= r.left &&
+            ev.clientX <= r.right &&
+            ev.clientY >= r.top &&
+            ev.clientY <= r.bottom
+          ) {
+            dropTargetLocal.current = i;
+            const targetEl = grid.children[i] as HTMLElement;
+            targetEl.classList.add("ring-2", "ring-black");
+            prevDropEl = targetEl;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          dropTargetLocal.current = null;
+        }
+      });
     };
 
     const handleUp = () => {
+      // Cancel pending rAF
+      if (rafId) cancelAnimationFrame(rafId);
+
       // Remove clone
       clone.remove();
       // Restore original
       el.style.opacity = "";
+      // Clear drop target highlight
+      if (prevDropEl) {
+        prevDropEl.classList.remove("ring-2", "ring-black", "ring-inset", "ring-offset-1");
+      }
 
       const from = dragIndexRef.current;
       const to = dropTargetLocal.current;
@@ -239,7 +263,6 @@ export default function ProductGrid({
         });
       }
       dragIndexRef.current = null;
-      setDropTarget(null);
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
@@ -300,19 +323,12 @@ export default function ProductGrid({
             }`}
           >
             {displayProducts.map((product, i) => {
-              const isDropTargetItem = dropTarget === i;
               const imageUrl = product.imageUrl || "/placeholder.png";
 
               return (
                 <div
                   key={product.id}
-                  className={`relative transition-all ${
-                    isDropTargetItem
-                      ? viewMode === "feed"
-                        ? "ring-2 ring-black ring-inset"
-                        : "ring-2 ring-black ring-offset-1 rounded-xl"
-                      : ""
-                  }`}
+                  className="relative transition-all"
                 >
                   {/* Drag handle overlay */}
                   <div
