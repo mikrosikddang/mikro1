@@ -44,11 +44,18 @@ export default async function NewProductPage({ searchParams }: Props) {
       })),
     };
   } else {
-    // 새 상품: 셀러 프로필에서 CS/배송 정보 프리필
-    const seller = await prisma.user.findUnique({
-      where: { id: session.userId },
-      include: { sellerProfile: true },
-    });
+    // 새 상품: 최근 상품 CS 정보 → 셀러 프로필 순으로 프리필
+    const [seller, latestProduct] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { sellerProfile: true },
+      }),
+      prisma.product.findFirst({
+        where: { sellerId: session.userId, isDeleted: false },
+        orderBy: { createdAt: "desc" },
+        select: { descriptionJson: true },
+      }),
+    ]);
 
     initialValues = {
       title: "",
@@ -56,6 +63,9 @@ export default async function NewProductPage({ searchParams }: Props) {
       category: "",
       description: "",
       descriptionJson: buildDescriptionInitialValues({
+        descriptionJson: latestProduct?.descriptionJson
+          ? { v: 1, csShipping: (latestProduct.descriptionJson as any).csShipping }
+          : undefined,
         sellerProfile: seller?.sellerProfile,
       }),
       mainImages: [],

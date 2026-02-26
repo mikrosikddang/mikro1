@@ -173,6 +173,23 @@ export async function POST(req: NextRequest) {
         })),
       });
 
+      // Sync CS/shipping info back to SellerProfile for future prefill
+      if (descriptionJson?.csShipping) {
+        const cs = descriptionJson.csShipping;
+        const profileUpdate: Record<string, string | null> = {};
+        if (cs.csPhone) profileUpdate.csPhone = cs.csPhone;
+        if (cs.csEmail) profileUpdate.csEmail = cs.csEmail;
+        if (cs.returnAddress) profileUpdate.csAddress = cs.returnAddress;
+        if (cs.note) profileUpdate.shippingGuide = cs.note;
+
+        if (Object.keys(profileUpdate).length > 0) {
+          await tx.sellerProfile.updateMany({
+            where: { userId: sellerId },
+            data: profileUpdate,
+          });
+        }
+      }
+
       return p;
     });
 
