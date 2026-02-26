@@ -7,6 +7,12 @@ const s3 = new S3Client({
   responseChecksumValidation: "WHEN_REQUIRED",
 });
 const BUCKET = process.env.S3_BUCKET ?? "";
+const REGION = process.env.AWS_REGION || "ap-northeast-2";
+
+/** Direct public S3 URL for a given key */
+function s3PublicUrl(key: string): string {
+  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+}
 
 /* ---------- Upload safety limits ---------- */
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -41,15 +47,15 @@ export async function createPresignedPut(key: string, contentType: string) {
   });
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
-  // Store as proxy path – bucket is private, images served via /api/images/[...path]
-  const publicUrl = `/api/images/${key}`;
+  // Direct public S3 URL (bucket is public)
+  const publicUrl = s3PublicUrl(key);
 
   return { uploadUrl, publicUrl };
 }
 
 /**
  * Upload a buffer directly to S3 (server-side upload).
- * Returns the proxy URL for serving via /api/images/[...path].
+ * Returns the direct public S3 URL.
  */
 export async function uploadToS3(key: string, body: Buffer, contentType: string) {
   const command = new PutObjectCommand({
@@ -59,7 +65,7 @@ export async function uploadToS3(key: string, body: Buffer, contentType: string)
     ContentType: contentType,
   });
   await s3.send(command);
-  return `/api/images/${key}`;
+  return s3PublicUrl(key);
 }
 
 export async function createPresignedGet(key: string) {
