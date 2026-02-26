@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.redirect(signedUrl, {
       status: 302,
       headers: {
-        "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+        "Cache-Control": "public, max-age=1800, s-maxage=3600, stale-while-revalidate=600",
       },
     });
   } catch (err) {

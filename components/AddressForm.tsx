@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // Daum Postcode types
 declare global {
@@ -25,6 +25,8 @@ export default function AddressForm({ onSaved, onCancel }: Props) {
   const [loading, setLoading] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
+  const [showPostcode, setShowPostcode] = useState(false);
+  const postcodeRef = useRef<HTMLDivElement>(null);
 
   const loadPostcodeScript = () => {
     setScriptError(false);
@@ -71,15 +73,24 @@ export default function AddressForm({ onSaved, onCancel }: Props) {
       return;
     }
 
+    setShowPostcode(true);
+  };
+
+  // Embed postcode widget when showPostcode becomes true
+  useEffect(() => {
+    if (!showPostcode || !postcodeRef.current || !window.daum) return;
+
     new window.daum.Postcode({
-      oncomplete: function(data: any) {
-        // User selected address
+      oncomplete: function (data: any) {
         setZipCode(data.zonecode);
         setAddr1(data.roadAddress || data.jibunAddress);
         setError("");
+        setShowPostcode(false);
       },
-    }).open();
-  };
+      width: "100%",
+      height: "100%",
+    }).embed(postcodeRef.current);
+  }, [showPostcode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,6 +276,23 @@ export default function AddressForm({ onSaved, onCancel }: Props) {
           </div>
         </form>
       </div>
+
+      {/* Daum Postcode embed overlay */}
+      {showPostcode && (
+        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
+          <div className="flex items-center justify-between px-4 h-[52px] border-b border-gray-100 shrink-0">
+            <h2 className="text-[16px] font-semibold text-black">주소 검색</h2>
+            <button
+              type="button"
+              onClick={() => setShowPostcode(false)}
+              className="text-[14px] text-gray-500 active:text-gray-700"
+            >
+              닫기
+            </button>
+          </div>
+          <div ref={postcodeRef} className="flex-1" />
+        </div>
+      )}
     </div>
   );
 }
