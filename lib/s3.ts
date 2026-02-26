@@ -47,6 +47,21 @@ export async function createPresignedPut(key: string, contentType: string) {
   return { uploadUrl, publicUrl };
 }
 
+/**
+ * Upload a buffer directly to S3 (server-side upload).
+ * Returns the proxy URL for serving via /api/images/[...path].
+ */
+export async function uploadToS3(key: string, body: Buffer, contentType: string) {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  });
+  await s3.send(command);
+  return `/api/images/${key}`;
+}
+
 export async function createPresignedGet(key: string) {
   const command = new GetObjectCommand({
     Bucket: BUCKET,
