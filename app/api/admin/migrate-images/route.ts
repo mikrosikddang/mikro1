@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import { isAdmin } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
@@ -11,6 +9,7 @@ const PREFIX = "/api/images/";
 /**
  * POST /api/admin/migrate-images
  * 기존 프록시 URL을 직접 S3 URL로 마이그레이션
+ * 인증: X-ADMIN-PREFLIGHT-TOKEN 헤더 (환경변수 ADMIN_PREFLIGHT_TOKEN)
  *
  * Body: { dryRun?: boolean }
  * - dryRun=true: count만 반환 (기본값)
@@ -18,8 +17,9 @@ const PREFIX = "/api/images/";
  */
 export async function POST(request: Request) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
+    const token = request.headers.get("X-ADMIN-PREFLIGHT-TOKEN");
+    const expected = process.env.ADMIN_PREFLIGHT_TOKEN;
+    if (!expected || !token || token !== expected) {
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
     }
 
