@@ -67,6 +67,20 @@ export default function ColorImageManager({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Lock body scroll while open, restore on unmount
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const currentImages = colorImagesMap.get(selectedColorKey) || [];
 
   // 이미지 업로드 함수 (ProductForm의 uploadImage와 동일)
@@ -232,7 +246,7 @@ export default function ColorImageManager({
   const canUploadMore = currentImages.length < MAX_IMAGES_PER_COLOR;
 
   return (
-    <div className="px-4 py-6 min-h-screen bg-white">
+    <div className="fixed inset-0 z-50 bg-white overflow-y-auto px-4 py-6">
       {/* 설명 */}
       <div className="mb-6">
         <h1 className="text-lg font-bold text-black mb-2">

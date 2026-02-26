@@ -227,7 +227,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       // Replace images (delete + recreate per kind)
       if (mainImages !== undefined) {
-        await tx.productImage.deleteMany({ where: { productId: id, kind: "MAIN" } });
+        await tx.productImage.deleteMany({ where: { productId: id, kind: "MAIN", colorKey: null } });
         await tx.productImage.createMany({
           data: mainImages.map((url: string, i: number) => ({
             productId: id,

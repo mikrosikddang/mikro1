@@ -69,6 +69,7 @@ export type ProductFormInitialValues = {
   mainImages: string[];
   contentImages: string[];
   variants: { id?: string; color?: string; sizeLabel: string; stock: number }[];
+  colorImages?: { colorKey: string; url: string }[];
 };
 
 function urlToSlot(url: string): ImageSlot {
@@ -77,8 +78,12 @@ function urlToSlot(url: string): ImageSlot {
 
 export default function ProductForm({
   initialValues,
+  editProductId,
+  isActive: initialIsActive,
 }: {
   initialValues?: ProductFormInitialValues;
+  editProductId?: string;
+  isActive?: boolean;
 }) {
   const router = useRouter();
   const mainInputRef = useRef<HTMLInputElement>(null);
@@ -134,12 +139,25 @@ export default function ProductForm({
   const [csNote, setCsNote] = useState(initialValues?.descriptionJson?.csShipping?.note ?? "");
 
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [isActive, setIsActive] = useState(initialIsActive ?? true);
   const [error, setError] = useState<string | null>(null);
   const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
   const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
 
   // Color images (auto-synced from variantTree)
-  const [colorImages, setColorImages] = useState<ColorImageData[]>([]);
+  const [colorImages, setColorImages] = useState<ColorImageData[]>(() => {
+    if (initialValues?.colorImages && initialValues.colorImages.length > 0) {
+      // Group flat {colorKey, url}[] into ColorImageData[] ({colorKey, images[]})
+      const map = new Map<string, string[]>();
+      for (const ci of initialValues.colorImages) {
+        if (!map.has(ci.colorKey)) map.set(ci.colorKey, []);
+        map.get(ci.colorKey)!.push(ci.url);
+      }
+      return Array.from(map.entries()).map(([colorKey, images]) => ({ colorKey, images }));
+    }
+    return [];
+  });
   const [colorImageManagerOpen, setColorImageManagerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
@@ -558,36 +576,44 @@ export default function ProductForm({
       // Convert tree to flat variants
       const flatVariants = variantsTreeToFlat(variantTree);
 
-      // Create product
-      const res = await fetch("/api/seller/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          priceKrw: price,
-          salePriceKrw: salePrice,
-          category: category || undefined, // DEPRECATED
-          categoryMain: categoryMain,
-          categoryMid: categoryMid,
-          categorySub: categorySub,
-          description: description.trim() || undefined,
-          descriptionJson,
-          mainImages: mainUrls,
-          contentImages: contentUrls.length > 0 ? contentUrls : undefined,
-          colorImages: colorImagesPayload.length > 0 ? colorImagesPayload : undefined,
-          variants: flatVariants,
-        }),
-      });
+      // Create or update product
+      const payload = {
+        title: title.trim(),
+        priceKrw: price,
+        salePriceKrw: salePrice,
+        category: category || undefined, // DEPRECATED
+        categoryMain: categoryMain,
+        categoryMid: categoryMid,
+        categorySub: categorySub,
+        description: description.trim() || undefined,
+        descriptionJson,
+        mainImages: mainUrls,
+        contentImages: contentUrls.length > 0 ? contentUrls : undefined,
+        colorImages: colorImagesPayload.length > 0 ? colorImagesPayload : undefined,
+        variants: flatVariants,
+      };
+
+      const res = editProductId
+        ? await fetch(`/api/seller/products/${editProductId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/seller/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "등록 실패");
+        throw new Error(data.error || (editProductId ? "수정 실패" : "등록 실패"));
       }
 
       router.push("/seller");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "상품 등록에 실패했습니다");
+      setError(err instanceof Error ? err.message : (editProductId ? "상품 수정에 실패했습니다" : "상품 등록에 실패했습니다"));
       setSubmitting(false);
     }
   }
@@ -612,9 +638,30 @@ export default function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="py-6">
-      <h1 className="text-[22px] font-bold text-black mb-6">
-        {initialValues ? "상품 복제 등록" : "상품 올리기"}
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-[22px] font-bold text-black">
+          {editProductId ? "상품 수정" : initialValues ? "상품 복제 등록" : "상품 올리기"}
+        </h1>
+        {editProductId && (
+          <button
+            type="button"
+            onClick={() => {
+              fetch(`/api/seller/products/${editProductId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: !isActive }),
+              }).then(() => setIsActive(!isActive));
+            }}
+            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium ${
+              isActive
+                ? "bg-black text-white"
+                : "bg-gray-200 text-gray-500"
+            }`}
+          >
+            {isActive ? "판매중" : "숨김"}
+          </button>
+        )}
+      </div>
 
       {/* ===== Main Images ===== */}
       <ImagePickerSection
@@ -1158,21 +1205,64 @@ export default function ProductForm({
         </div>
       )}
 
-      {/* Submit button */}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-      >
-        {submitting ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            등록 중...
-          </span>
-        ) : (
-          "등록"
-        )}
-      </button>
+      {/* Action buttons */}
+      {editProductId ? (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm("정말로 이 상품을 삭제하시겠습니까?")) return;
+              setDeleting(true);
+              try {
+                const res = await fetch(`/api/seller/products/${editProductId}`, { method: "DELETE" });
+                if (!res.ok) {
+                  const data = await res.json();
+                  throw new Error(data.error || "삭제 실패");
+                }
+                router.push("/seller");
+                router.refresh();
+              } catch (err) {
+                alert(err instanceof Error ? err.message : "상품 삭제에 실패했습니다");
+                setDeleting(false);
+              }
+            }}
+            disabled={submitting || deleting}
+            className="h-[52px] px-5 rounded-xl bg-red-500 text-white text-[16px] font-bold active:bg-red-600 transition-colors disabled:opacity-50"
+          >
+            {deleting ? "삭제 중..." : "삭제"}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            disabled={submitting || deleting}
+            className="flex-1 h-[52px] rounded-xl border border-gray-200 text-[16px] font-bold text-gray-700 active:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            disabled={submitting || deleting}
+            className="flex-1 h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {submitting ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full h-[52px] bg-black text-white rounded-xl text-[16px] font-bold active:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              등록 중...
+            </span>
+          ) : (
+            "등록"
+          )}
+        </button>
+      )}
 
       {/* Color Picker Sheet */}
       <ColorPickerSheet
