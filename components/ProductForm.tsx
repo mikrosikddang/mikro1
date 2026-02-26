@@ -1229,26 +1229,56 @@ function ImagePickerSection({
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [imgDragIndex, setImgDragIndex] = useState<number | null>(null);
 
-  const startDrag = (index: number) => {
+  const startDrag = (index: number, pointerX: number, pointerY: number) => {
+    if (!listRef.current) return;
+    const allChildren = Array.from(listRef.current.children);
+    const offset = images.length < max ? 1 : 0;
+    const el = allChildren[offset + index] as HTMLElement | undefined;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const origLeft = rect.left;
+    const origTop = rect.top;
+    const startX = pointerX;
+    const startY = pointerY;
+
+    // Switch to fixed position so element follows pointer
+    el.style.position = "fixed";
+    el.style.left = `${origLeft}px`;
+    el.style.top = `${origTop}px`;
+    el.style.width = `${rect.width}px`;
+    el.style.height = `${rect.height}px`;
+    el.style.zIndex = "50";
+    el.style.pointerEvents = "none";
+
     dragIdxRef.current = index;
     setImgDragIndex(index);
 
     const handleMove = (ev: PointerEvent) => {
       if (dragIdxRef.current === null || !listRef.current) return;
+
+      // Move element with pointer
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      el.style.left = `${origLeft + dx}px`;
+      el.style.top = `${origTop + dy}px`;
+
+      // Calculate swap target
       const currentIdx = dragIdxRef.current;
-      const allChildren = Array.from(listRef.current.children);
-      const offset = images.length < max ? 1 : 0;
-      const thumbChildren = allChildren.slice(offset);
+      const thumbChildren = Array.from(listRef.current.children).slice(
+        images.length < max ? 1 : 0
+      );
 
       for (let i = 0; i < thumbChildren.length; i++) {
         if (i === currentIdx) continue;
-        const rect = thumbChildren[i].getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
+        const childRect = thumbChildren[i].getBoundingClientRect();
+        const midX = childRect.left + childRect.width / 2;
 
         if (
           (currentIdx < i && ev.clientX > midX) ||
           (currentIdx > i && ev.clientX < midX)
         ) {
+          // Swap and update fixed position origin for new index
           onMove(currentIdx, (i - currentIdx) as -1 | 1);
           dragIdxRef.current = i;
           setImgDragIndex(i);
@@ -1258,6 +1288,15 @@ function ImagePickerSection({
     };
 
     const handleUp = () => {
+      // Restore styles
+      el.style.position = "";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.width = "";
+      el.style.height = "";
+      el.style.zIndex = "";
+      el.style.pointerEvents = "";
+
       dragIdxRef.current = null;
       setImgDragIndex(null);
       window.removeEventListener("pointermove", handleMove);
@@ -1276,8 +1315,7 @@ function ImagePickerSection({
     // Long-press: 300ms threshold
     longPressTimerRef.current = setTimeout(() => {
       longPressTimerRef.current = null;
-      e.preventDefault();
-      startDrag(index);
+      startDrag(index, startX, startY);
     }, 300);
 
     // Cancel long-press if pointer moves too much (allows normal scroll)
@@ -1329,79 +1367,100 @@ function ImagePickerSection({
         )}
 
         {/* Thumbnails */}
-        {images.map((slot, i) => (
-          <div
-            key={i}
-            className={`shrink-0 w-20 h-20 relative rounded-xl overflow-hidden bg-gray-100 transition-all ${
-              imgDragIndex === i
-                ? "opacity-90 shadow-lg scale-105 z-50"
-                : ""
-            }`}
-            style={{ touchAction: imgDragIndex !== null ? "none" : "auto" }}
-            onPointerDown={(e) => handlePointerDown(e, i)}
-          >
-            <img src={slot.preview} alt="" className="w-full h-full object-cover" />
+        {images.map((slot, i) => {
+          const isDragging = imgDragIndex === i;
 
-            {/* Main badge */}
-            {showMainBadge && i === 0 && (
-              <span className="absolute top-0.5 left-0.5 bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                대표
-              </span>
-            )}
+          return (
+            <div
+              key={i}
+              className={`shrink-0 w-20 h-20 relative rounded-xl bg-gray-100 transition-all ${
+                isDragging
+                  ? "overflow-visible"
+                  : "overflow-hidden"
+              }`}
+              style={{ touchAction: imgDragIndex !== null ? "none" : "auto" }}
+              onPointerDown={(e) => handlePointerDown(e, i)}
+            >
+              {isDragging ? (
+                /* Placeholder at original position + floating content via fixed style */
+                <>
+                  <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-100" />
+                  <div className="opacity-90 shadow-lg scale-105 rounded-xl overflow-hidden">
+                    <img src={slot.preview} alt="" className="w-full h-full object-cover" />
+                    {showMainBadge && i === 0 && (
+                      <span className="absolute top-0.5 left-0.5 bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        대표
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <img src={slot.preview} alt="" className="w-full h-full object-cover" />
 
-            {/* Upload overlay */}
-            {slot.status === "uploading" && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              </div>
-            )}
+                  {/* Main badge */}
+                  {showMainBadge && i === 0 && (
+                    <span className="absolute top-0.5 left-0.5 bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                      대표
+                    </span>
+                  )}
 
-            {/* Done check */}
-            {slot.status === "done" && (
-              <div className="absolute bottom-0.5 right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )}
+                  {/* Upload overlay */}
+                  {slot.status === "uploading" && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    </div>
+                  )}
 
-            {/* Controls */}
-            {!submitting && (
-              <div className="absolute top-0.5 right-0.5 flex gap-0.5">
-                {/* Move left */}
-                {i > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onMove(i, -1)}
-                    className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
-                  >
-                    ←
-                  </button>
-                )}
-                {/* Move right */}
-                {i < images.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={() => onMove(i, 1)}
-                    className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
-                  >
-                    →
-                  </button>
-                )}
-                {/* Remove */}
-                <button
-                  type="button"
-                  onClick={() => onRemove(i)}
-                  className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                >
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+                  {/* Done check */}
+                  {slot.status === "done" && (
+                    <div className="absolute bottom-0.5 right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Controls */}
+                  {!submitting && (
+                    <div className="absolute top-0.5 right-0.5 flex gap-0.5">
+                      {/* Move left */}
+                      {i > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onMove(i, -1)}
+                          className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
+                        >
+                          ←
+                        </button>
+                      )}
+                      {/* Move right */}
+                      {i < images.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => onMove(i, 1)}
+                          className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
+                        >
+                          →
+                        </button>
+                      )}
+                      {/* Remove */}
+                      <button
+                        type="button"
+                        onClick={() => onRemove(i)}
+                        className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                      >
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <input

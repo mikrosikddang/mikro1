@@ -162,34 +162,74 @@ export default function ProductGrid({
 
   const handlePointerDown = (e: React.PointerEvent, index: number) => {
     e.preventDefault();
+    const el = gridRef.current?.children[index] as HTMLElement | undefined;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origLeft = rect.left;
+    const origTop = rect.top;
+
+    // Switch to fixed position so element follows pointer
+    el.style.position = "fixed";
+    el.style.left = `${origLeft}px`;
+    el.style.top = `${origTop}px`;
+    el.style.width = `${rect.width}px`;
+    el.style.zIndex = "50";
+    el.style.pointerEvents = "none";
+
     dragIndexRef.current = index;
     setDragIndex(index);
     setDropTarget(null);
 
+    const dropTargetLocal = { current: null as number | null };
+
     const handleMove = (ev: PointerEvent) => {
       if (dragIndexRef.current === null || !gridRef.current) return;
-      const children = Array.from(gridRef.current.children);
 
+      // Move element with pointer
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      el.style.left = `${origLeft + dx}px`;
+      el.style.top = `${origTop + dy}px`;
+
+      // Calculate drop target
+      const children = Array.from(gridRef.current.children);
+      let found = false;
       for (let i = 0; i < children.length; i++) {
         if (i === dragIndexRef.current) continue;
-        const rect = children[i].getBoundingClientRect();
+        const childRect = children[i].getBoundingClientRect();
         const inBounds =
-          ev.clientX >= rect.left &&
-          ev.clientX <= rect.right &&
-          ev.clientY >= rect.top &&
-          ev.clientY <= rect.bottom;
+          ev.clientX >= childRect.left &&
+          ev.clientX <= childRect.right &&
+          ev.clientY >= childRect.top &&
+          ev.clientY <= childRect.bottom;
 
         if (inBounds) {
+          dropTargetLocal.current = i;
           setDropTarget(i);
-          return;
+          found = true;
+          break;
         }
       }
-      setDropTarget(null);
+      if (!found) {
+        dropTargetLocal.current = null;
+        setDropTarget(null);
+      }
     };
 
     const handleUp = () => {
+      // Restore styles
+      el.style.position = "";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.width = "";
+      el.style.zIndex = "";
+      el.style.pointerEvents = "";
+
       const from = dragIndexRef.current;
-      const to = dropTarget;
+      const to = dropTargetLocal.current;
       if (from !== null && to !== null && from !== to) {
         setOrderedProducts((prev) => {
           const next = [...prev];
@@ -268,14 +308,70 @@ export default function ProductGrid({
               const isDropTarget = dropTarget === i;
               const imageUrl = product.imageUrl || "/placeholder.png";
 
+              // Placeholder at original position while dragging
+              if (isDragging) {
+                return (
+                  <div key={product.id} className="relative">
+                    {/* Placeholder */}
+                    <div
+                      className={
+                        viewMode === "feed"
+                          ? "aspect-square bg-gray-200"
+                          : "aspect-[4/5] bg-gray-200 rounded-xl"
+                      }
+                    />
+                    {/* Floating dragged item (rendered via fixed positioning in handlePointerDown) */}
+                    <div className="opacity-[0.85] shadow-xl scale-105 rounded-xl">
+                      {/* Drag handle overlay */}
+                      <div
+                        className="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg bg-black/50 backdrop-blur-sm flex items-center justify-center cursor-grab"
+                        style={{ touchAction: "none" }}
+                      >
+                        <svg className="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                          <circle cx="7" cy="5" r="1.5" />
+                          <circle cx="13" cy="5" r="1.5" />
+                          <circle cx="7" cy="10" r="1.5" />
+                          <circle cx="13" cy="10" r="1.5" />
+                          <circle cx="7" cy="15" r="1.5" />
+                          <circle cx="13" cy="15" r="1.5" />
+                        </svg>
+                      </div>
+
+                      {viewMode === "feed" ? (
+                        <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                          <Image
+                            src={imageUrl}
+                            alt={product.title}
+                            fill
+                            sizes="(max-width: 420px) 33vw, 140px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
+                            <Image
+                              src={imageUrl}
+                              alt={product.title}
+                              fill
+                              sizes="(max-width: 420px) 33vw, 140px"
+                              className="object-cover"
+                            />
+                          </div>
+                          <h3 className="mt-2 text-sm font-medium text-black line-clamp-1 leading-snug">
+                            {product.title}
+                          </h3>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={product.id}
                   className={`relative transition-all ${
-                    isDragging
-                      ? "opacity-[0.85] shadow-xl scale-105 z-50 rounded-xl"
-                      : ""
-                  } ${
                     isDropTarget
                       ? viewMode === "feed"
                         ? "ring-2 ring-black ring-inset"
