@@ -1224,6 +1224,88 @@ function ImagePickerSection({
   submitting: boolean;
   showMainBadge?: boolean;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const dragIdxRef = useRef<number | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [imgDragIndex, setImgDragIndex] = useState<number | null>(null);
+
+  const startDrag = (index: number) => {
+    dragIdxRef.current = index;
+    setImgDragIndex(index);
+
+    const handleMove = (ev: PointerEvent) => {
+      if (dragIdxRef.current === null || !listRef.current) return;
+      const currentIdx = dragIdxRef.current;
+      const allChildren = Array.from(listRef.current.children);
+      const offset = images.length < max ? 1 : 0;
+      const thumbChildren = allChildren.slice(offset);
+
+      for (let i = 0; i < thumbChildren.length; i++) {
+        if (i === currentIdx) continue;
+        const rect = thumbChildren[i].getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+
+        if (
+          (currentIdx < i && ev.clientX > midX) ||
+          (currentIdx > i && ev.clientX < midX)
+        ) {
+          onMove(currentIdx, (i - currentIdx) as -1 | 1);
+          dragIdxRef.current = i;
+          setImgDragIndex(i);
+          break;
+        }
+      }
+    };
+
+    const handleUp = () => {
+      dragIdxRef.current = null;
+      setImgDragIndex(null);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent, index: number) => {
+    if (submitting || images.length <= 1) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    // Long-press: 300ms threshold
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      e.preventDefault();
+      startDrag(index);
+    }, 300);
+
+    // Cancel long-press if pointer moves too much (allows normal scroll)
+    const cancelOnMove = (ev: PointerEvent) => {
+      const dx = Math.abs(ev.clientX - startX);
+      const dy = Math.abs(ev.clientY - startY);
+      if (dx > 8 || dy > 8) {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        window.removeEventListener("pointermove", cancelOnMove);
+      }
+    };
+
+    const cancelOnUp = () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      window.removeEventListener("pointermove", cancelOnMove);
+      window.removeEventListener("pointerup", cancelOnUp);
+    };
+
+    window.addEventListener("pointermove", cancelOnMove);
+    window.addEventListener("pointerup", cancelOnUp);
+  };
+
   return (
     <section className="mb-6">
       <label className="block text-[14px] font-medium text-gray-700 mb-2">
@@ -1231,7 +1313,7 @@ function ImagePickerSection({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div ref={listRef} className="flex gap-2 overflow-x-auto pb-2">
         {/* Add button */}
         {images.length < max && (
           <button
@@ -1248,7 +1330,16 @@ function ImagePickerSection({
 
         {/* Thumbnails */}
         {images.map((slot, i) => (
-          <div key={i} className="shrink-0 w-20 h-20 relative rounded-xl overflow-hidden bg-gray-100">
+          <div
+            key={i}
+            className={`shrink-0 w-20 h-20 relative rounded-xl overflow-hidden bg-gray-100 transition-all ${
+              imgDragIndex === i
+                ? "opacity-90 shadow-lg scale-105 z-50"
+                : ""
+            }`}
+            style={{ touchAction: imgDragIndex !== null ? "none" : "auto" }}
+            onPointerDown={(e) => handlePointerDown(e, i)}
+          >
             <img src={slot.preview} alt="" className="w-full h-full object-cover" />
 
             {/* Main badge */}

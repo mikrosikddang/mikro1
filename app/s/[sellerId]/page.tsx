@@ -18,13 +18,16 @@ export default async function SellerShopPage({ params }: Props) {
     include: { sellerProfile: true },
   });
 
+  const session = await getSession();
+
   if (!seller || !seller.sellerProfile) {
-    const session = await getSession();
     if (session && session.userId === sellerId) {
       redirect("/apply/seller");
     }
     notFound();
   }
+
+  const isOwner = session?.userId === sellerId;
 
   const profile = seller.sellerProfile;
 
@@ -90,6 +93,7 @@ export default async function SellerShopPage({ params }: Props) {
           sellerId={sellerId}
           initialProducts={initialProducts}
           initialNextCursor={nextCursor}
+          isOwner={isOwner}
         />
       </div>
     </>
