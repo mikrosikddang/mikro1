@@ -81,12 +81,6 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 파일 크기 체크 (3MB)
-    if (file.size > 3 * 1024 * 1024) {
-      alert("파일 크기는 3MB 이하여야 합니다");
-      return;
-    }
-
     // 파일 타입 체크
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       alert("JPG, PNG, WEBP 이미지만 업로드 가능합니다");

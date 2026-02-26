@@ -21,7 +21,6 @@ function generateId() {
 const CATEGORIES = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
 const MAX_MAIN = 10;
 const MAX_CONTENT = 20;
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const PRESET_COLORS = ["BLACK", "CHARCOAL", "GRAY", "BEIGE", "WHITE"];
@@ -188,11 +187,6 @@ export default function ProductForm({
     for (const file of picked) {
       if (!ALLOWED_TYPES.has(file.type)) {
         setError(`허용되지 않는 파일 형식: ${file.name} (jpg, png, webp, gif만 가능)`);
-        e.target.value = "";
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`파일이 너무 큽니다: ${file.name} (최대 10MB)`);
         e.target.value = "";
         return;
       }
