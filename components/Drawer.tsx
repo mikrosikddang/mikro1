@@ -55,16 +55,20 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     }
   }, [pathname, onClose]);
 
-  // Lock body scroll when open
+  // Lock body scroll when open (preserve swipe gestures)
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        window.scrollTo(0, scrollY);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [open]);
 
   const handleCategorySelect = (category: {

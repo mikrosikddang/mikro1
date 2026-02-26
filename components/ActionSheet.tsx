@@ -13,16 +13,20 @@ type ActionSheetProps = {
 export default function ActionSheet({ open, onClose, children, title, headerRight }: ActionSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Lock body scroll when open
+  // Lock body scroll when open (preserve swipe gestures)
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        window.scrollTo(0, scrollY);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [open]);
 
   // ESC key to close
@@ -53,26 +57,26 @@ export default function ActionSheet({ open, onClose, children, title, headerRigh
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[90] bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ease-out pb-[env(safe-area-inset-bottom)]"
+        className="fixed bottom-0 left-0 right-0 z-[90] bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ease-out pb-[env(safe-area-inset-bottom)] max-h-[85vh] flex flex-col"
         style={{
           transform: open ? "translateY(0)" : "translateY(100%)",
         }}
       >
         {/* Handle bar */}
-        <div className="flex justify-center pt-3 pb-2">
+        <div className="flex justify-center pt-3 pb-2 shrink-0">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
         {/* Title */}
         {title && (
-          <div className="px-4 pb-2 flex items-center justify-between">
+          <div className="px-4 pb-2 flex items-center justify-between shrink-0">
             <h3 className="text-[15px] font-semibold text-gray-900">{title}</h3>
             {headerRight && <div>{headerRight}</div>}
           </div>
         )}
 
         {/* Content */}
-        <div className="px-2 pb-4">{children}</div>
+        <div className="px-2 pb-4 overflow-y-auto flex-1">{children}</div>
       </div>
     </>
   );
