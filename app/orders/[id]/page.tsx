@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
 import ReviewButton from "./ReviewButton";
+import ScrollToTop from "@/components/ScrollToTop";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -82,6 +83,7 @@ export default async function OrderDetailPage({ params }: Props) {
 
   return (
     <Container>
+      <ScrollToTop />
       <div className="py-6">
         {/* Header */}
         <div className="mb-6">

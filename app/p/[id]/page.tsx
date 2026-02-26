@@ -13,6 +13,7 @@ import ProductTitleText from "@/components/typography/ProductTitleText";
 import ProductSellerActions from "./ProductSellerActions";
 import ReviewSection, { ReviewSummary } from "./ReviewSection";
 import InquirySection from "./InquirySection";
+import ScrollToTop from "@/components/ScrollToTop";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -46,6 +47,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <Container>
+      <ScrollToTop />
       {/* Main images – Instagram-like horizontal swipe */}
       <ImageCarousel
         images={mainImages.map((i) => ({ url: i.url }))}

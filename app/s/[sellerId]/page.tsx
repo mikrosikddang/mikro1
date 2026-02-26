@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import Container from "@/components/Container";
 import SellerShopHeader from "@/components/SellerShopHeader";
 import ProductGrid from "@/components/ProductGrid";
+import ScrollToTop from "@/components/ScrollToTop";
 
 export const revalidate = 60; // ISR: 60초
 
@@ -70,6 +71,7 @@ export default async function SellerShopPage({ params }: Props) {
 
   return (
     <>
+      <ScrollToTop />
       <Container>
         {/* Instagram-style header */}
         <SellerShopHeader
