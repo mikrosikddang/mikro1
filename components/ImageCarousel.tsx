@@ -18,6 +18,15 @@ export default function ImageCarousel({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  const [computedAspect, setComputedAspect] = useState(aspect);
+
+  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    // Clamp: 4/5 (0.8) ~ 4/3 (1.333)
+    const clamped = Math.max(0.8, Math.min(ratio, 1.333));
+    setComputedAspect(`${clamped}`);
+  }, []);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -108,11 +117,15 @@ export default function ImageCarousel({
   if (images.length === 1) {
     return (
       <div className={`relative ${className}`}>
-        <div className="relative w-full overflow-hidden" style={{ aspectRatio: aspect }}>
+        <div
+          className="relative w-full overflow-hidden bg-gray-100 transition-[aspect-ratio] duration-200"
+          style={{ aspectRatio: computedAspect }}
+        >
           <img
             src={images[0].url}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
+            onLoad={handleImageLoad}
           />
         </div>
       </div>
@@ -135,13 +148,14 @@ export default function ImageCarousel({
         {images.map((img, i) => (
           <div
             key={i}
-            className="relative shrink-0 w-full snap-start overflow-hidden"
-            style={{ aspectRatio: aspect }}
+            className="relative shrink-0 w-full snap-start overflow-hidden bg-gray-100 transition-[aspect-ratio] duration-200"
+            style={{ aspectRatio: computedAspect }}
           >
             <img
               src={img.url}
               alt=""
               className="absolute inset-0 w-full h-full object-cover"
+              onLoad={i === 0 ? handleImageLoad : undefined}
             />
           </div>
         ))}
