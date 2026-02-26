@@ -246,7 +246,7 @@ export default function ColorImageManager({
   const canUploadMore = currentImages.length < MAX_IMAGES_PER_COLOR;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white overflow-y-auto px-4 py-6">
+    <div className="fixed inset-0 z-[60] bg-white overflow-y-auto px-4 py-6 pb-[80px]">
       {/* 설명 */}
       <div className="mb-6">
         <h1 className="text-lg font-bold text-black mb-2">
@@ -363,7 +363,7 @@ export default function ColorImageManager({
       </div>
 
       {/* 완료 CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+      <div className="fixed bottom-0 left-0 right-0 z-[60] p-4 bg-white border-t border-gray-200">
         <div className="max-w-[420px] mx-auto flex gap-3">
           <button
             type="button"
