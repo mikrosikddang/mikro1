@@ -296,11 +296,11 @@ export default function ProductGrid({
           /* Reorder mode: current view with drag handles, links disabled */
           <div
             ref={gridRef}
-            className={
+            className={`select-none ${
               viewMode === "feed"
                 ? "grid grid-cols-3 gap-[1px]"
                 : "grid grid-cols-3 gap-3 px-4"
-            }
+            }`}
           >
             {displayProducts.map((product, i) => {
               const isDragging = dragIndex === i;
@@ -308,10 +308,10 @@ export default function ProductGrid({
               const imageUrl = product.imageUrl || "/placeholder.png";
 
               // Placeholder at original position while dragging
+              // (actual element follows pointer via fixed positioning in handlePointerDown)
               if (isDragging) {
                 return (
-                  <div key={product.id} className="relative">
-                    {/* Placeholder */}
+                  <div key={product.id}>
                     <div
                       className={
                         viewMode === "feed"
@@ -319,50 +319,6 @@ export default function ProductGrid({
                           : "aspect-[4/5] bg-gray-200 rounded-xl"
                       }
                     />
-                    {/* Floating dragged item (rendered via fixed positioning in handlePointerDown) */}
-                    <div className="opacity-[0.85] shadow-xl scale-105 rounded-xl">
-                      {/* Drag handle overlay */}
-                      <div
-                        className="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg bg-black/50 backdrop-blur-sm flex items-center justify-center cursor-grab"
-                        style={{ touchAction: "none" }}
-                      >
-                        <svg className="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <circle cx="7" cy="5" r="1.5" />
-                          <circle cx="13" cy="5" r="1.5" />
-                          <circle cx="7" cy="10" r="1.5" />
-                          <circle cx="13" cy="10" r="1.5" />
-                          <circle cx="7" cy="15" r="1.5" />
-                          <circle cx="13" cy="15" r="1.5" />
-                        </svg>
-                      </div>
-
-                      {viewMode === "feed" ? (
-                        <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                          <Image
-                            src={imageUrl}
-                            alt={product.title}
-                            fill
-                            sizes="(max-width: 420px) 33vw, 140px"
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-                            <Image
-                              src={imageUrl}
-                              alt={product.title}
-                              fill
-                              sizes="(max-width: 420px) 33vw, 140px"
-                              className="object-cover"
-                            />
-                          </div>
-                          <h3 className="mt-2 text-sm font-medium text-black line-clamp-1 leading-snug">
-                            {product.title}
-                          </h3>
-                        </>
-                      )}
-                    </div>
                   </div>
                 );
               }

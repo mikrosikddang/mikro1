@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { formatKrw } from "@/lib/format";
 import { getProductBadge } from "@/lib/productState";
@@ -325,7 +324,7 @@ export default function ProductCard({
           {/* Avatar */}
           <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
             {avatarUrl ? (
-              <Image src={avatarUrl} alt={shopName} width={28} height={28} className="object-cover w-full h-full" />
+              <img src={avatarUrl} alt={shopName} className="w-7 h-7 object-cover" />
             ) : (
               <span className="text-[13px] font-semibold text-gray-700">
                 {shopName.charAt(0)}
