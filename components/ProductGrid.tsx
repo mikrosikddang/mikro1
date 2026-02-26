@@ -181,6 +181,7 @@ export default function ProductGrid({
     clone.style.boxShadow = "0 20px 25px -5px rgba(0,0,0,0.1)";
     clone.style.borderRadius = "12px";
     clone.style.overflow = "hidden";
+    clone.style.transition = "none";
     document.body.appendChild(clone);
 
     // 2. Dim original element as placeholder (no React re-render)
@@ -196,17 +197,21 @@ export default function ProductGrid({
     const dropTargetLocal = { current: null as number | null };
     let prevDropEl: HTMLElement | null = null;
     let rafId: number | null = null;
+    let lastX = startX;
+    let lastY = startY;
 
     const handleMove = (ev: PointerEvent) => {
       if (dragIndexRef.current === null) return;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
       if (rafId) return; // Skip if previous frame still pending
 
       rafId = requestAnimationFrame(() => {
         rafId = null;
 
-        // Move clone with pointer
-        clone.style.left = `${rect.left + (ev.clientX - startX)}px`;
-        clone.style.top = `${rect.top + (ev.clientY - startY)}px`;
+        // Move clone with latest pointer position
+        clone.style.left = `${rect.left + (lastX - startX)}px`;
+        clone.style.top = `${rect.top + (lastY - startY)}px`;
 
         // Clear previous drop target highlight
         if (prevDropEl) {
@@ -220,10 +225,10 @@ export default function ProductGrid({
           if (i === dragIndexRef.current) continue;
           const r = cachedRects[i];
           if (
-            ev.clientX >= r.left &&
-            ev.clientX <= r.right &&
-            ev.clientY >= r.top &&
-            ev.clientY <= r.bottom
+            lastX >= r.left &&
+            lastX <= r.right &&
+            lastY >= r.top &&
+            lastY <= r.bottom
           ) {
             dropTargetLocal.current = i;
             const targetEl = grid.children[i] as HTMLElement;
