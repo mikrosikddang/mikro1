@@ -47,7 +47,7 @@ export default function ChatRoomPage({ params }: { params: { roomId: string } })
       const res = await fetch(`/api/chat/rooms/${roomId}/messages`);
       if (!res.ok) return;
       const data = await res.json();
-      setMessages(data.messages ?? []);
+      setMessages((data.messages ?? []).reverse());
       setRoomInfo(data.roomInfo ?? null);
       setCurrentUserId(data.currentUserId ?? "");
       setLastReadMessageId(data.lastReadMessageId ?? null);
