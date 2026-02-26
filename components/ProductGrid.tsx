@@ -176,6 +176,7 @@ export default function ProductGrid({
     el.style.left = `${origLeft}px`;
     el.style.top = `${origTop}px`;
     el.style.width = `${rect.width}px`;
+    el.style.height = `${rect.height}px`;
     el.style.zIndex = "50";
     el.style.pointerEvents = "none";
 
@@ -225,6 +226,7 @@ export default function ProductGrid({
       el.style.left = "";
       el.style.top = "";
       el.style.width = "";
+      el.style.height = "";
       el.style.zIndex = "";
       el.style.pointerEvents = "";
 
