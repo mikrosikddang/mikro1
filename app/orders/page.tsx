@@ -12,10 +12,21 @@ export default async function OrdersPage() {
     redirect("/login?next=/orders");
   }
 
+  // Auto-cancel expired PENDING orders for this buyer
+  await prisma.order.updateMany({
+    where: {
+      buyerId: session.userId,
+      status: "PENDING",
+      expiresAt: { lt: new Date() },
+    },
+    data: { status: "CANCELLED" },
+  });
+
   // Phase 2: Sellers can now purchase, so they can view their buyer orders
   const orders = await prisma.order.findMany({
     where: {
       buyerId: session.userId,
+      status: { not: "PENDING" },
     },
     include: {
       seller: {

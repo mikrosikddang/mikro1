@@ -29,10 +29,20 @@ export async function GET(request: Request) {
     const limitParam = url.searchParams.get("limit");
     const limit = Math.min(parseInt(limitParam || "20", 10), 100);
 
-    // Build query conditions
+    // Auto-cancel expired PENDING orders for this seller
+    await prisma.order.updateMany({
+      where: {
+        sellerId: session.userId,
+        status: "PENDING",
+        expiresAt: { lt: new Date() },
+      },
+      data: { status: "CANCELLED" },
+    });
+
+    // Build query conditions — always exclude PENDING
     const where: any = {
       sellerId: session.userId, // Only seller's own orders
-      ...(status && { status }),
+      status: status && status !== "PENDING" ? status : { not: "PENDING" as const },
       ...(cursor && {
         createdAt: {
           lt: new Date(cursor),

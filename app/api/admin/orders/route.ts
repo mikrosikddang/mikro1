@@ -26,10 +26,21 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get("status");
     const limitParam = searchParams.get("limit");
 
-    // Build filter
+    // Auto-cancel expired PENDING orders platform-wide
+    await prisma.order.updateMany({
+      where: {
+        status: "PENDING",
+        expiresAt: { lt: new Date() },
+      },
+      data: { status: "CANCELLED" },
+    });
+
+    // Build filter — exclude PENDING unless explicitly requested
     const where: any = {};
     if (statusParam && Object.values(OrderStatus).includes(statusParam as OrderStatus)) {
       where.status = statusParam as OrderStatus;
+    } else {
+      where.status = { not: "PENDING" as const };
     }
 
     const limit = limitParam ? Math.min(parseInt(limitParam, 10), 500) : 100;
