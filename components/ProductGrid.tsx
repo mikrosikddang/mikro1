@@ -42,7 +42,6 @@ export default function ProductGrid({
   const [orderedProducts, setOrderedProducts] = useState<Product[]>(initialProducts);
   const [saving, setSaving] = useState(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIndexRef = useRef<number | null>(null);
@@ -167,20 +166,26 @@ export default function ProductGrid({
     const rect = el.getBoundingClientRect();
     const startX = e.clientX;
     const startY = e.clientY;
-    const origLeft = rect.left;
-    const origTop = rect.top;
 
-    // Switch to fixed position so element follows pointer
-    el.style.position = "fixed";
-    el.style.left = `${origLeft}px`;
-    el.style.top = `${origTop}px`;
-    el.style.width = `${rect.width}px`;
-    el.style.height = `${rect.height}px`;
-    el.style.zIndex = "50";
-    el.style.pointerEvents = "none";
+    // 1. Create clone and append to body (follows pointer)
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.style.position = "fixed";
+    clone.style.left = `${rect.left}px`;
+    clone.style.top = `${rect.top}px`;
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.zIndex = "50";
+    clone.style.pointerEvents = "none";
+    clone.style.opacity = "0.85";
+    clone.style.boxShadow = "0 20px 25px -5px rgba(0,0,0,0.1)";
+    clone.style.borderRadius = "12px";
+    clone.style.overflow = "hidden";
+    document.body.appendChild(clone);
+
+    // 2. Dim original element as placeholder (no React re-render)
+    el.style.opacity = "0.3";
 
     dragIndexRef.current = index;
-    setDragIndex(index);
     setDropTarget(null);
 
     const dropTargetLocal = { current: null as number | null };
@@ -188,11 +193,9 @@ export default function ProductGrid({
     const handleMove = (ev: PointerEvent) => {
       if (dragIndexRef.current === null || !gridRef.current) return;
 
-      // Move element with pointer
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      el.style.left = `${origLeft + dx}px`;
-      el.style.top = `${origTop + dy}px`;
+      // Move clone with pointer
+      clone.style.left = `${rect.left + (ev.clientX - startX)}px`;
+      clone.style.top = `${rect.top + (ev.clientY - startY)}px`;
 
       // Calculate drop target
       const children = Array.from(gridRef.current.children);
@@ -220,14 +223,10 @@ export default function ProductGrid({
     };
 
     const handleUp = () => {
-      // Restore styles
-      el.style.position = "";
-      el.style.left = "";
-      el.style.top = "";
-      el.style.width = "";
-      el.style.height = "";
-      el.style.zIndex = "";
-      el.style.pointerEvents = "";
+      // Remove clone
+      clone.remove();
+      // Restore original
+      el.style.opacity = "";
 
       const from = dragIndexRef.current;
       const to = dropTargetLocal.current;
@@ -240,7 +239,6 @@ export default function ProductGrid({
         });
       }
       dragIndexRef.current = null;
-      setDragIndex(null);
       setDropTarget(null);
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
@@ -302,31 +300,14 @@ export default function ProductGrid({
             }`}
           >
             {displayProducts.map((product, i) => {
-              const isDragging = dragIndex === i;
-              const isDropTarget = dropTarget === i;
+              const isDropTargetItem = dropTarget === i;
               const imageUrl = product.imageUrl || "/placeholder.png";
-
-              // Placeholder at original position while dragging
-              // (actual element follows pointer via fixed positioning in handlePointerDown)
-              if (isDragging) {
-                return (
-                  <div key={product.id}>
-                    <div
-                      className={
-                        viewMode === "feed"
-                          ? "aspect-square bg-gray-200"
-                          : "aspect-[4/5] bg-gray-200 rounded-xl"
-                      }
-                    />
-                  </div>
-                );
-              }
 
               return (
                 <div
                   key={product.id}
                   className={`relative transition-all ${
-                    isDropTarget
+                    isDropTargetItem
                       ? viewMode === "feed"
                         ? "ring-2 ring-black ring-inset"
                         : "ring-2 ring-black ring-offset-1 rounded-xl"
