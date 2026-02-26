@@ -167,6 +167,7 @@ model Product {
 
   priceKrw      Int
   salePriceKrw  Int?           // 할인가 (null이면 할인 없음)
+  sortOrder     Int            @default(0) // 셀러별 상품 정렬 순서 (낮을수록 앞)
   isActive    Boolean       @default(true)
   isDeleted   Boolean       @default(false)
 

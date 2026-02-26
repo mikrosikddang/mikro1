@@ -37,6 +37,7 @@ export default async function SellerShopPage({ params }: Props) {
       isDeleted: false,
     },
     orderBy: [
+      { sortOrder: "asc" },
       { createdAt: "desc" },
       { id: "desc" },
     ],

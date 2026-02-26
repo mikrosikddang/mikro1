@@ -44,6 +44,7 @@ export async function GET(request: Request, { params }: Props) {
     const products = await prisma.product.findMany({
       where,
       orderBy: [
+        { sortOrder: "asc" },
         { createdAt: "desc" },
         { id: "desc" }, // tie-breaker
       ],
