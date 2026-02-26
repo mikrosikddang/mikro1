@@ -60,7 +60,7 @@ export default function TopBar() {
           </Link>
 
           {/* Search bar */}
-          <form onSubmit={handleSearchSubmit} className="flex-1">
+          <form onSubmit={handleSearchSubmit} className="flex-1 min-w-0">
             <div
               className={`h-9 bg-gray-100 rounded-lg flex items-center px-3 transition-colors ${
                 searchFocused ? "bg-gray-200" : ""
@@ -109,11 +109,11 @@ export default function TopBar() {
           </form>
 
           {/* Icons group */}
-          <div className="flex items-center gap-0.5 shrink-0 -mr-1.5">
+          <div className="flex items-center shrink-0 -mr-2">
             {/* Notifications */}
             <Link
               href="/notifications"
-              className="p-2 relative"
+              className="p-1.5 relative"
               aria-label="알림"
             >
               <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +126,7 @@ export default function TopBar() {
             {cartCount > 0 && (
               <Link
                 href="/cart"
-                className="p-2"
+                className="p-1.5"
                 aria-label="장바구니"
               >
                 <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +137,7 @@ export default function TopBar() {
 
             {/* Hamburger menu */}
             <button
-              className="p-2"
+              className="p-1.5"
               aria-label="메뉴"
               onClick={() => setDrawerOpen(true)}
             >
