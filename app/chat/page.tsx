@@ -6,12 +6,23 @@ import Container from "@/components/Container";
 
 type ChatRoom = {
   id: string;
-  otherUserId: string;
-  otherName: string;
-  otherAvatarUrl: string | null;
-  lastMessage: string | null;
-  lastMessageAt: string | null;
+  status: string;
+  isExpired: boolean;
+  myRole: string;
+  other: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+  lastMessage: {
+    content: string | null;
+    imageUrl: string | null;
+    createdAt: string;
+    senderType: string;
+  } | null;
   unreadCount: number;
+  lastMessageAt: string | null;
+  createdAt: string;
 };
 
 function formatRelativeTime(dateStr: string): string {
@@ -98,15 +109,15 @@ export default function ChatListPage() {
                 className="flex items-center gap-3 px-1 py-3 hover:bg-gray-50 transition-colors rounded-lg"
               >
                 {/* Avatar */}
-                {room.otherAvatarUrl ? (
+                {room.other.avatarUrl ? (
                   <img
-                    src={room.otherAvatarUrl}
-                    alt={room.otherName}
+                    src={room.other.avatarUrl}
+                    alt={room.other.name}
                     className="w-14 h-14 rounded-full object-cover shrink-0"
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-[18px] font-bold text-gray-500 shrink-0">
-                    {room.otherName.charAt(0)}
+                    {room.other.name.charAt(0)}
                   </div>
                 )}
 
@@ -114,17 +125,18 @@ export default function ChatListPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[15px] font-bold text-black">
-                      {room.otherName}
+                      {room.other.name}
                     </span>
-                    {room.lastMessageAt && (
+                    {(room.lastMessageAt || room.createdAt) && (
                       <span className="text-[12px] text-gray-400">
-                        {formatRelativeTime(room.lastMessageAt)}
+                        {formatRelativeTime(room.lastMessageAt || room.createdAt)}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-[14px] text-gray-500 truncate pr-2">
-                      {room.lastMessage || "새로운 채팅"}
+                      {room.lastMessage?.content
+                        || (room.lastMessage?.imageUrl ? "사진" : "새로운 채팅")}
                     </p>
                     {room.unreadCount > 0 && (
                       <span className="shrink-0 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
