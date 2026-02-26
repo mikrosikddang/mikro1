@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { formatKrw } from "@/lib/format";
 import { getProductBadge } from "@/lib/productState";
@@ -66,6 +67,8 @@ type ProductCardProps = {
   variants?: { id: string; color: string; sizeLabel: string; stock: number }[];
   /** Initial wishlist state from batch check (skips individual API call on mount) */
   initialWishlisted?: boolean;
+  /** Seller avatar image URL */
+  avatarUrl?: string | null;
 };
 
 export default function ProductCard({
@@ -83,6 +86,7 @@ export default function ProductCard({
   variantSummary,
   variants,
   initialWishlisted,
+  avatarUrl,
 }: ProductCardProps) {
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
@@ -319,10 +323,14 @@ export default function ProductCard({
           className="flex items-center gap-2 hover:opacity-70 transition-opacity"
         >
           {/* Avatar */}
-          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
-            <span className="text-[13px] font-semibold text-gray-700">
-              {shopName.charAt(0)}
-            </span>
+          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            {avatarUrl ? (
+              <Image src={avatarUrl} alt={shopName} width={28} height={28} className="object-cover w-full h-full" />
+            ) : (
+              <span className="text-[13px] font-semibold text-gray-700">
+                {shopName.charAt(0)}
+              </span>
+            )}
           </div>
           {/* Shop name */}
           <span className="text-[13px] font-semibold text-black">

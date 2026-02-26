@@ -255,12 +255,9 @@ export default function ProductGrid({
 
   return (
     <div className="pb-20">
-      {/* Header: Product count + reorder button */}
-      <div className="py-4 mb-2 px-4 flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          상품 <span className="font-bold text-black">{products.length}</span>
-        </p>
-        {isOwner && (
+      {/* Header: reorder button (owner only) */}
+      {isOwner && (
+        <div className="py-3 px-4 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {reorderMode && (
               <button
@@ -285,8 +282,8 @@ export default function ProductGrid({
               {reorderMode ? (saving ? "저장 중..." : "완료") : "순서 변경"}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Reorder error */}
       {reorderError && (

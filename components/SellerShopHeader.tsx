@@ -95,11 +95,6 @@ export default function SellerShopHeader({
                 {displayLocation}
               </p>
             )}
-            {type && (
-              <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-gray-100 text-[11px] font-medium text-gray-600">
-                {type}
-              </span>
-            )}
             {bizRegNo && (
               <p className="text-[12px] text-gray-400 mt-1">
                 사업자등록번호: {bizRegNo}

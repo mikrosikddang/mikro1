@@ -14,6 +14,7 @@ type Product = {
   seller: {
     sellerProfile: {
       shopName: string;
+      avatarUrl: string | null;
     } | null;
   };
   createdAt: Date;

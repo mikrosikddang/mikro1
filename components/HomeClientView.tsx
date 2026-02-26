@@ -17,6 +17,7 @@ type Product = {
   seller: {
     sellerProfile: {
       shopName: string;
+      avatarUrl: string | null;
     } | null;
   };
 };
@@ -86,6 +87,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
           images={product.images.map((i) => ({ url: i.url }))}
           shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
           sellerId={product.sellerId}
+          avatarUrl={product.seller.sellerProfile?.avatarUrl}
           initialWishlisted={session ? (wishlistMap[product.id] ?? false) : undefined}
         />
       ))}
