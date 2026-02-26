@@ -41,14 +41,20 @@ export async function GET(req: NextRequest) {
     const items = hasMore ? notifications.slice(0, limit) : notifications;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    const unreadCount = await prisma.notification.count({
-      where: { userId: session.userId, isRead: false },
-    });
+    const [unreadCount, totalCount] = await Promise.all([
+      prisma.notification.count({
+        where: { userId: session.userId, isRead: false },
+      }),
+      prisma.notification.count({
+        where: { userId: session.userId },
+      }),
+    ]);
 
     return NextResponse.json({
       notifications: items,
       nextCursor,
       unreadCount,
+      totalCount,
     });
   } catch (error) {
     console.error("GET /api/notifications error:", error);

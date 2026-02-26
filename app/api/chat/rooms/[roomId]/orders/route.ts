@@ -68,9 +68,9 @@ export async function GET(_request: Request, { params }: Props) {
         id: o.id,
         orderNo: o.orderNo,
         status: o.status,
-        totalAmountKrw: o.totalAmountKrw,
+        totalPayKrw: o.totalAmountKrw,
         createdAt: o.createdAt.toISOString(),
-        productTitle: firstItem?.product.title || null,
+        firstItemTitle: firstItem?.product.title || null,
         productImageUrl: firstItem?.product.images[0]?.url || null,
         itemCount: o.items.length,
       };
