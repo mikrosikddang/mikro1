@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import Drawer from "@/components/Drawer";
 import NotificationBadge from "@/components/NotificationBadge";
 
 export default function TopBar() {
   const session = useSession();
+  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,6 +50,9 @@ export default function TopBar() {
     setSearchQuery("");
     searchInputRef.current?.focus();
   };
+
+  // Hide TopBar inside chat room pages (they have their own header)
+  if (pathname.startsWith("/chat/")) return null;
 
   return (
     <>

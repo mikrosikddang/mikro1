@@ -13,6 +13,27 @@ export default function BottomTab() {
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
 
   const [sellerMode, setSellerMode] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+
+  // Poll chat unread count
+  useEffect(() => {
+    if (!session) return;
+
+    const loadUnread = async () => {
+      try {
+        const res = await fetch("/api/chat/unread-count");
+        if (!res.ok) return;
+        const data = await res.json();
+        setChatUnread(data.count ?? 0);
+      } catch {
+        // silently fail
+      }
+    };
+
+    loadUnread();
+    const interval = setInterval(loadUnread, 5000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   useEffect(() => {
     if (isSellerActiveUser) {
@@ -62,6 +83,11 @@ export default function BottomTab() {
     return null;
   }
 
+  // Hide bottom tab inside chat room pages (they have their own UI)
+  if (pathname.startsWith("/chat/")) {
+    return null;
+  }
+
   // Hide on /seller paths only when NOT in seller mode
   if (pathname.startsWith("/seller") && !sellerMode) {
     return null;
@@ -81,7 +107,7 @@ export default function BottomTab() {
           <Link
             key={tab.label}
             href={tab.href}
-            className={`flex flex-col items-center justify-center gap-0.5 text-xs transition-colors ${
+            className={`relative flex flex-col items-center justify-center gap-0.5 text-xs transition-colors ${
               isActive(tab.href)
                 ? "text-black"
                 : "text-gray-400 hover:text-gray-600"
@@ -92,6 +118,11 @@ export default function BottomTab() {
             >
               {tab.label}
             </span>
+            {tab.href === "/chat" && chatUnread > 0 && (
+              <span className="absolute -top-0.5 right-0 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {chatUnread > 99 ? "99+" : chatUnread}
+              </span>
+            )}
           </Link>
         ))}
       </div>

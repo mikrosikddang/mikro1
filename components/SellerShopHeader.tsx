@@ -55,11 +55,9 @@ export default function SellerShopHeader({
   // Use new locationText if available, otherwise fall back to legacy
   const displayLocation = locationText || legacyLocation;
 
-  // CS button link
-  const csLink = csEmail
-    ? `mailto:${csEmail}`
-    : `/chat?sellerId=${sellerId}`;
-  const csLabel = csEmail ? "이메일 문의" : "채팅 문의";
+  // CS button: only show when csEmail exists
+  const csLink = csEmail ? `mailto:${csEmail}` : null;
+  const csLabel = csEmail ? "이메일 문의" : null;
 
   return (
     <>
@@ -131,13 +129,15 @@ export default function SellerShopHeader({
               <div className="flex-1">
                 <FollowButton sellerId={sellerId} size="md" className="w-full h-11" />
               </div>
-              {/* CS Button */}
-              <Link
-                href={csLink}
-                className="flex-1 h-11 bg-black text-white rounded-lg text-[15px] font-medium flex items-center justify-center active:bg-gray-800 transition-colors"
-              >
-                {csLabel}
-              </Link>
+              {/* CS Button - only shown when csEmail exists */}
+              {csLink && csLabel && (
+                <Link
+                  href={csLink}
+                  className="flex-1 h-11 bg-black text-white rounded-lg text-[15px] font-medium flex items-center justify-center active:bg-gray-800 transition-colors"
+                >
+                  {csLabel}
+                </Link>
+              )}
             </>
           )}
         </div>

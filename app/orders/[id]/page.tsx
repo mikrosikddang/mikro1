@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
 import ReviewButton from "./ReviewButton";
+import ChatButton from "./ChatButton";
 import ScrollToTop from "@/components/ScrollToTop";
 
 type Props = { params: Promise<{ id: string }> };
@@ -127,17 +128,20 @@ export default async function OrderDetailPage({ params }: Props) {
         {/* Seller info */}
         <div className="mb-6">
           <h2 className="text-[16px] font-bold text-black mb-3">판매자 정보</h2>
-          <Link
-            href={`/s/${order.sellerId}`}
-            className="inline-flex items-center gap-2 p-3 bg-white rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
-          >
-            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-[14px] font-bold text-gray-500">
-              {shopName.charAt(0)}
-            </div>
-            <span className="text-[15px] font-medium text-gray-700">
-              {shopName}
-            </span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/s/${order.sellerId}`}
+              className="inline-flex items-center gap-2 p-3 bg-white rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+            >
+              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-[14px] font-bold text-gray-500">
+                {shopName.charAt(0)}
+              </div>
+              <span className="text-[15px] font-medium text-gray-700">
+                {shopName}
+              </span>
+            </Link>
+            <ChatButton sellerId={order.sellerId} orderId={order.id} />
+          </div>
         </div>
 
         {/* Order items */}

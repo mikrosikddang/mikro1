@@ -10,6 +10,11 @@ import { useRouter } from "next/navigation";
 import { getStatusLabel, getStatusColor, canTransition } from "@/lib/orderState";
 import type { OrderStatus } from "@prisma/client";
 
+interface OrderBuyer {
+  id: string;
+  name: string;
+}
+
 interface OrderItem {
   id: string;
   product: {
@@ -38,6 +43,8 @@ interface Order {
   shipToAddr1: string | null;
   shipToAddr2: string | null;
   shipToMemo: string | null;
+  buyerId: string;
+  buyer: OrderBuyer | null;
   createdAt: string;
   items: OrderItem[];
 }
@@ -169,6 +176,38 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
           </span>
         </div>
       </div>
+
+      {/* Chat with buyer */}
+      {order.buyerId && (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/chat/rooms", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ buyerId: order.buyerId, orderId: order.id }),
+                });
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}));
+                  throw new Error(data.error || "채팅방을 열 수 없습니다");
+                }
+                const data = await res.json();
+                router.push(`/chat/${data.roomId}`);
+              } catch (err) {
+                alert(err instanceof Error ? err.message : "채팅방을 열 수 없습니다");
+              }
+            }}
+            className="w-full h-11 bg-gray-100 text-black rounded-xl text-[14px] font-medium active:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            구매자에게 메시지
+          </button>
+        </div>
+      )}
 
       {/* Buyer shipping info */}
       <div className="mb-6 p-4 bg-gray-50 rounded-xl">

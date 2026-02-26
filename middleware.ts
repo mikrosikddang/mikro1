@@ -59,6 +59,14 @@ const RATE_RULES: {
     windowMs: 60_000,
     keyPrefix: "uploads",
   },
+  // Chat messages — per-IP
+  {
+    pattern: /^\/api\/chat\/rooms\/[^/]+\/messages$/,
+    method: "POST",
+    limit: 60,
+    windowMs: 60_000,
+    keyPrefix: "chat-msg",
+  },
 ];
 
 /** Default mutation limit for any unmatched POST/PATCH/DELETE */

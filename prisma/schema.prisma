@@ -77,6 +77,8 @@ model User {
   wishlistItems  Wishlist[]
   notifications  Notification[]
   hiddenProducts HiddenProduct[]
+  buyerChats     ChatRoom[] @relation("BuyerChats")
+  sellerChats    ChatRoom[] @relation("SellerChats")
 }
 
 model CartItem {
@@ -444,4 +446,52 @@ model HiddenProduct {
 
   @@unique([userId, productId])
   @@index([userId])
+}
+
+enum ChatRoomStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ChatSenderType {
+  BUYER
+  SELLER
+  SYSTEM
+}
+
+model ChatRoom {
+  id                String         @id @default(cuid())
+  buyerId           String
+  buyer             User           @relation("BuyerChats", fields: [buyerId], references: [id])
+  sellerId          String
+  seller            User           @relation("SellerChats", fields: [sellerId], references: [id])
+  status            ChatRoomStatus @default(ACTIVE)
+  lastMessageAt     DateTime?
+  closedAt          DateTime?
+  externalChannelId String?
+  createdAt         DateTime       @default(now())
+
+  messages          ChatMessage[]
+
+  @@unique([buyerId, sellerId])
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+}
+
+model ChatMessage {
+  id             String         @id @default(cuid())
+  roomId         String
+  room           ChatRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId       String
+  senderType     ChatSenderType
+  content        String?        @db.Text
+  imageUrl       String?
+  isRead         Boolean        @default(false)
+  readAt         DateTime?
+  channel        String         @default("INTERNAL")
+  relatedOrderId String?
+  createdAt      DateTime       @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([roomId, isRead])
 }
