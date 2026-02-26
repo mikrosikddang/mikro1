@@ -14,6 +14,8 @@ type FeedActionSheetProps = {
   onWishlistToggle: () => void;
   // 프로필 편집 콜백 (self only)
   onProfileEdit?: () => void;
+  // 게시물 숨기기 콜백
+  onHide?: () => void;
 };
 
 export default function FeedActionSheet({
@@ -24,6 +26,7 @@ export default function FeedActionSheet({
   wishlisted,
   onWishlistToggle,
   onProfileEdit,
+  onHide,
 }: FeedActionSheetProps) {
   const router = useRouter();
   const session = useSession();
@@ -154,6 +157,21 @@ export default function FeedActionSheet({
     onClose();
   }, [onProfileEdit, onClose]);
 
+  // 게시물 숨기기
+  const handleHide = useCallback(async () => {
+    try {
+      await fetch("/api/feed/hide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+    } catch {
+      // silently fail — UI hides regardless
+    }
+    if (onHide) onHide();
+    onClose();
+  }, [productId, onHide, onClose]);
+
   const itemClass =
     "w-full px-4 py-2.5 flex items-center gap-2.5 text-left text-[14px] text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -240,6 +258,25 @@ export default function FeedActionSheet({
         </svg>
         업체 정보 보기
       </button>
+
+      {/* 이 게시물 숨기기 (non-self only) */}
+      {!isSelf && (
+        <button
+          type="button"
+          onClick={handleHide}
+          disabled={loading}
+          className={itemClass}
+        >
+          <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+            />
+          </svg>
+          이 게시물 숨기기
+        </button>
+      )}
     </div>
   );
 }

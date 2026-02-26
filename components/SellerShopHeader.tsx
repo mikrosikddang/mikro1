@@ -42,6 +42,7 @@ export default function SellerShopHeader({
   const isSelf = session ? session.userId === sellerId : false;
 
   const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   // Build legacy location string from old fields
   const legacyLocationParts = [
@@ -67,11 +68,12 @@ export default function SellerShopHeader({
         <div className="flex gap-4 mb-4">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            {avatarUrl ? (
+            {avatarUrl && !imgError ? (
               <img
                 src={avatarUrl}
                 alt={shopName}
                 className="w-20 h-20 rounded-full object-cover bg-gray-100"
+                onError={() => setImgError(true)}
               />
             ) : (
               <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-[24px] font-bold text-gray-500">

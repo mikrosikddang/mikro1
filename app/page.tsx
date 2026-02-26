@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import HomeClientView from "@/components/HomeClientView";
 import {
   MAIN_CATEGORIES,
@@ -33,10 +34,22 @@ export default async function HomePage({ searchParams }: Props) {
 
   const dbCategory = category ? categoryMap[category] : undefined; // DEPRECATED
 
+  // Fetch hidden product IDs for logged-in user
+  const session = await getSession();
+  let hiddenIds: string[] = [];
+  if (session) {
+    const hidden = await prisma.hiddenProduct.findMany({
+      where: { userId: session.userId },
+      select: { productId: true },
+    });
+    hiddenIds = hidden.map((h) => h.productId);
+  }
+
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
       isDeleted: false,
+      ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
       // New 3-depth category filter
       ...(main ? { categoryMain: main } : {}),
       ...(mid ? { categoryMid: mid } : {}),

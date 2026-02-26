@@ -101,6 +101,10 @@ export default function ProductCard({
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   // Profile edit sheet state (customer mode only, self only)
   const [profileEditOpen, setProfileEditOpen] = useState(false);
+  // Hidden state (feed hide)
+  const [hidden, setHidden] = useState(false);
+  // Avatar image error fallback
+  const [avatarImgError, setAvatarImgError] = useState(false);
 
   const syncWishlist = useCallback(async () => {
     if (sellerMode) return;
@@ -311,11 +315,14 @@ export default function ProductCard({
     );
   }
 
+  // Hidden by user
+  if (hidden) return null;
+
   // Customer mode: Instagram feed style
   return (
     <article className="bg-white border-b border-gray-100">
       {/* Header Row (outside image) */}
-      <div className="flex items-center justify-between px-4 py-2">
+      <div className="flex items-center justify-between px-3 py-2">
         {/* Left: seller avatar + shop name */}
         <Link
           href={`/s/${sellerId}`}
@@ -323,8 +330,13 @@ export default function ProductCard({
         >
           {/* Avatar */}
           <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={shopName} className="w-7 h-7 object-cover" />
+            {avatarUrl && !avatarImgError ? (
+              <img
+                src={avatarUrl}
+                alt={shopName}
+                className="w-7 h-7 object-cover"
+                onError={() => setAvatarImgError(true)}
+              />
             ) : (
               <span className="text-[13px] font-semibold text-gray-700">
                 {shopName.charAt(0)}
@@ -369,6 +381,7 @@ export default function ProductCard({
                 wishlisted={wishlisted}
                 onWishlistToggle={handleWishlistToggleSimple}
                 onProfileEdit={() => setProfileEditOpen(true)}
+                onHide={() => setHidden(true)}
               />
             )}
           </div>
@@ -381,7 +394,7 @@ export default function ProductCard({
       </Link>
 
       {/* Product info below image */}
-      <div className="px-4 py-3">
+      <div className="px-3 py-2.5">
         <div className="flex items-start justify-between gap-3">
           {/* Left: title + price */}
           <Link href={`/p/${id}`} className="flex-1 min-w-0">

@@ -9,7 +9,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import ProductGridTile from "./ProductGridTile";
 import { getHomeFeedViewMode } from "@/lib/uiPrefs";
 
@@ -353,24 +352,20 @@ export default function ProductGrid({
                   {viewMode === "feed" ? (
                     /* Feed mode tile */
                     <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                      <Image
+                      <img
                         src={imageUrl}
                         alt={product.title}
-                        fill
-                        sizes="(max-width: 420px) 33vw, 140px"
-                        className="object-cover"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   ) : (
                     /* List mode tile */
                     <>
                       <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-                        <Image
+                        <img
                           src={imageUrl}
                           alt={product.title}
-                          fill
-                          sizes="(max-width: 420px) 33vw, 140px"
-                          className="object-cover"
+                          className="w-full h-full object-cover"
                         />
                       </div>
                       <h3 className="mt-2 text-sm font-medium text-black line-clamp-1 leading-snug">
