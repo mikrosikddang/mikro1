@@ -18,14 +18,19 @@ export default function ImageCarousel({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
-  const [computedAspect, setComputedAspect] = useState(aspect);
+  const [loaded, setLoaded] = useState(false);
+  const [slideHeight, setSlideHeight] = useState<number | null>(null);
 
+  // Single image: just mark loaded to remove min-height placeholder
+  // Carousel: measure first image height to fix all slides
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    setLoaded(true);
     const img = e.currentTarget;
+    const container = img.parentElement;
+    if (!container) return;
+    const containerWidth = container.clientWidth;
     const ratio = img.naturalWidth / img.naturalHeight;
-    // Clamp: 4/5 (0.8) ~ 4/3 (1.333)
-    const clamped = Math.max(0.8, Math.min(ratio, 1.333));
-    setComputedAspect(`${clamped}`);
+    setSlideHeight(Math.round(containerWidth / ratio));
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -117,14 +122,11 @@ export default function ImageCarousel({
   if (images.length === 1) {
     return (
       <div className={`relative ${className}`}>
-        <div
-          className="relative w-full overflow-hidden bg-gray-100 transition-[aspect-ratio] duration-200"
-          style={{ aspectRatio: computedAspect }}
-        >
+        <div className={`w-full overflow-hidden bg-gray-100 ${!loaded ? "min-h-[200px]" : ""}`}>
           <img
             src={images[0].url}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            className="w-full h-auto block"
             onLoad={handleImageLoad}
           />
         </div>
@@ -148,13 +150,13 @@ export default function ImageCarousel({
         {images.map((img, i) => (
           <div
             key={i}
-            className="relative shrink-0 w-full snap-start overflow-hidden bg-gray-100 transition-[aspect-ratio] duration-200"
-            style={{ aspectRatio: computedAspect }}
+            className={`relative shrink-0 w-full snap-start overflow-hidden bg-gray-100 ${!slideHeight ? "min-h-[200px]" : ""}`}
+            style={slideHeight ? { height: slideHeight } : undefined}
           >
             <img
               src={img.url}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              className={slideHeight ? "w-full h-full object-cover" : "w-full h-auto block"}
               onLoad={i === 0 ? handleImageLoad : undefined}
             />
           </div>
