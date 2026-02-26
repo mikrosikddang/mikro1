@@ -312,7 +312,7 @@ export default function ProductCard({
   return (
     <article className="bg-white border-b border-gray-100">
       {/* Header Row (outside image) */}
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between px-4 py-2">
         {/* Left: seller avatar + shop name */}
         <Link
           href={`/s/${sellerId}`}

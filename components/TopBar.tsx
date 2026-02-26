@@ -1,17 +1,41 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/components/SessionProvider";
 import Drawer from "@/components/Drawer";
 import NotificationBadge from "@/components/NotificationBadge";
 
 export default function TopBar() {
+  const session = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [cartCount, setCartCount] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const loadCartCount = useCallback(async () => {
+    if (!session) {
+      setCartCount(0);
+      return;
+    }
+    try {
+      const res = await fetch("/api/cart");
+      if (!res.ok) return;
+      const data = await res.json();
+      setCartCount(Array.isArray(data) ? data.length : 0);
+    } catch {
+      // silently fail
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadCartCount();
+    window.addEventListener("cart-change", loadCartCount);
+    return () => window.removeEventListener("cart-change", loadCartCount);
+  }, [loadCartCount]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,11 +109,11 @@ export default function TopBar() {
           </form>
 
           {/* Icons group */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0 -mr-1.5">
             {/* Notifications */}
             <Link
               href="/notifications"
-              className="p-1 relative"
+              className="p-2 relative"
               aria-label="알림"
             >
               <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,20 +122,22 @@ export default function TopBar() {
               <NotificationBadge />
             </Link>
 
-            {/* Cart */}
-            <Link
-              href="/cart"
-              className="p-1"
-              aria-label="장바구니"
-            >
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-            </Link>
+            {/* Cart (shown only when items exist) */}
+            {cartCount > 0 && (
+              <Link
+                href="/cart"
+                className="p-2"
+                aria-label="장바구니"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </Link>
+            )}
 
             {/* Hamburger menu */}
             <button
-              className="p-1"
+              className="p-2"
               aria-label="메뉴"
               onClick={() => setDrawerOpen(true)}
             >

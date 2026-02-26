@@ -62,7 +62,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
   // Show placeholder during hydration
   if (!mounted) {
     return (
-      <div className="flex flex-col gap-4 pb-8">
+      <div className="flex flex-col pb-8">
         {products.slice(0, 3).map((product) => (
           <div key={product.id} className="h-96 bg-gray-100 rounded-xl animate-pulse" />
         ))}
@@ -76,7 +76,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
 
   // Default: Instagram feed style
   return (
-    <div className="flex flex-col gap-4 pb-8">
+    <div className="flex flex-col pb-8">
       {products.map((product) => (
         <ProductCard
           key={product.id}

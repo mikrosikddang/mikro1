@@ -149,6 +149,7 @@ export default function CartPage() {
       if (!res.ok) {
         throw new Error("상품 삭제에 실패했습니다");
       }
+      window.dispatchEvent(new Event("cart-change"));
     } catch (err: any) {
       // Rollback on error
       setItems(prevItems);

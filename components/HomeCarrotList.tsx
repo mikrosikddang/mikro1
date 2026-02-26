@@ -38,14 +38,14 @@ function CarrotListItem({ product }: { product: Product }) {
   return (
     <>
       <Link href={`/p/${product.id}`} className="block">
-        <div className="flex gap-3 py-4 px-4 border-b border-gray-100 active:bg-gray-50 transition-colors">
+        <div className="flex gap-3.5 py-3.5 px-4 border-b border-gray-100 active:bg-gray-50 transition-colors">
           {/* Thumbnail */}
-          <div className="relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
+          <div className="relative flex-shrink-0 w-[110px] h-[110px] rounded-xl overflow-hidden bg-gray-100">
             <Image
               src={imageUrl}
               alt={product.title}
               fill
-              sizes="96px"
+              sizes="110px"
               className="object-cover"
             />
           </div>

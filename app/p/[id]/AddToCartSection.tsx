@@ -169,6 +169,7 @@ export default function AddToCartSection({
       }
 
       setShowCartPopup(true);
+      window.dispatchEvent(new Event("cart-change"));
     } catch (err: any) {
       setMessage(err.message || "오류가 발생했습니다");
       setTimeout(() => setMessage(null), 3000);

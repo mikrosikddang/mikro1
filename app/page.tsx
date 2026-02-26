@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import Container from "@/components/Container";
 import HomeClientView from "@/components/HomeClientView";
 import {
   MAIN_CATEGORIES,
@@ -66,7 +65,8 @@ export default async function HomePage({ searchParams }: Props) {
     : main || dbCategory || null;
 
   return (
-    <Container>
+    <div className="mx-auto w-full max-w-[420px]">
+      <div className="px-4">
       {/* Breadcrumb (visible when drilled into mid or sub level) */}
       {main && (
         <div className="flex items-center gap-1 px-1 pt-3 pb-1 text-[12px] text-gray-400">
@@ -186,12 +186,13 @@ export default async function HomePage({ searchParams }: Props) {
           </>
         )}
       </div>
+      </div>
 
       {/* View mode switcher (feed or carrot list) */}
       {products.length > 0 ? (
         <HomeClientView products={products} />
       ) : (
-        <div className="py-20 text-center">
+        <div className="px-4 py-20 text-center">
           <p className="text-[40px] mb-3">🔍</p>
           <p className="text-gray-400 text-sm">
             {categoryLabel
@@ -208,6 +209,6 @@ export default async function HomePage({ searchParams }: Props) {
           )}
         </div>
       )}
-    </Container>
+    </div>
   );
 }
