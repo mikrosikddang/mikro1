@@ -11,9 +11,9 @@
 type Message = {
   id: string;
   senderId: string;
+  senderType: "BUYER" | "SELLER" | "SYSTEM";
   content: string | null;
   imageUrl: string | null;
-  type: "TEXT" | "IMAGE" | "SYSTEM";
   createdAt: string;
   readAt: string | null;
 };
@@ -36,8 +36,8 @@ function getGroupPosition(
   const prev = index > 0 ? messages[index - 1] : null;
   const next = index < messages.length - 1 ? messages[index + 1] : null;
 
-  const samePrev = prev && prev.senderId === msg.senderId && prev.type !== "SYSTEM";
-  const sameNext = next && next.senderId === msg.senderId && next.type !== "SYSTEM";
+  const samePrev = prev && prev.senderId === msg.senderId && prev.senderType !== "SYSTEM";
+  const sameNext = next && next.senderId === msg.senderId && next.senderType !== "SYSTEM";
 
   if (samePrev && sameNext) return "middle";
   if (samePrev && !sameNext) return "last";
@@ -87,7 +87,7 @@ export default function ChatBubbleList({
   return (
     <div className="flex flex-col gap-0 px-3 py-4">
       {messages.map((msg, i) => {
-        if (msg.type === "SYSTEM") {
+        if (msg.senderType === "SYSTEM") {
           return (
             <div key={msg.id} className="flex justify-center my-3">
               <span className="px-3 py-1 bg-gray-50 text-[12px] text-gray-500 rounded-full">
@@ -132,7 +132,7 @@ export default function ChatBubbleList({
 
             <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[75%]`}>
               {/* Image message */}
-              {msg.type === "IMAGE" && msg.imageUrl && (
+              {msg.imageUrl && (
                 <div className={`max-w-[220px] ${radius} overflow-hidden`}>
                   <img
                     src={msg.imageUrl}
@@ -144,7 +144,7 @@ export default function ChatBubbleList({
               )}
 
               {/* Text message */}
-              {msg.type === "TEXT" && msg.content && (
+              {msg.content && (
                 <div
                   className={`px-3 py-2 text-[14px] leading-relaxed ${radius} ${
                     isMine

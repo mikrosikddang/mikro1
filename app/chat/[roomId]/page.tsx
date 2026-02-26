@@ -9,9 +9,9 @@ import OrderAccordion from "@/components/OrderAccordion";
 type Message = {
   id: string;
   senderId: string;
+  senderType: "BUYER" | "SELLER" | "SYSTEM";
   content: string | null;
   imageUrl: string | null;
-  type: "TEXT" | "IMAGE" | "SYSTEM";
   createdAt: string;
   readAt: string | null;
 };
