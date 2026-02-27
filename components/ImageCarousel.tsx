@@ -21,6 +21,37 @@ export default function ImageCarousel({
   const [loaded, setLoaded] = useState(false);
   const [slideHeight, setSlideHeight] = useState<number | null>(null);
 
+  // Horizontal swipe: lock vertical scroll
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isHorizontalSwipeRef = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    isHorizontalSwipeRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+    if (dx > dy && dx > 10) {
+      isHorizontalSwipeRef.current = true;
+    }
+
+    if (isHorizontalSwipeRef.current) {
+      document.body.style.overflowY = "hidden";
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    touchStartRef.current = null;
+    isHorizontalSwipeRef.current = false;
+    document.body.style.overflowY = "";
+  }, []);
+
   // Single image: just mark loaded to remove min-height placeholder
   // Carousel: measure first image height to fix all slides
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -146,6 +177,9 @@ export default function ImageCarousel({
         ref={scrollRef}
         className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
         style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {images.map((img, i) => (
           <div
