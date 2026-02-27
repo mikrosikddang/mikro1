@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { formatKrw } from "@/lib/format";
 import { getProductBadge } from "@/lib/productState";
 import ToggleActiveButton from "@/components/ToggleActiveButton";
@@ -99,6 +99,7 @@ export default function ProductCard({
   const [wishlistToggling, setWishlistToggling] = useState(false);
   // Action sheet state (customer mode only)
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // Profile edit sheet state (customer mode only, self only)
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   // Hidden state (feed hide)
@@ -355,6 +356,7 @@ export default function ProductCard({
 
           <div className="relative">
             <button
+              ref={triggerRef}
               type="button"
               onClick={(e) => {
                 e.preventDefault();
@@ -374,6 +376,7 @@ export default function ProductCard({
             {/* Popover menu */}
             {actionSheetOpen && (
               <FeedActionSheet
+                triggerRef={triggerRef}
                 productId={id}
                 sellerId={sellerId}
                 shopName={shopName}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 
 type FeedActionSheetProps = {
+  triggerRef?: React.RefObject<HTMLElement | null>;
   productId: string;
   sellerId: string;
   shopName: string;
@@ -19,6 +20,7 @@ type FeedActionSheetProps = {
 };
 
 export default function FeedActionSheet({
+  triggerRef,
   productId,
   sellerId,
   shopName,
@@ -69,10 +71,12 @@ export default function FeedActionSheet({
     return () => window.removeEventListener("followChange", handleFollowChange);
   }, [sellerId]);
 
-  // 바깥 클릭 시 닫기
+  // 바깥 클릭 시 닫기 (trigger 버튼 제외 — 토글로 처리)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)
+          && !(triggerRef?.current?.contains(target))) {
         onClose();
       }
     };
@@ -84,7 +88,7 @@ export default function FeedActionSheet({
       cancelAnimationFrame(id);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, triggerRef]);
 
   // ESC key to close
   useEffect(() => {
