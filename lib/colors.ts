@@ -114,11 +114,40 @@ export function getAllColors(): Color[] {
   return Object.values(COLORS).flat();
 }
 
+const ENGLISH_TO_KOREAN: Record<string, string> = {
+  WHITE: "화이트",
+  BLACK: "블랙",
+  NAVY: "네이비",
+  BEIGE: "베이지",
+  CHARCOAL: "차콜",
+  GRAY: "그레이",
+  GREY: "그레이",
+  IVORY: "아이보리",
+  BROWN: "브라운",
+  RED: "레드",
+  PINK: "핑크",
+  GREEN: "그린",
+  BLUE: "블루",
+  OLIVE: "올리브",
+  KHAKI: "카키",
+  ORANGE: "오렌지",
+  CREAM: "크림",
+  CAMEL: "카멜",
+};
+
 /**
- * key로 색상 검색
+ * key로 색상 검색 (영문 키도 한국어로 매핑)
  */
 export function getColorByKey(key: string): Color | undefined {
-  return getAllColors().find((c) => c.key === key);
+  // 1. 정확히 매칭
+  const exact = getAllColors().find((c) => c.key === key);
+  if (exact) return exact;
+
+  // 2. 영문 → 한국어 매핑
+  const koreanKey = ENGLISH_TO_KOREAN[key.toUpperCase()];
+  if (koreanKey) return getAllColors().find((c) => c.key === koreanKey);
+
+  return undefined;
 }
 
 /**
@@ -139,4 +168,17 @@ export function searchColors(query: string): Color[] {
  */
 export function normalizeColorKey(name: string): string {
   return name.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Check if a hex color is light (perceived brightness > 200).
+ * Light colors need a border to be visible on white backgrounds.
+ */
+export function isLightColor(hex: string): boolean {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 200;
 }

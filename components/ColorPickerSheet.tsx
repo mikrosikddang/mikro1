@@ -6,6 +6,7 @@ import {
   COLOR_GROUPS,
   COLORS,
   getColorByKey,
+  isLightColor,
   searchColors,
   type ColorGroup,
   type Color,
@@ -409,7 +410,7 @@ function ColorCard({
         className="flex-shrink-0"
       >
         <div
-          className="w-10 h-10 rounded-md border border-gray-300"
+          className={`w-10 h-10 rounded-md ${isLightColor(color.hex) ? "border border-gray-300" : ""}`}
           style={{ backgroundColor: color.hex }}
         />
       </button>

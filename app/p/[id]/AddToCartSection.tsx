@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getLoginRedirectUrl } from "@/lib/authHelpers";
-import { getColorByKey } from "@/lib/colors";
+import { getColorByKey, isLightColor } from "@/lib/colors";
 import type { UserRole } from "@prisma/client";
 
 interface Variant {
@@ -270,7 +270,7 @@ export default function AddToCartSection({
                   const hex = colorInfo?.hex ?? "#CCCCCC";
                   const soldOut = isColorSoldOut(color);
                   const isSelected = effectiveColor === color;
-                  const isWhitish = hex.toUpperCase() === "#FFFFFF" || hex.toUpperCase() === "#FFFFF0" || hex.toUpperCase() === "#FAF9F6" || hex.toUpperCase() === "#FFFDD0";
+                  const isLight = isLightColor(hex);
 
                   return (
                     <button
@@ -282,7 +282,7 @@ export default function AddToCartSection({
                       className={`relative w-8 h-8 rounded-md transition-all ${
                         isSelected
                           ? "ring-2 ring-black ring-offset-2"
-                          : isWhitish
+                          : isLight
                             ? "border border-gray-300"
                             : "border border-transparent"
                       } ${

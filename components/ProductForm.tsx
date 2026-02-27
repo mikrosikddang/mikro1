@@ -10,7 +10,7 @@ import CategoryPickerSheet from "@/components/CategoryPickerSheet";
 import ColorPickerSheet from "@/components/ColorPickerSheet";
 import ColorImageManager, { type ColorImageData } from "@/components/ColorImageManager";
 import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
-import { getColorByKey } from "@/lib/colors";
+import { getColorByKey, isLightColor } from "@/lib/colors";
 import { resizeImage } from "@/lib/imageResize";
 
 // Browser-compatible UUID generation
@@ -700,7 +700,7 @@ export default function ProductForm({
                   className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg"
                 >
                   <div
-                    className="w-4 h-4 rounded-full border border-gray-300"
+                    className={`w-4 h-4 rounded-full ${isLightColor(color?.hex || "#ccc") ? "border border-gray-300" : ""}`}
                     style={{ backgroundColor: color?.hex || "#ccc" }}
                   />
                   <span className="text-[13px] font-medium text-gray-900">
@@ -785,7 +785,7 @@ export default function ProductForm({
                             return (
                               <>
                                 <span
-                                  className="w-4 h-4 rounded-full border border-gray-300"
+                                  className={`w-4 h-4 rounded-full ${isLightColor(colorData.hex) ? "border border-gray-300" : ""}`}
                                   style={{ backgroundColor: colorData.hex }}
                                 />
                                 <span>{colorData.labelKo}</span>

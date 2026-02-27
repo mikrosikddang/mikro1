@@ -7,7 +7,7 @@ import { getProductBadge } from "@/lib/productState";
 import ToggleActiveButton from "@/components/ToggleActiveButton";
 import StockAdjuster from "@/components/StockAdjuster";
 import WishlistButton from "@/components/WishlistButton";
-import { getColorByKey } from "@/lib/colors";
+import { getColorByKey, isLightColor } from "@/lib/colors";
 import ImageCarousel from "@/components/ImageCarousel";
 import {
   isWishlisted,
@@ -264,7 +264,7 @@ export default function ProductCard({
                         const ci = getColorByKey(color);
                         return ci ? (
                           <span
-                            className="w-3 h-3 rounded-full border border-gray-300 shrink-0"
+                            className={`w-3 h-3 rounded-full shrink-0 ${isLightColor(ci.hex) ? "border border-gray-300" : ""}`}
                             style={{ backgroundColor: ci.hex }}
                           />
                         ) : null;
