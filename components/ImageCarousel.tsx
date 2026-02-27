@@ -18,8 +18,6 @@ export default function ImageCarousel({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const [slideHeight, setSlideHeight] = useState<number | null>(null);
 
   // Horizontal swipe: lock vertical scroll
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -50,18 +48,6 @@ export default function ImageCarousel({
     touchStartRef.current = null;
     isHorizontalSwipeRef.current = false;
     document.body.style.overflowY = "";
-  }, []);
-
-  // Single image: just mark loaded to remove min-height placeholder
-  // Carousel: measure first image height to fix all slides
-  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    setLoaded(true);
-    const img = e.currentTarget;
-    const container = img.parentElement;
-    if (!container) return;
-    const containerWidth = container.clientWidth;
-    const ratio = img.naturalWidth / img.naturalHeight;
-    setSlideHeight(Math.round(containerWidth / ratio));
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -153,12 +139,14 @@ export default function ImageCarousel({
   if (images.length === 1) {
     return (
       <div className={`relative ${className}`}>
-        <div className={`w-full overflow-hidden bg-gray-100 ${!loaded ? "min-h-[200px]" : ""}`}>
+        <div
+          className="relative w-full overflow-hidden bg-gray-100"
+          style={{ aspectRatio: aspect }}
+        >
           <img
             src={images[0].url}
             alt=""
-            className="w-full h-auto block"
-            onLoad={handleImageLoad}
+            className="absolute inset-0 w-full h-full object-cover"
           />
         </div>
       </div>
@@ -184,14 +172,13 @@ export default function ImageCarousel({
         {images.map((img, i) => (
           <div
             key={i}
-            className={`relative shrink-0 w-full snap-start overflow-hidden bg-gray-100 ${!slideHeight ? "min-h-[200px]" : ""}`}
-            style={slideHeight ? { height: slideHeight } : undefined}
+            className="relative shrink-0 w-full snap-start overflow-hidden bg-gray-100"
+            style={{ aspectRatio: aspect }}
           >
             <img
               src={img.url}
               alt=""
-              className={slideHeight ? "w-full h-full object-cover" : "w-full h-auto block"}
-              onLoad={i === 0 ? handleImageLoad : undefined}
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </div>
         ))}
