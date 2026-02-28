@@ -76,14 +76,14 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (bio !== undefined && bio.length > 160) {
+    if (bio !== undefined && bio && bio.length > 160) {
       return NextResponse.json(
         { error: "소개글은 160자 이하여야 합니다" },
         { status: 400 }
       );
     }
 
-    if (locationText !== undefined && locationText.length > 60) {
+    if (locationText !== undefined && locationText && locationText.length > 60) {
       return NextResponse.json(
         { error: "위치는 60자 이하여야 합니다" },
         { status: 400 }
@@ -101,14 +101,14 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (csPhone !== undefined && csPhone.length > 30) {
+    if (csPhone !== undefined && csPhone && csPhone.length > 30) {
       return NextResponse.json(
         { error: "전화번호는 30자 이하여야 합니다" },
         { status: 400 }
       );
     }
 
-    if (csHours !== undefined && csHours.length > 40) {
+    if (csHours !== undefined && csHours && csHours.length > 40) {
       return NextResponse.json(
         { error: "운영시간은 40자 이하여야 합니다" },
         { status: 400 }
