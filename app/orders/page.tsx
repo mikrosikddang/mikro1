@@ -12,21 +12,21 @@ export default async function OrdersPage() {
     redirect("/login?next=/orders");
   }
 
-  // Auto-cancel expired PENDING orders for this buyer
+  // Auto-expire expired PENDING orders for this buyer
   await prisma.order.updateMany({
     where: {
       buyerId: session.userId,
       status: "PENDING",
       expiresAt: { lt: new Date() },
     },
-    data: { status: "CANCELLED" },
+    data: { status: "EXPIRED" },
   });
 
   // Phase 2: Sellers can now purchase, so they can view their buyer orders
   const orders = await prisma.order.findMany({
     where: {
       buyerId: session.userId,
-      status: { not: "PENDING" },
+      status: { notIn: ["PENDING", "EXPIRED"] },
     },
     include: {
       seller: {
@@ -81,6 +81,18 @@ export default async function OrdersPage() {
         return (
           <span className="px-3 py-1 bg-gray-100 text-gray-700 text-[12px] font-bold rounded-full">
             배송완료
+          </span>
+        );
+      case "RETURN_STARTED":
+        return (
+          <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[12px] font-bold rounded-full">
+            반품 진행중
+          </span>
+        );
+      case "RETURN_REJECTED":
+        return (
+          <span className="px-3 py-1 bg-red-100 text-red-700 text-[12px] font-bold rounded-full">
+            반품 거절
           </span>
         );
       default:

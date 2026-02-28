@@ -101,10 +101,15 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
       return;
     }
 
-    // Special confirmation for refund approval
+    // Special confirmations
     if (newStatus === "REFUNDED") {
       const confirmed = confirm(
-        "환불 승인 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.\n\n계속하시겠습니까?"
+        "검수 완료 후 환불 처리 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.\n\n계속하시겠습니까?"
+      );
+      if (!confirmed) return;
+    } else if (newStatus === "RETURN_REJECTED") {
+      const confirmed = confirm(
+        "반품을 거절하시겠습니까? 거절 후에는 되돌릴 수 없습니다."
       );
       if (!confirmed) return;
     } else {
@@ -129,7 +134,12 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
 
       // Reload order
       await loadOrder();
-      alert(newStatus === "REFUNDED" ? "환불이 승인되었습니다." : "상태가 변경되었습니다.");
+      const successMessages: Record<string, string> = {
+        RETURN_STARTED: "반품이 접수되었습니다.",
+        REFUNDED: "환불이 처리되었습니다.",
+        RETURN_REJECTED: "반품이 거절되었습니다.",
+      };
+      alert(successMessages[newStatus] || "상태가 변경되었습니다.");
     } catch (error) {
       console.error("Error changing status:", error);
       alert("상태 변경 중 오류가 발생했습니다.");
@@ -148,7 +158,9 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
 
   const canShip = canTransition(order.status, "SHIPPED");
   const canComplete = canTransition(order.status, "COMPLETED");
+  const canAcceptReturn = canTransition(order.status, "RETURN_STARTED");
   const canApproveRefund = canTransition(order.status, "REFUNDED");
+  const canRejectReturn = canTransition(order.status, "RETURN_REJECTED");
 
   return (
     <div className="pb-20">
@@ -320,24 +332,52 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
             {actionLoading ? "처리 중..." : "배송 완료 처리"}
           </button>
         )}
-        {canApproveRefund && (
+        {canAcceptReturn && (
           <>
             <div className="p-4 bg-orange-50 rounded-xl">
               <p className="text-[13px] text-orange-800 mb-1 font-medium">
-                ⚠️ 고객이 환불을 요청했습니다
+                고객이 환불을 요청했습니다
               </p>
               <p className="text-[12px] text-orange-700">
-                환불 승인 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.
+                반품 접수 후 상품 검수를 진행해주세요.
+              </p>
+            </div>
+            <button
+              onClick={() => handleStatusChange("RETURN_STARTED")}
+              disabled={actionLoading}
+              className="w-full h-12 bg-orange-600 text-white rounded-xl text-[15px] font-bold active:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {actionLoading ? "처리 중..." : "반품 접수"}
+            </button>
+          </>
+        )}
+        {canApproveRefund && (
+          <>
+            <div className="p-4 bg-amber-50 rounded-xl">
+              <p className="text-[13px] text-amber-800 mb-1 font-medium">
+                반품 검수를 완료해주세요
+              </p>
+              <p className="text-[12px] text-amber-700">
+                검수 완료 후 환불 처리 시 재고가 자동 복구되며 결제 취소 절차가 진행됩니다.
               </p>
             </div>
             <button
               onClick={() => handleStatusChange("REFUNDED")}
               disabled={actionLoading}
-              className="w-full h-12 bg-orange-600 text-white rounded-xl text-[15px] font-bold active:bg-orange-700 transition-colors disabled:opacity-50"
+              className="w-full h-12 bg-black text-white rounded-xl text-[15px] font-bold active:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {actionLoading ? "처리 중..." : "환불 승인"}
+              {actionLoading ? "처리 중..." : "검수 완료 · 환불 처리"}
             </button>
           </>
+        )}
+        {canRejectReturn && (
+          <button
+            onClick={() => handleStatusChange("RETURN_REJECTED")}
+            disabled={actionLoading}
+            className="w-full h-12 bg-white text-red-600 border border-red-300 rounded-xl text-[15px] font-bold active:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            {actionLoading ? "처리 중..." : "반품 거절"}
+          </button>
         )}
       </div>
     </div>

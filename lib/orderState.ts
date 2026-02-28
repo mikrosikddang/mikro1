@@ -18,21 +18,28 @@ import { OrderStatus } from "@prisma/client";
  * - PAID -> REFUND_REQUESTED (customer requests refund)
  * - SHIPPED -> COMPLETED (seller marks as completed)
  * - SHIPPED -> REFUND_REQUESTED (customer requests refund during shipping)
- * - REFUND_REQUESTED -> REFUNDED (admin approves refund)
+ * - REFUND_REQUESTED -> RETURN_STARTED (seller accepts return)
+ * - RETURN_STARTED -> REFUNDED (inspection passed, refund)
+ * - RETURN_STARTED -> RETURN_REJECTED (inspection failed)
  * - FAILED -> (no transitions, terminal state)
  * - CANCELLED -> (no transitions, terminal state)
  * - COMPLETED -> (no transitions, terminal state)
  * - REFUNDED -> (no transitions, terminal state)
+ * - RETURN_REJECTED -> (no transitions, terminal state)
+ * - EXPIRED -> (no transitions, terminal state)
  */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ["PAID", "CANCELLED"],
   PAID: ["SHIPPED", "REFUND_REQUESTED"],
   SHIPPED: ["COMPLETED", "REFUND_REQUESTED"],
-  REFUND_REQUESTED: ["REFUNDED"],
+  REFUND_REQUESTED: ["RETURN_STARTED"],
+  RETURN_STARTED: ["REFUNDED", "RETURN_REJECTED"],
+  RETURN_REJECTED: [],
   FAILED: [],
   CANCELLED: [],
   COMPLETED: [],
   REFUNDED: [],
+  EXPIRED: [],
 };
 
 /**
@@ -85,8 +92,11 @@ export function getStatusLabel(status: OrderStatus): string {
     COMPLETED: "거래 완료",
     CANCELLED: "주문 취소",
     REFUND_REQUESTED: "환불 요청",
+    RETURN_STARTED: "반품 진행중",
+    RETURN_REJECTED: "반품 거절",
     REFUNDED: "환불 완료",
     FAILED: "주문 실패",
+    EXPIRED: "기간 만료",
   };
   return labels[status];
 }
@@ -102,8 +112,11 @@ export function getStatusColor(status: OrderStatus): string {
     COMPLETED: "bg-green-100 text-green-700",
     CANCELLED: "bg-red-100 text-red-700",
     REFUND_REQUESTED: "bg-orange-100 text-orange-700",
+    RETURN_STARTED: "bg-amber-100 text-amber-700",
+    RETURN_REJECTED: "bg-red-100 text-red-700",
     REFUNDED: "bg-gray-800 text-white",
     FAILED: "bg-red-100 text-red-700",
+    EXPIRED: "bg-gray-100 text-gray-500",
   };
   return colors[status];
 }

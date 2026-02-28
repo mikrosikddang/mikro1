@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/SessionProvider";
 
 export default function NotificationBadge() {
   const session = useSession();
   const [count, setCount] = useState(0);
+
+  const load = useCallback(async () => {
+    if (!session) return;
+    try {
+      const res = await fetch("/api/notifications?limit=1");
+      if (!res.ok) return;
+      const data = await res.json();
+      setCount(data.unreadCount ?? 0);
+    } catch {
+      // silently fail
+    }
+  }, [session]);
 
   useEffect(() => {
     if (!session) {
@@ -13,23 +25,19 @@ export default function NotificationBadge() {
       return;
     }
 
-    const load = async () => {
-      try {
-        const res = await fetch("/api/notifications?limit=1");
-        if (!res.ok) return;
-        const data = await res.json();
-        setCount(data.unreadCount ?? 0);
-      } catch {
-        // silently fail
-      }
-    };
-
     load();
 
     // Poll every 60 seconds
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, load]);
+
+  // Listen for notification-read events from other components
+  useEffect(() => {
+    const handleRefresh = () => load();
+    window.addEventListener("notification-read", handleRefresh);
+    return () => window.removeEventListener("notification-read", handleRefresh);
+  }, [load]);
 
   if (count <= 0) return null;
 

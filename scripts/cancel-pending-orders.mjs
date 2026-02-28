@@ -42,9 +42,9 @@ async function main() {
   if (!dryRun && pendingOrders.length > 0) {
     const result = await prisma.order.updateMany({
       where: { status: "PENDING" },
-      data: { status: "CANCELLED" },
+      data: { status: "EXPIRED" },
     });
-    console.log(`\n${result.count}건 CANCELLED 처리 완료`);
+    console.log(`\n${result.count}건 EXPIRED 처리 완료`);
   } else if (dryRun) {
     console.log("\n(DRY-RUN: 변경 없음)");
   } else {

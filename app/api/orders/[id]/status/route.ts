@@ -147,11 +147,16 @@ export async function PATCH(
           );
         }
       } else if (isSellerRole) {
-        // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED, REFUND_REQUESTED -> REFUNDED
+        // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED,
+        // REFUND_REQUESTED -> RETURN_STARTED (accept return),
+        // RETURN_STARTED -> REFUNDED (inspection passed),
+        // RETURN_STARTED -> RETURN_REJECTED (inspection failed)
         const allowedSellerTransitions: [OrderStatus, OrderStatus][] = [
           [OrderStatus.PAID, OrderStatus.SHIPPED],
           [OrderStatus.SHIPPED, OrderStatus.COMPLETED],
-          [OrderStatus.REFUND_REQUESTED, OrderStatus.REFUNDED],
+          [OrderStatus.REFUND_REQUESTED, OrderStatus.RETURN_STARTED],
+          [OrderStatus.RETURN_STARTED, OrderStatus.REFUNDED],
+          [OrderStatus.RETURN_STARTED, OrderStatus.RETURN_REJECTED],
         ];
 
         const isAllowed = allowedSellerTransitions.some(

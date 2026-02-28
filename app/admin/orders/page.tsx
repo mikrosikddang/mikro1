@@ -62,7 +62,7 @@ export default function AdminOrdersPage() {
 
   const handleOverride = async (orderId: string, currentStatus: OrderStatus) => {
     const newStatus = prompt(
-      `주문 ${orderId}의 상태를 변경합니다 (현재: ${getStatusLabel(currentStatus)}):\n\n가능한 상태: PENDING, PAID, SHIPPED, COMPLETED, CANCELLED, REFUND_REQUESTED, REFUNDED, FAILED`
+      `주문 ${orderId}의 상태를 변경합니다 (현재: ${getStatusLabel(currentStatus)}):\n\n가능한 상태: PENDING, PAID, SHIPPED, COMPLETED, CANCELLED, REFUND_REQUESTED, RETURN_STARTED, RETURN_REJECTED, REFUNDED, FAILED, EXPIRED`
     );
 
     if (!newStatus) return;
@@ -108,9 +108,12 @@ export default function AdminOrdersPage() {
     "SHIPPED",
     "COMPLETED",
     "REFUND_REQUESTED",
+    "RETURN_STARTED",
+    "RETURN_REJECTED",
     "REFUNDED",
     "CANCELLED",
     "FAILED",
+    "EXPIRED",
   ];
 
   return (

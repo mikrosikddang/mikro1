@@ -20,13 +20,13 @@ export default async function SellerDashboardPage() {
   startOfToday.setHours(0, 0, 0, 0);
 
   const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, recentProducts, allProducts, unansweredInquiries] = await Promise.all([
-    // Unprocessed orders (PENDING + PAID)
+    // Unprocessed orders (PAID only — PENDING is pre-payment)
     prisma.order.count({
-      where: { sellerId, status: { in: ["PENDING", "PAID"] } },
+      where: { sellerId, status: "PAID" },
     }),
-    // Refund requests (REFUND_REQUESTED)
+    // Refund/return requests (REFUND_REQUESTED + RETURN_STARTED)
     prisma.order.count({
-      where: { sellerId, status: "REFUND_REQUESTED" },
+      where: { sellerId, status: { in: ["REFUND_REQUESTED", "RETURN_STARTED"] } },
     }),
     // Awaiting shipment (PAID orders)
     prisma.order.count({
@@ -41,9 +41,9 @@ export default async function SellerDashboardPage() {
       },
       _sum: { totalPayKrw: true },
     }),
-    // Recent 5 orders
+    // Recent 5 orders (exclude PENDING/EXPIRED)
     prisma.order.findMany({
-      where: { sellerId },
+      where: { sellerId, status: { notIn: ["PENDING", "EXPIRED"] } },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: {
@@ -113,6 +113,10 @@ export default async function SellerDashboardPage() {
       case "COMPLETED": return "완료";
       case "CANCELLED": return "취소";
       case "REFUND_REQUESTED": return "환불요청";
+      case "RETURN_STARTED": return "반품 진행중";
+      case "RETURN_REJECTED": return "반품 거절";
+      case "REFUNDED": return "환불완료";
+      case "EXPIRED": return "만료";
       default: return status;
     }
   };

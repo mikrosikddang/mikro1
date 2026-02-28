@@ -71,6 +71,7 @@ export default function NotificationsPage() {
       // Mark all as read locally
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      window.dispatchEvent(new Event("notification-read"));
     } catch {
       // silently fail
     }
@@ -85,6 +86,7 @@ export default function NotificationsPage() {
           prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new Event("notification-read"));
       } catch {
         // continue navigation even if read fails
       }

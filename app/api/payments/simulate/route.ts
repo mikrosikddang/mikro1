@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         if (order.expiresAt && new Date() > order.expiresAt) {
           await tx.order.update({
             where: { id: order.id },
-            data: { status: OrderStatus.CANCELLED },
+            data: { status: OrderStatus.EXPIRED },
           });
           throw new Error("ORDER_EXPIRED");
         }
