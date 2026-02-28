@@ -85,6 +85,9 @@ export const COLORS: Record<ColorGroup, Color[]> = {
     { key: "네이비", labelKo: "네이비", hex: "#000080" },
     { key: "코발트", labelKo: "코발트", hex: "#0047AB" },
     { key: "청록", labelKo: "청록", hex: "#008080" },
+    { key: "연청", labelKo: "연청", hex: "#A4C8E1" },
+    { key: "중청", labelKo: "중청", hex: "#4A6FA5" },
+    { key: "진청", labelKo: "진청", hex: "#1B3A5C" },
   ],
   퍼플: [
     { key: "라벤더", labelKo: "라벤더", hex: "#E6E6FA" },
@@ -133,6 +136,10 @@ const ENGLISH_TO_KOREAN: Record<string, string> = {
   ORANGE: "오렌지",
   CREAM: "크림",
   CAMEL: "카멜",
+  LIGHT_DENIM: "연청",
+  MID_DENIM: "중청",
+  DARK_INDIGO: "진청",
+  INDIGO: "진청",
 };
 
 /**
