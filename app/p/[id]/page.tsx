@@ -45,6 +45,19 @@ export default async function ProductDetailPage({ params }: Props) {
   const mainImages = product.images.filter((i) => i.kind === "MAIN");
   const contentImages = product.images.filter((i) => i.kind === "CONTENT");
 
+  // Shipping & CS info from seller profile
+  const sp = product.seller.sellerProfile;
+  const shippingInfo = [
+    sp?.shippingGuide && { label: "배송 안내", value: sp.shippingGuide },
+    sp?.exchangeGuide && { label: "교환/반품", value: sp.exchangeGuide },
+    sp?.refundGuide && { label: "환불 안내", value: sp.refundGuide },
+    sp?.csPhone && { label: "고객센터", value: sp.csPhone },
+    sp?.csEmail && { label: "이메일", value: sp.csEmail },
+    sp?.csAddress && { label: "교환/반품 주소", value: sp.csAddress },
+    sp?.csHours && { label: "운영시간", value: sp.csHours },
+    sp?.etcGuide && { label: "기타 안내", value: sp.etcGuide },
+  ].filter(Boolean) as { label: string; value: string }[];
+
   return (
     <Container>
       <ScrollToTop />
@@ -57,7 +70,7 @@ export default async function ProductDetailPage({ params }: Props) {
       {/* Product info */}
       <div className="py-6">
         {/* Seller name */}
-        <SellerNameText sellerId={product.sellerId} shopName={shopName} />
+        <SellerNameText sellerId={product.sellerId} shopName={shopName} avatarUrl={product.seller.sellerProfile?.avatarUrl} />
 
         {/* Product title + Price */}
         <div className="mt-2 flex items-baseline justify-between gap-4">
@@ -72,16 +85,16 @@ export default async function ProductDetailPage({ params }: Props) {
                     {Math.round((1 - product.salePriceKrw / product.priceKrw) * 100)}%
                   </span>
                   <span className="text-[20px] font-bold text-black tracking-tight">
-                    ₩{product.salePriceKrw.toLocaleString()}
+                    {product.salePriceKrw.toLocaleString()}원
                   </span>
                 </div>
                 <span className="text-[13px] text-gray-400 line-through">
-                  ₩{product.priceKrw.toLocaleString()}
+                  {product.priceKrw.toLocaleString()}원
                 </span>
               </>
             ) : (
               <span className="text-[20px] font-bold text-black tracking-tight">
-                ₩{product.priceKrw.toLocaleString()}
+                {product.priceKrw.toLocaleString()}원
               </span>
             )}
           </div>
@@ -112,7 +125,7 @@ export default async function ProductDetailPage({ params }: Props) {
           // Render structured description if available
           if (product.descriptionJson && typeof product.descriptionJson === "object") {
             const rendered = renderDescriptionForCustomer(product.descriptionJson as any);
-            const hasContent = rendered.spec.length > 0 || rendered.detail || rendered.csShipping.length > 0;
+            const hasContent = rendered.spec.length > 0 || rendered.detail;
 
             if (!hasContent) return null;
 
@@ -140,21 +153,6 @@ export default async function ProductDetailPage({ params }: Props) {
                     <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
                       {rendered.detail}
                     </p>
-                  </div>
-                )}
-
-                {/* CS & Shipping Section */}
-                {rendered.csShipping.length > 0 && (
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <h3 className="text-[13px] font-bold text-gray-900 mb-2">배송 및 고객센터</h3>
-                    <dl className="space-y-1">
-                      {rendered.csShipping.map((item, idx) => (
-                        <div key={idx} className="flex text-[12px]">
-                          <dt className="w-20 text-gray-500 shrink-0">{item.label}</dt>
-                          <dd className="text-gray-700">{item.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
                   </div>
                 )}
               </div>
@@ -188,6 +186,23 @@ export default async function ProductDetailPage({ params }: Props) {
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Shipping & CS from Seller Profile */}
+        {shippingInfo.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <h3 className="text-[13px] font-bold text-gray-900 mb-2">배송 및 고객센터</h3>
+              <dl className="space-y-1">
+                {shippingInfo.map((item, idx) => (
+                  <div key={idx} className="flex text-[12px]">
+                    <dt className="w-24 text-gray-500 shrink-0">{item.label}</dt>
+                    <dd className="text-gray-700 whitespace-pre-wrap">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         )}
 

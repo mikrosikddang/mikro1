@@ -206,6 +206,12 @@ export default async function SellerDashboardPage() {
             💬 문의 관리
           </Link>
           <Link
+            href="/seller/shop"
+            className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
+          >
+            상점 관리
+          </Link>
+          <Link
             href={`/s/${sellerId}`}
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >

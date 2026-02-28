@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl, bizRegNo } = body;
+    const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl, bizRegNo, csKakaoId, csAddress, shippingGuide, exchangeGuide, refundGuide, etcGuide } = body;
 
     // Validation
     if (shopName !== undefined) {
@@ -127,6 +127,12 @@ export async function PATCH(req: NextRequest) {
         ...(csHours !== undefined && { csHours: csHours.trim() || null }),
         ...(avatarUrl !== undefined && { avatarUrl }),
         ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
+        ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
+        ...(csAddress !== undefined && { csAddress: csAddress?.trim() || null }),
+        ...(shippingGuide !== undefined && { shippingGuide: shippingGuide?.trim() || null }),
+        ...(exchangeGuide !== undefined && { exchangeGuide: exchangeGuide?.trim() || null }),
+        ...(refundGuide !== undefined && { refundGuide: refundGuide?.trim() || null }),
+        ...(etcGuide !== undefined && { etcGuide: etcGuide?.trim() || null }),
       },
     });
 

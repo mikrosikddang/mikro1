@@ -23,16 +23,6 @@ const MAX_MAIN = 10;
 const MAX_CONTENT = 20;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-const PRESET_COLORS = ["BLACK", "CHARCOAL", "GRAY", "BEIGE", "WHITE"];
-
-const COLOR_LABELS: Record<string, string> = {
-  BLACK: "블랙",
-  CHARCOAL: "차콜",
-  GRAY: "그레이",
-  BEIGE: "베이지",
-  WHITE: "화이트",
-};
-
 // Default: Single FREE color with single FREE size
 const DEFAULT_TREE: VariantTree = [
   {
@@ -132,12 +122,6 @@ export default function ProductForm({
   const [specOrigin, setSpecOrigin] = useState(initialValues?.descriptionJson?.spec?.origin ?? "");
   const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
   const [detailText, setDetailText] = useState(initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "");
-  const [csCourier, setCsCourier] = useState(initialValues?.descriptionJson?.csShipping?.courier ?? "");
-  const [csPhone, setCsPhone] = useState(initialValues?.descriptionJson?.csShipping?.csPhone ?? "");
-  const [csEmail, setCsEmail] = useState(initialValues?.descriptionJson?.csShipping?.csEmail ?? "");
-  const [csReturnAddress, setCsReturnAddress] = useState(initialValues?.descriptionJson?.csShipping?.returnAddress ?? "");
-  const [csNote, setCsNote] = useState(initialValues?.descriptionJson?.csShipping?.note ?? "");
-
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isActive, setIsActive] = useState(initialIsActive ?? true);
@@ -428,18 +412,6 @@ export default function ProductForm({
     []
   );
 
-  // Add color group with preset
-  const addColorGroupWithPreset = useCallback((presetColor?: string) => {
-    setVariantTree((prev) => [
-      ...prev,
-      {
-        clientId: generateId(),
-        color: presetColor || "",
-        sizes: [{ clientId: generateId(), sizeLabel: "", stock: 0 }],
-      },
-    ]);
-  }, []);
-
   // Check for duplicate colors
   const getDuplicateColors = useMemo(() => {
     const seen = new Set<string>();
@@ -564,13 +536,6 @@ export default function ProductForm({
           fit: specFit.trim() || undefined,
         },
         detail: detailText.trim() || undefined,
-        csShipping: {
-          courier: csCourier.trim() || undefined,
-          csPhone: csPhone.trim() || undefined,
-          csEmail: csEmail.trim() || undefined,
-          returnAddress: csReturnAddress.trim() || undefined,
-          note: csNote.trim() || undefined,
-        },
       };
 
       // Convert tree to flat variants
@@ -934,35 +899,21 @@ export default function ProductForm({
           })}
         </div>
 
-        {/* Add Color Group - Dropdown */}
+        {/* Add Color Group */}
         <div className="mt-3">
-          <div className="flex gap-2 items-center">
-            <label className="text-[13px] text-gray-600 whitespace-nowrap">새 컬러 그룹:</label>
-            <select
-              value=""
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "CUSTOM") {
-                  // 직접입력 선택 → 빈 컬러로 그룹 추가
-                  addColorGroupWithPreset();
-                } else if (value) {
-                  // 프리셋 선택 → 해당 컬러로 그룹 추가
-                  addColorGroupWithPreset(value);
-                }
-                // 선택 후 드랍다운 초기화 (value=""이므로 자동으로 초기화됨)
-              }}
-              className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white focus:outline-none focus:border-black"
-              disabled={submitting}
-            >
-              <option value="">선택하세요</option>
-              <option value="CUSTOM">직접입력...</option>
-              {PRESET_COLORS.map((color) => (
-                <option key={color} value={color}>
-                  {COLOR_LABELS[color]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              addColorGroup();
+              // Open ColorPickerSheet for the newly added group (will be last index)
+              setColorPickerTargetGroup(variantTree.length);
+              setColorPickerOpen(true);
+            }}
+            className="w-full h-10 text-[14px] text-gray-600 border border-dashed border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            disabled={submitting}
+          >
+            + 컬러 추가
+          </button>
         </div>
       </section>
 
@@ -1150,52 +1101,6 @@ export default function ProductForm({
           />
         </div>
 
-        {/* Section 3: CS & Shipping */}
-        <div className="p-4 bg-blue-50 rounded-xl space-y-3">
-          <h4 className="text-[14px] font-medium text-gray-700 mb-2">고객센터 & 배송 정보</h4>
-          <div className="grid grid-cols-1 gap-3">
-            <input
-              type="text"
-              placeholder="택배사 (예: CJ대한통운)"
-              value={csCourier}
-              onChange={(e) => setCsCourier(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
-              disabled={submitting}
-            />
-            <input
-              type="text"
-              placeholder="고객센터 전화 (예: 010-1234-5678)"
-              value={csPhone}
-              onChange={(e) => setCsPhone(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
-              disabled={submitting}
-            />
-            <input
-              type="text"
-              placeholder="이메일 (예: shop@example.com)"
-              value={csEmail}
-              onChange={(e) => setCsEmail(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
-              disabled={submitting}
-            />
-            <input
-              type="text"
-              placeholder="반품 주소 (예: 서울시 중구 을지로 123)"
-              value={csReturnAddress}
-              onChange={(e) => setCsReturnAddress(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors"
-              disabled={submitting}
-            />
-            <textarea
-              placeholder="배송 안내 (예: 평일 오후 3시 이전 주문 시 당일 발송)"
-              value={csNote}
-              onChange={(e) => setCsNote(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[14px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors resize-none"
-              disabled={submitting}
-            />
-          </div>
-        </div>
       </section>
 
       {/* Error message */}
