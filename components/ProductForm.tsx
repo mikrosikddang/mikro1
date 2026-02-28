@@ -455,7 +455,8 @@ export default function ProductForm({
 
     const errs: Record<string, string> = {};
 
-    if (mainImages.length === 0) errs.mainImages = "대표 이미지를 1장 이상 올려주세요";
+    const hasColorImages = colorImages && colorImages.some(c => c.images.length > 0);
+    if (mainImages.length === 0 && !hasColorImages) errs.mainImages = "대표 이미지 또는 색상별 이미지를 1장 이상 올려주세요";
     if (!title.trim()) errs.title = "상품명을 입력해주세요";
 
     const price = parseInt(priceKrw.replace(/,/g, ""), 10);

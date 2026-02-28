@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
 import ImageCarousel from "@/components/ImageCarousel";
+import ColorImageCarousel from "./ColorImageCarousel";
 import { formatKrw } from "@/lib/format";
 import WishlistButton from "@/components/WishlistButton";
 import AddToCartSection from "./AddToCartSection";
@@ -42,8 +43,20 @@ export default async function ProductDetailPage({ params }: Props) {
   const isSelf = session ? session.userId === product.sellerId : false;
 
   // Split images by kind
-  const mainImages = product.images.filter((i) => i.kind === "MAIN");
+  const allMainImages = product.images.filter((i) => i.kind === "MAIN");
   const contentImages = product.images.filter((i) => i.kind === "CONTENT");
+
+  // Color image tab support
+  const hasColorImages = allMainImages.some((i) => i.colorKey);
+  const colorKeys: string[] = [];
+  const seen = new Set<string>();
+  allMainImages.forEach((img) => {
+    if (img.colorKey && !seen.has(img.colorKey)) {
+      seen.add(img.colorKey);
+      colorKeys.push(img.colorKey);
+    }
+  });
+  const hasUntagged = allMainImages.some((i) => !i.colorKey);
 
   // Shipping & CS info from seller profile
   const sp = product.seller.sellerProfile;
@@ -62,10 +75,19 @@ export default async function ProductDetailPage({ params }: Props) {
     <Container>
       <ScrollToTop />
       {/* Main images – Instagram-like horizontal swipe */}
-      <ImageCarousel
-        images={mainImages.map((i) => ({ url: i.url }))}
-        aspect="3/4"
-      />
+      {hasColorImages ? (
+        <ColorImageCarousel
+          images={allMainImages.map((i) => ({ url: i.url, colorKey: i.colorKey }))}
+          colorKeys={colorKeys}
+          hasUntagged={hasUntagged}
+          aspect="3/4"
+        />
+      ) : (
+        <ImageCarousel
+          images={allMainImages.map((i) => ({ url: i.url }))}
+          aspect="3/4"
+        />
+      )}
 
       {/* Product info */}
       <div className="py-6">
