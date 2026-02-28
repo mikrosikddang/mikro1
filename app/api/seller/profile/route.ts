@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
     const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl, bizRegNo, csKakaoId, csAddress, shippingGuide, exchangeGuide, refundGuide, etcGuide } = body;
 
     // Validation
-    if (shopName !== undefined) {
+    if (shopName !== undefined && shopName !== null) {
       const trimmed = shopName.trim();
       if (trimmed.length === 0 || trimmed.length > 30) {
         return NextResponse.json(
@@ -119,12 +119,12 @@ export async function PATCH(req: NextRequest) {
     const updated = await prisma.sellerProfile.update({
       where: { userId: session.userId },
       data: {
-        ...(shopName !== undefined && { shopName: shopName.trim() }),
-        ...(bio !== undefined && { bio: bio.trim() || null }),
-        ...(locationText !== undefined && { locationText: locationText.trim() || null }),
-        ...(csEmail !== undefined && { csEmail: csEmail.trim() || null }),
-        ...(csPhone !== undefined && { csPhone: csPhone.trim() || null }),
-        ...(csHours !== undefined && { csHours: csHours.trim() || null }),
+        ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
+        ...(bio !== undefined && { bio: bio?.trim() || null }),
+        ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
+        ...(csEmail !== undefined && { csEmail: csEmail?.trim() || null }),
+        ...(csPhone !== undefined && { csPhone: csPhone?.trim() || null }),
+        ...(csHours !== undefined && { csHours: csHours?.trim() || null }),
         ...(avatarUrl !== undefined && { avatarUrl }),
         ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
         ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
