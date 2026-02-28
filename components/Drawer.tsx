@@ -10,7 +10,7 @@ import SellerModeToggle from "@/components/SellerModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
-import { pushRecentCategory } from "@/lib/categories";
+import { MAIN_CATEGORIES, pushRecentCategory } from "@/lib/categories";
 
 type DrawerProps = {
   open: boolean;
@@ -27,6 +27,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const [categoryRoot, setCategoryRoot] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
   const isSeller = session ? canAccessSellerFeatures(session.role) : false;
   const isAdminUser = session ? isAdmin(session.role) : false;
@@ -70,6 +71,14 @@ export default function Drawer({ open, onClose }: DrawerProps) {
       };
     }
   }, [open]);
+
+  // Fetch active categories
+  useEffect(() => {
+    fetch('/api/categories/active')
+      .then(res => res.json())
+      .then(data => setActiveCategories(data))
+      .catch(() => {});
+  }, []);
 
   const handleCategorySelect = (category: {
     main: string;
@@ -208,18 +217,9 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
             {/* Browse Section */}
             <MenuSection title="둘러보기">
-              <MenuItem
-                label="여성의류"
-                showChevron
-                onClick={() => openCategorySheet("여성의류")}
-                isSubmenu
-              />
-              <MenuItem
-                label="남성의류"
-                showChevron
-                onClick={() => openCategorySheet("남성의류")}
-                isSubmenu
-              />
+              {MAIN_CATEGORIES.filter(cat => activeCategories.includes(cat)).map(cat => (
+                <MenuItem key={cat} label={cat} showChevron onClick={() => openCategorySheet(cat)} isSubmenu />
+              ))}
               <MenuItem label="브랜드 보기" href="/brands" showChevron isSubmenu />
             </MenuSection>
 

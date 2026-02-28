@@ -45,6 +45,16 @@ export default async function HomePage({ searchParams }: Props) {
     hiddenIds = hidden.map((h) => h.productId);
   }
 
+  // 상품이 존재하는 categoryMain 목록 조회
+  const activeCats = await prisma.product.groupBy({
+    by: ['categoryMain'],
+    where: { isActive: true, isDeleted: false },
+    _count: true,
+  });
+  const activeMainCategories = activeCats
+    .filter(r => r._count > 0 && r.categoryMain)
+    .map(r => r.categoryMain!);
+
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
@@ -135,7 +145,7 @@ export default async function HomePage({ searchParams }: Props) {
             >
               전체
             </Link>
-            {MAIN_CATEGORIES.map((mainCat) => (
+            {MAIN_CATEGORIES.filter(cat => activeMainCategories.includes(cat)).map((mainCat) => (
               <Link
                 key={mainCat}
                 href={`/?main=${encodeURIComponent(mainCat)}`}

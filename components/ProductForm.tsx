@@ -126,6 +126,7 @@ export default function ProductForm({
   const [deleting, setDeleting] = useState(false);
   const [isActive, setIsActive] = useState(initialIsActive ?? true);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
   const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
 
@@ -291,7 +292,7 @@ export default function ProductForm({
       {
         clientId: generateId(),
         color: "",
-        sizes: [{ clientId: generateId(), sizeLabel: "", stock: 0 }],
+        sizes: [{ clientId: generateId(), sizeLabel: "FREE", stock: 0 }],
       },
     ]);
   }
@@ -319,7 +320,7 @@ export default function ProductForm({
         ...copy[groupIndex],
         sizes: [
           ...copy[groupIndex].sizes,
-          { clientId: generateId(), sizeLabel: "", stock: 0 },
+          { clientId: generateId(), sizeLabel: "FREE", stock: 0 },
         ],
       };
       return copy;
@@ -450,45 +451,41 @@ export default function ProductForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
-    if (mainImages.length === 0) {
-      setError("대표 이미지를 1장 이상 올려주세요");
-      return;
-    }
-    if (!title.trim()) {
-      setError("상품명을 입력해주세요");
-      return;
-    }
+    const errs: Record<string, string> = {};
+
+    if (mainImages.length === 0) errs.mainImages = "대표 이미지를 1장 이상 올려주세요";
+    if (!title.trim()) errs.title = "상품명을 입력해주세요";
+
     const price = parseInt(priceKrw.replace(/,/g, ""), 10);
-    if (isNaN(price) || price < 0) {
-      setError("가격을 올바르게 입력해주세요");
-      return;
-    }
+    if (isNaN(price) || price < 0) errs.price = "가격을 올바르게 입력해주세요";
 
     // Validate sale price
     let salePrice: number | null = null;
     if (salePriceKrw.trim()) {
       salePrice = parseInt(salePriceKrw.replace(/,/g, ""), 10);
       if (isNaN(salePrice) || salePrice < 0) {
-        setError("할인가를 올바르게 입력해주세요");
-        return;
-      }
-      if (salePrice >= price) {
-        setError("할인가는 정가보다 낮아야 합니다");
-        return;
+        errs.salePrice = "할인가를 올바르게 입력해주세요";
+      } else if (!isNaN(price) && salePrice >= price) {
+        errs.salePrice = "할인가는 정가보다 낮아야 합니다";
       }
     }
 
     // Validate category (3-depth required)
     if (!validateCategory(categoryMain, categoryMid, categorySub)) {
-      setError("카테고리를 선택해주세요 (성별 > 카테고리 > 세부 카테고리)");
-      return;
+      errs.category = "카테고리를 선택해주세요";
     }
 
     // Validate variant tree
     const validationErrors = validateVariantTree(variantTree);
-    if (validationErrors.length > 0) {
-      setError(formatValidationErrors(validationErrors));
+    for (const ve of validationErrors) {
+      errs[ve.field] = ve.message;
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setError("입력 내용을 확인해주세요");
       return;
     }
 
@@ -635,12 +632,13 @@ export default function ProductForm({
         images={mainImages}
         max={MAX_MAIN}
         inputRef={mainInputRef}
-        onPick={(e) => handleFilePick(e, setMainImages, MAX_MAIN, mainImages)}
+        onPick={(e) => { handleFilePick(e, setMainImages, MAX_MAIN, mainImages); setFieldErrors(prev => { const next = {...prev}; delete next['mainImages']; return next; }); }}
         onRemove={(i) => removeImage(i, setMainImages)}
         onMove={(i, d) => moveImage(i, d, setMainImages)}
         submitting={submitting}
         showMainBadge
       />
+      {fieldErrors.mainImages && <p className="-mt-4 mb-4 text-[12px] text-red-500">{fieldErrors.mainImages}</p>}
 
       {/* ===== Color-Specific Images ===== */}
       {selectedColors.length > 0 && (
@@ -738,9 +736,9 @@ export default function ProductForm({
                   <label className="block text-[12px] text-gray-600 mb-1.5">컬러</label>
                   <button
                     type="button"
-                    onClick={() => openColorPickerForGroup(groupIndex)}
+                    onClick={() => { openColorPickerForGroup(groupIndex); setFieldErrors(prev => { const next = {...prev}; delete next[`color-${groupIndex}`]; return next; }); }}
                     disabled={submitting}
-                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-[14px] bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center justify-between disabled:opacity-50"
+                    className={`w-full h-10 px-3 rounded-lg border text-[14px] bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center justify-between disabled:opacity-50 ${fieldErrors[`color-${groupIndex}`] ? "border-red-400" : "border-gray-200"}`}
                   >
                     {colorGroup.color ? (
                       <span className="flex items-center gap-2">
@@ -770,6 +768,9 @@ export default function ProductForm({
 
                   {hasDuplicateColor && (
                     <p className="text-[12px] text-red-500 mt-1">중복된 컬러입니다</p>
+                  )}
+                  {!hasDuplicateColor && fieldErrors[`color-${groupIndex}`] && (
+                    <p className="text-[12px] text-red-500 mt-1">{fieldErrors[`color-${groupIndex}`]}</p>
                   )}
                 </div>
 
@@ -834,7 +835,7 @@ export default function ProductForm({
                           <input
                             type="text"
                             value={size.sizeLabel}
-                            onChange={(e) => updateSize(groupIndex, sizeIndex, "sizeLabel", e.target.value)}
+                            onChange={(e) => { updateSize(groupIndex, sizeIndex, "sizeLabel", e.target.value); setFieldErrors(prev => { const next = {...prev}; delete next[`size-${groupIndex}-${sizeIndex}`]; return next; }); }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
@@ -852,7 +853,7 @@ export default function ProductForm({
                             }}
                             placeholder="사이즈명"
                             className={`flex-1 h-10 px-3 rounded-lg border text-[14px] focus:outline-none focus:border-black bg-white ${
-                              hasDuplicateSize ? "border-red-500" : "border-gray-200"
+                              hasDuplicateSize || fieldErrors[`size-${groupIndex}-${sizeIndex}`] ? "border-red-400" : "border-gray-200"
                             }`}
                             disabled={submitting}
                           />
@@ -860,9 +861,9 @@ export default function ProductForm({
                             type="number"
                             inputMode="numeric"
                             value={size.stock}
-                            onChange={(e) => updateSize(groupIndex, sizeIndex, "stock", Math.max(0, parseInt(e.target.value) || 0))}
+                            onChange={(e) => { updateSize(groupIndex, sizeIndex, "stock", Math.max(0, parseInt(e.target.value) || 0)); setFieldErrors(prev => { const next = {...prev}; delete next[`stock-${groupIndex}-${sizeIndex}`]; return next; }); }}
                             placeholder="재고"
-                            className="w-20 h-10 px-3 rounded-lg border border-gray-200 text-[14px] text-center focus:outline-none focus:border-black bg-white"
+                            className={`w-20 h-10 px-3 rounded-lg border text-[14px] text-center focus:outline-none focus:border-black bg-white ${fieldErrors[`stock-${groupIndex}-${sizeIndex}`] ? "border-red-400" : "border-gray-200"}`}
                             min={0}
                             disabled={submitting}
                           />
@@ -881,6 +882,12 @@ export default function ProductForm({
                         </div>
                         {hasDuplicateSize && (
                           <p className="text-[11px] text-red-500 mt-0.5 ml-1">중복된 사이즈</p>
+                        )}
+                        {!hasDuplicateSize && fieldErrors[`size-${groupIndex}-${sizeIndex}`] && (
+                          <p className="text-[12px] text-red-500 mt-0.5 ml-1">{fieldErrors[`size-${groupIndex}-${sizeIndex}`]}</p>
+                        )}
+                        {fieldErrors[`stock-${groupIndex}-${sizeIndex}`] && (
+                          <p className="text-[12px] text-red-500 mt-0.5 ml-1">{fieldErrors[`stock-${groupIndex}-${sizeIndex}`]}</p>
                         )}
                       </div>
                     );
@@ -935,12 +942,13 @@ export default function ProductForm({
           id="title"
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => { setTitle(e.target.value); setFieldErrors(prev => { const next = {...prev}; delete next['title']; return next; }); }}
           placeholder="예: 미니멀 오버핏 자켓"
-          className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+          className={`w-full h-12 px-4 rounded-xl border text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors ${fieldErrors.title ? "border-red-400" : "border-gray-200"}`}
           maxLength={100}
           disabled={submitting}
         />
+        {fieldErrors.title && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.title}</p>}
       </section>
 
       {/* ===== Price ===== */}
@@ -955,12 +963,13 @@ export default function ProductForm({
             type="text"
             inputMode="numeric"
             value={priceKrw}
-            onChange={(e) => handlePriceChange(e.target.value)}
+            onChange={(e) => { handlePriceChange(e.target.value); setFieldErrors(prev => { const next = {...prev}; delete next['price']; return next; }); }}
             placeholder="0"
-            className="w-full h-12 pl-9 pr-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+            className={`w-full h-12 pl-9 pr-4 rounded-xl border text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors ${fieldErrors.price ? "border-red-400" : "border-gray-200"}`}
             disabled={submitting}
           />
         </div>
+        {fieldErrors.price && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.price}</p>}
       </section>
 
       {/* ===== Sale Price ===== */}
@@ -975,9 +984,9 @@ export default function ProductForm({
             type="text"
             inputMode="numeric"
             value={salePriceKrw}
-            onChange={(e) => handleSalePriceChange(e.target.value)}
+            onChange={(e) => { handleSalePriceChange(e.target.value); setFieldErrors(prev => { const next = {...prev}; delete next['salePrice']; return next; }); }}
             placeholder="0"
-            className="w-full h-12 pl-9 pr-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+            className={`w-full h-12 pl-9 pr-4 rounded-xl border text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors ${fieldErrors.salePrice ? "border-red-400" : "border-gray-200"}`}
             disabled={submitting}
           />
         </div>
@@ -1000,6 +1009,7 @@ export default function ProductForm({
           }
           return null;
         })()}
+        {fieldErrors.salePrice && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.salePrice}</p>}
       </section>
 
       {/* ===== Category (3-Depth) ===== */}
@@ -1009,9 +1019,9 @@ export default function ProductForm({
         </label>
         <button
           type="button"
-          onClick={() => setCategoryPickerOpen(true)}
+          onClick={() => { setCategoryPickerOpen(true); setFieldErrors(prev => { const next = {...prev}; delete next['category']; return next; }); }}
           disabled={submitting}
-          className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] bg-white focus:outline-none focus:border-black transition-colors text-left flex items-center justify-between"
+          className={`w-full h-12 px-4 rounded-xl border text-[15px] bg-white focus:outline-none focus:border-black transition-colors text-left flex items-center justify-between ${fieldErrors.category ? "border-red-400" : "border-gray-200"}`}
         >
           <span className={categoryMain && categoryMid && categorySub ? "text-gray-900" : "text-gray-400"}>
             {getCategoryBreadcrumb(categoryMain, categoryMid, categorySub)}
@@ -1020,6 +1030,7 @@ export default function ProductForm({
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
+        {fieldErrors.category && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.category}</p>}
       </section>
 
       {/* Category Picker Sheet */}
@@ -1173,6 +1184,16 @@ export default function ProductForm({
       <ColorPickerSheet
         open={colorPickerOpen}
         onClose={() => {
+          // 방금 추가한 그룹의 color가 비어있으면 제거
+          if (colorPickerTargetGroup !== null) {
+            setVariantTree(prev => {
+              const target = prev[colorPickerTargetGroup];
+              if (target && !target.color.trim()) {
+                return prev.filter((_, i) => i !== colorPickerTargetGroup);
+              }
+              return prev;
+            });
+          }
           setColorPickerOpen(false);
           setColorPickerTargetGroup(null);
         }}
