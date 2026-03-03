@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID!;
 
 function getRedirectUri() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://main.dg04s98ouvm6k.amplifyapp.com";
+  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
   return `${base}/api/auth/naver/callback`;
 }
 

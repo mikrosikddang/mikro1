@@ -10,7 +10,7 @@ const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID!;
 const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET!;
 
 function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_BASE_URL || "https://main.dg04s98ouvm6k.amplifyapp.com";
+  return process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
 }
 
 function getRedirectUri() {

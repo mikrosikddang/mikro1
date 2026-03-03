@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const KAKAO_CLIENT_ID = process.env.KAKAO_REST_API_KEY!;
 
 function getRedirectUri() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://main.dg04s98ouvm6k.amplifyapp.com";
+  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
   return `${base}/api/auth/kakao/callback`;
 }
 
