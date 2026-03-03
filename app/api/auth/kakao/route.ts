@@ -4,18 +4,15 @@ import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
-const KAKAO_CLIENT_ID = process.env.KAKAO_REST_API_KEY!;
-
-function getRedirectUri() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
-  return `${base}/api/auth/kakao/callback`;
-}
-
 /**
  * GET /api/auth/kakao
  * 카카오 인증 페이지로 리다이렉트
  */
 export async function GET() {
+  const clientId = process.env.KAKAO_REST_API_KEY!;
+  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const redirectUri = `${base}/api/auth/kakao/callback`;
+
   const state = randomBytes(16).toString("hex");
 
   // state를 쿠키에 저장 (CSRF 방지)
@@ -29,8 +26,8 @@ export async function GET() {
   });
 
   const params = new URLSearchParams({
-    client_id: KAKAO_CLIENT_ID,
-    redirect_uri: getRedirectUri(),
+    client_id: clientId,
+    redirect_uri: redirectUri,
     response_type: "code",
     state,
   });

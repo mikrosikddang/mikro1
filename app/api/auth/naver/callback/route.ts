@@ -6,23 +6,15 @@ import type { Session } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID!;
-const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET!;
-
-function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
-}
-
-function getRedirectUri() {
-  return `${getBaseUrl()}/api/auth/naver/callback`;
-}
-
 /**
  * GET /api/auth/naver/callback
  * 네이버 OAuth 콜백 처리
  */
 export async function GET(req: NextRequest) {
-  const baseUrl = getBaseUrl();
+  const clientId = process.env.NAVER_CLIENT_ID!;
+  const clientSecret = process.env.NAVER_CLIENT_SECRET!;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const redirectUri = `${baseUrl}/api/auth/naver/callback`;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -51,9 +43,9 @@ export async function GET(req: NextRequest) {
     // 1. code → access_token 교환
     const tokenParams = new URLSearchParams({
       grant_type: "authorization_code",
-      client_id: NAVER_CLIENT_ID,
-      client_secret: NAVER_CLIENT_SECRET,
-      redirect_uri: getRedirectUri(),
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
       code,
       state,
     });

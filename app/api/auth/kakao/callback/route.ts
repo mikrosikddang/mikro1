@@ -6,23 +6,15 @@ import type { Session } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-const KAKAO_CLIENT_ID = process.env.KAKAO_REST_API_KEY!;
-const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET!;
-
-function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
-}
-
-function getRedirectUri() {
-  return `${getBaseUrl()}/api/auth/kakao/callback`;
-}
-
 /**
  * GET /api/auth/kakao/callback
  * 카카오 OAuth 콜백 처리
  */
 export async function GET(req: NextRequest) {
-  const baseUrl = getBaseUrl();
+  const clientId = process.env.KAKAO_REST_API_KEY!;
+  const clientSecret = process.env.KAKAO_CLIENT_SECRET!;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const redirectUri = `${baseUrl}/api/auth/kakao/callback`;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -54,9 +46,9 @@ export async function GET(req: NextRequest) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         grant_type: "authorization_code",
-        client_id: KAKAO_CLIENT_ID,
-        client_secret: KAKAO_CLIENT_SECRET,
-        redirect_uri: getRedirectUri(),
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
         code,
       }),
     });
