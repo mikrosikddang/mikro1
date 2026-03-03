@@ -10,7 +10,7 @@ frontend:
        
     build:
       commands:
-        - env | grep -e DATABASE_URL -e AUTH_SECRET -e MVP_SELLER_ID -eS3_BUCKET >> .env
+        - env | grep -e DATABASE_URL -e AUTH_SECRET -e MVP_SELLER_ID -e S3_BUCKET -e KAKAO_REST_API_KEY -e KAKAO_CLIENT_SECRET -e NAVER_CLIENT_ID -e NAVER_CLIENT_SECRET >> .env
         - env | grep -e NEXT_PUBLIC_ >> .env || true
         - npm run build
   artifacts:
