@@ -58,6 +58,8 @@ model User {
   name      String?
   password  String?  // ID/PW 로그인 쓸 때만(해시 저장)
   provider  String?  @default("email") // "email" | "kakao" | "naver"
+  kakaoId   String?  @unique   // 카카오 고유 ID
+  naverId   String?  @unique   // 네이버 고유 ID
   role      UserRole @default(CUSTOMER)
 
   createdAt DateTime @default(now())

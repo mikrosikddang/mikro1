@@ -80,22 +80,41 @@ export async function GET(req: NextRequest) {
     const userData = await userRes.json();
     const naverEmail = userData.response?.email as string | undefined;
     const naverName = userData.response?.name as string | undefined;
+    const naverPhone = userData.response?.mobile as string | undefined;
+    const naverId = userData.response?.id as string | undefined;
 
-    if (!naverEmail) {
-      return NextResponse.redirect(`${baseUrl}/login?error=naver_no_email`);
+    // 3. DB: naverId → 이름+전화번호 → 이메일 순으로 매칭, 없으면 자동 회원가입
+    // 1순위: naverId로 매칭
+    let user = naverId ? await prisma.user.findUnique({ where: { naverId } }) : null;
+
+    // 2순위: 이름+전화번호로 매칭
+    if (!user && naverName && naverPhone) {
+      const normalized = naverPhone.replace(/-/g, "");
+      user = await prisma.user.findFirst({
+        where: { name: naverName, phone: normalized },
+      });
+      if (user && naverId) {
+        await prisma.user.update({ where: { id: user.id }, data: { naverId } });
+      }
     }
 
-    // 3. DB: 이메일로 기존 유저 조회 → 없으면 자동 회원가입
-    let user = await prisma.user.findUnique({
-      where: { email: naverEmail },
-    });
+    // 3순위: 이메일로 매칭
+    if (!user && naverEmail) {
+      user = await prisma.user.findUnique({ where: { email: naverEmail } });
+      if (user && naverId) {
+        await prisma.user.update({ where: { id: user.id }, data: { naverId } });
+      }
+    }
 
+    // 없으면 신규 가입
     if (!user) {
       user = await prisma.user.create({
         data: {
           email: naverEmail,
           name: naverName || null,
+          phone: naverPhone?.replace(/-/g, "") || null,
           provider: "naver",
+          naverId: naverId || null,
           role: "CUSTOMER",
         },
       });

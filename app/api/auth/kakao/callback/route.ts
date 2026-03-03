@@ -78,22 +78,50 @@ export async function GET(req: NextRequest) {
     const userData = await userRes.json();
     const kakaoEmail = userData.kakao_account?.email as string | undefined;
     const kakaoName = userData.kakao_account?.profile?.nickname as string | undefined;
+    const kakaoPhone = userData.kakao_account?.phone_number as string | undefined;
+    const kakaoId = String(userData.id);
 
-    if (!kakaoEmail) {
-      return NextResponse.redirect(`${baseUrl}/login?error=kakao_no_email`);
+    // +82 10-1234-5678 → 01012345678
+    const normalizedPhone = kakaoPhone
+      ?.replace(/\+82\s?/, "0")
+      ?.replace(/-/g, "")
+      ?.trim() || null;
+
+    if (!kakaoEmail && !normalizedPhone) {
+      return NextResponse.redirect(`${baseUrl}/login?error=kakao_no_info`);
     }
 
-    // 3. DB: 이메일로 기존 유저 조회 → 없으면 자동 회원가입
-    let user = await prisma.user.findUnique({
-      where: { email: kakaoEmail },
-    });
+    // 3. DB: kakaoId → 이름+전화번호 → 이메일 순으로 매칭, 없으면 자동 회원가입
+    // 1순위: kakaoId
+    let user = await prisma.user.findUnique({ where: { kakaoId } });
 
+    // 2순위: 이름+전화번호
+    if (!user && kakaoName && normalizedPhone) {
+      user = await prisma.user.findFirst({
+        where: { name: kakaoName, phone: normalizedPhone },
+      });
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { kakaoId } });
+      }
+    }
+
+    // 3순위: 이메일
+    if (!user && kakaoEmail) {
+      user = await prisma.user.findUnique({ where: { email: kakaoEmail } });
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { kakaoId } });
+      }
+    }
+
+    // 없으면 신규 가입
     if (!user) {
       user = await prisma.user.create({
         data: {
           email: kakaoEmail,
           name: kakaoName || null,
+          phone: normalizedPhone,
           provider: "kakao",
+          kakaoId,
           role: "CUSTOMER",
         },
       });

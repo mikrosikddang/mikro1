@@ -70,6 +70,14 @@ export default async function MyPage() {
           </Link>
 
           <Link
+            href="/my/account"
+            className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+          >
+            회원정보 관리
+            {chevronSvg}
+          </Link>
+
+          <Link
             href="/my/coupons"
             className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
           >
