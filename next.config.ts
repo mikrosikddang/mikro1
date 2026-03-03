@@ -18,11 +18,11 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net https://js.tosspayments.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https://images.unsplash.com https://*.s3.ap-northeast-2.amazonaws.com https://*.s3.amazonaws.com data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.s3.ap-northeast-2.amazonaws.com https://*.s3.amazonaws.com",
+              "connect-src 'self' https://*.s3.ap-northeast-2.amazonaws.com https://*.s3.amazonaws.com https://api.tosspayments.com",
               "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net",
               "frame-ancestors 'none'",
             ].join("; "),

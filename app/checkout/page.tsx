@@ -76,7 +76,6 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<CartItemData[]>([]);
   const [sellerGroups, setSellerGroups] = useState<SellerGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [orderIds, setOrderIds] = useState<string[]>([]);
   const [isDirectMode, setIsDirectMode] = useState(false);
@@ -98,6 +97,15 @@ export default function CheckoutPage() {
       loadCheckoutData();
     }
   }, [directOrderId]);
+
+  // Load Toss Payments SDK
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://js.tosspayments.com/v1/payment";
+    script.async = true;
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
 
   const loadDirectOrder = async (orderId: string) => {
     try {
@@ -319,8 +327,8 @@ export default function CheckoutPage() {
           throw new Error(data.error || "배송지 업데이트 실패");
         }
 
-        // Successfully updated - open payment modal
-        setShowPaymentModal(true);
+        // Successfully updated - request Toss payment
+        requestTossPayment(orderIds);
       } catch (err: any) {
         setError(err.message || "배송지 업데이트에 실패했습니다");
       } finally {
@@ -395,7 +403,7 @@ export default function CheckoutPage() {
       }
 
       setOrderIds(createdOrderIds);
-      setShowPaymentModal(true);
+      requestTossPayment(createdOrderIds);
     } catch (err: any) {
       setError(err.message || "주문 생성에 실패했습니다");
     } finally {
@@ -403,61 +411,25 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePaymentSuccess = async () => {
-    try {
-      setProcessingPayment(true);
+  const requestTossPayment = (ids: string[]) => {
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!;
+    const tossPayments = (window as any).TossPayments(clientKey);
 
-      const res = await fetch("/api/payments/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds }),
-      });
+    const firstItem = sellerGroups[0]?.items[0];
+    const firstProductName = firstItem?.variant.product.title || "상품";
+    const totalItems = items.length;
+    const orderName = totalItems > 1
+      ? `${firstProductName} 외 ${totalItems - 1}건`
+      : firstProductName;
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 410) {
-          throw new Error("주문 시간이 만료되었습니다. 다시 진행해 주세요.");
-        }
-        throw new Error(data.error || "결제 처리 실패");
-      }
-
-      // Cart is cleared automatically by server on payment success (TRACK 3)
-      // No need to call DELETE /api/cart anymore
-
-      // Redirect to success page with all order IDs
-      const idsParam = orderIds.join(",");
-      router.push(`/orders/success?ids=${idsParam}`);
-    } catch (err: any) {
-      setError(err.message || "결제 처리에 실패했습니다");
-      setShowPaymentModal(false);
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  const handlePaymentFail = async () => {
-    try {
-      setProcessingPayment(true);
-
-      const res = await fetch("/api/payments/simulate-fail", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds }),
-      });
-
-      if (!res.ok) {
-        throw new Error("결제 실패 처리 중 오류 발생");
-      }
-
-      setError("결제가 실패했습니다. 다시 시도해주세요.");
-      setShowPaymentModal(false);
-    } catch (err: any) {
-      setError(err.message || "결제 실패 처리 중 오류가 발생했습니다");
-      setShowPaymentModal(false);
-    } finally {
-      setProcessingPayment(false);
-    }
+    tossPayments.requestPayment("카드", {
+      amount: totalPay,
+      orderId: ids[0],
+      orderName,
+      customerName: selectedAddress?.name || "고객",
+      successUrl: `${window.location.origin}/api/payments/toss/success?orderIds=${ids.join(",")}`,
+      failUrl: `${window.location.origin}/api/payments/toss/fail?orderIds=${ids.join(",")}`,
+    });
   };
 
   const totalAmount = sellerGroups.reduce((sum, g) => sum + g.subtotal, 0);
@@ -760,49 +732,8 @@ export default function CheckoutPage() {
           disabled={processingPayment || !selectedAddress}
           className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
-          {processingPayment ? "처리 중..." : "결제하기 (테스트)"}
+          {processingPayment ? "처리 중..." : "결제하기"}
         </button>
-
-        {/* Payment Modal */}
-        {showPaymentModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-              <h2 className="text-[20px] font-bold text-black mb-4">
-                결제 테스트
-              </h2>
-              <p className="text-[14px] text-gray-600 mb-6">
-                테스트 환경입니다. 성공 또는 실패를 선택하세요.
-              </p>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={handlePaymentSuccess}
-                  disabled={processingPayment}
-                  className="w-full h-[48px] bg-green-600 text-white rounded-xl text-[16px] font-bold disabled:bg-gray-300"
-                >
-                  {processingPayment ? "처리 중..." : "결제 성공"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePaymentFail}
-                  disabled={processingPayment}
-                  className="w-full h-[48px] bg-red-600 text-white rounded-xl text-[16px] font-bold disabled:bg-gray-300"
-                >
-                  {processingPayment ? "처리 중..." : "결제 실패"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  disabled={processingPayment}
-                  className="w-full h-[48px] bg-gray-200 text-gray-700 rounded-xl text-[16px] font-bold disabled:bg-gray-100"
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Address Form Modal */}
         {showAddressForm && (
