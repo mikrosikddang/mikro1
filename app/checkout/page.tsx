@@ -82,6 +82,7 @@ export default function CheckoutPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [checkoutAttemptId, setCheckoutAttemptId] = useState<string | null>(null);
+  const [tossReady, setTossReady] = useState(false);
 
   // Coupon state
   const [showCouponSheet, setShowCouponSheet] = useState(false);
@@ -103,6 +104,7 @@ export default function CheckoutPage() {
     const script = document.createElement("script");
     script.src = "https://js.tosspayments.com/v1/payment";
     script.async = true;
+    script.onload = () => setTossReady(true);
     document.head.appendChild(script);
     return () => { document.head.removeChild(script); };
   }, []);
@@ -412,24 +414,46 @@ export default function CheckoutPage() {
   };
 
   const requestTossPayment = (ids: string[]) => {
-    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!;
-    const tossPayments = (window as any).TossPayments(clientKey);
+    try {
+      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) {
+        setError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
+        return;
+      }
 
-    const firstItem = sellerGroups[0]?.items[0];
-    const firstProductName = firstItem?.variant.product.title || "상품";
-    const totalItems = items.length;
-    const orderName = totalItems > 1
-      ? `${firstProductName} 외 ${totalItems - 1}건`
-      : firstProductName;
+      if (!(window as any).TossPayments) {
+        setError("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
 
-    tossPayments.requestPayment("카드", {
-      amount: totalPay,
-      orderId: ids[0],
-      orderName,
-      customerName: selectedAddress?.name || "고객",
-      successUrl: `${window.location.origin}/api/payments/toss/success?orderIds=${ids.join(",")}`,
-      failUrl: `${window.location.origin}/api/payments/toss/fail?orderIds=${ids.join(",")}`,
-    });
+      const tossPayments = (window as any).TossPayments(clientKey);
+
+      const firstItem = sellerGroups[0]?.items[0];
+      const firstProductName = firstItem?.variant.product.title || "상품";
+      const totalItems = items.length;
+      const orderName = totalItems > 1
+        ? `${firstProductName} 외 ${totalItems - 1}건`
+        : firstProductName;
+
+      tossPayments.requestPayment("카드", {
+        amount: totalPay,
+        orderId: ids[0],
+        orderName,
+        customerName: selectedAddress?.name || "고객",
+        successUrl: `${window.location.origin}/api/payments/toss/success?orderIds=${ids.join(",")}`,
+        failUrl: `${window.location.origin}/api/payments/toss/fail?orderIds=${ids.join(",")}`,
+      }).catch((err: any) => {
+        if (err.code === "USER_CANCEL") {
+          setError("결제가 취소되었습니다.");
+        } else {
+          setError(err.message || "결제 처리 중 오류가 발생했습니다.");
+        }
+        setProcessingPayment(false);
+      });
+    } catch (err: any) {
+      setError(err.message || "결제 모듈 초기화에 실패했습니다.");
+      setProcessingPayment(false);
+    }
   };
 
   const totalAmount = sellerGroups.reduce((sum, g) => sum + g.subtotal, 0);
@@ -729,7 +753,7 @@ export default function CheckoutPage() {
         <button
           type="button"
           onClick={handleCreateOrders}
-          disabled={processingPayment || !selectedAddress}
+          disabled={processingPayment || !selectedAddress || !tossReady}
           className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
           {processingPayment ? "처리 중..." : "결제하기"}
