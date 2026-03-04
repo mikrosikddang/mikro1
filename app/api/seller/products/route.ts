@@ -11,6 +11,14 @@ import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
 
+function buildVariantSummary(variants: { color: string; sizeLabel: string; stock: number }[]): string {
+  if (variants.length <= 1 && variants[0]?.sizeLabel === "FREE") return "";
+  return variants.map((v) => {
+    const prefix = v.color && v.color !== "FREE" ? `${v.color}/` : "";
+    return `${prefix}${v.sizeLabel}:${v.stock}`;
+  }).join(" ");
+}
+
 /**
  * GET /api/seller/products
  * 판매자 상품 목록 (검색/필터/정렬/페이지네이션)
@@ -130,7 +138,11 @@ export async function GET(req: NextRequest) {
       : null;
 
     return NextResponse.json({
-      products: items,
+      products: items.map((p) => ({
+        ...p,
+        totalStock: p.variants.reduce((sum, v) => sum + v.stock, 0),
+        variantSummary: buildVariantSummary(p.variants),
+      })),
       nextCursor,
       counts: { active: activeCount, hidden: hiddenCount, soldOut: soldOutCount },
     });
