@@ -82,7 +82,7 @@ export default function ProductForm({
     initialValues?.mainImages.map((img) => urlToSlot(img.url, img.colorKey)) ?? [],
   );
   const [contentImages, setContentImages] = useState<ImageSlot[]>(
-    initialValues?.contentImages.map(urlToSlot) ?? [],
+    initialValues?.contentImages.map((url) => urlToSlot(url)) ?? [],
   );
 
   // NEW: Tree-based variant state
