@@ -11,6 +11,143 @@ import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
 
+/**
+ * GET /api/seller/products
+ * 판매자 상품 목록 (검색/필터/정렬/페이지네이션)
+ *
+ * Query params:
+ * - search: 상품명 검색 (optional)
+ * - tab: active | hidden | sold-out (optional, default: all)
+ * - sort: newest | price-asc | price-desc | stock-asc (optional, default: newest)
+ * - cursor: createdAt ISO string (optional)
+ * - limit: number (optional, default: 20, max: 100)
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const _session = await getSession();
+    const session = requireSeller(_session);
+    const sellerId = session.userId;
+
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search")?.trim() || undefined;
+    const tab = searchParams.get("tab") || undefined;
+    const sort = searchParams.get("sort") || "newest";
+    const cursor = searchParams.get("cursor") || undefined;
+    const limitParam = searchParams.get("limit");
+    const limit = Math.min(parseInt(limitParam || "20", 10), 100);
+
+    // Base filter
+    const baseWhere: Prisma.ProductWhereInput = {
+      sellerId,
+      isDeleted: false,
+      ...(search && { title: { contains: search, mode: "insensitive" as const } }),
+    };
+
+    // Tab-specific filter
+    let tabWhere: Prisma.ProductWhereInput = {};
+    if (tab === "hidden") {
+      tabWhere = { isActive: false };
+    } else if (tab === "sold-out") {
+      tabWhere = {
+        isActive: true,
+        variants: { every: { stock: 0 } },
+      };
+    } else if (tab === "active") {
+      tabWhere = {
+        isActive: true,
+        variants: { some: { stock: { gt: 0 } } },
+      };
+    }
+
+    const where: Prisma.ProductWhereInput = { ...baseWhere, ...tabWhere };
+
+    // Sorting
+    let orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
+    switch (sort) {
+      case "price-asc":
+        orderBy = [{ priceKrw: "asc" }, { createdAt: "desc" }];
+        break;
+      case "price-desc":
+        orderBy = [{ priceKrw: "desc" }, { createdAt: "desc" }];
+        break;
+      case "stock-asc":
+        orderBy = [{ createdAt: "asc" }]; // stock sorting done post-query
+        break;
+      default: // newest
+        orderBy = [{ createdAt: "desc" }];
+    }
+
+    // Cursor pagination
+    const cursorFilter = cursor
+      ? { createdAt: { lt: new Date(cursor) } }
+      : {};
+
+    // Counts for all tabs
+    const [activeCount, hiddenCount, soldOutCount] = await Promise.all([
+      prisma.product.count({
+        where: {
+          ...baseWhere,
+          isActive: true,
+          variants: { some: { stock: { gt: 0 } } },
+        },
+      }),
+      prisma.product.count({
+        where: { ...baseWhere, isActive: false },
+      }),
+      prisma.product.count({
+        where: {
+          ...baseWhere,
+          isActive: true,
+          variants: { every: { stock: 0 } },
+        },
+      }),
+    ]);
+
+    // Fetch products
+    const products = await prisma.product.findMany({
+      where: { ...where, ...cursorFilter },
+      orderBy,
+      take: limit + 1,
+      include: {
+        images: { where: { kind: "MAIN", colorKey: null }, orderBy: { sortOrder: "asc" }, take: 1 },
+        variants: { orderBy: { createdAt: "asc" } },
+      },
+    });
+
+    // Post-query stock sort
+    if (sort === "stock-asc") {
+      products.sort((a, b) => {
+        const stockA = a.variants.reduce((s, v) => s + v.stock, 0);
+        const stockB = b.variants.reduce((s, v) => s + v.stock, 0);
+        return stockA - stockB;
+      });
+    }
+
+    const hasMore = products.length > limit;
+    const items = hasMore ? products.slice(0, limit) : products;
+    const nextCursor = hasMore
+      ? items[items.length - 1].createdAt.toISOString()
+      : null;
+
+    return NextResponse.json({
+      products: items,
+      nextCursor,
+      counts: { active: activeCount, hidden: hiddenCount, soldOut: soldOutCount },
+    });
+  } catch (error) {
+    console.error("GET /api/seller/products error:", error);
+
+    if (error instanceof NextResponse) {
+      return error;
+    }
+
+    return NextResponse.json(
+      { error: "상품 목록 조회에 실패했습니다" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const _session = await getSession();

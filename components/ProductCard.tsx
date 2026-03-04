@@ -3,11 +3,6 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { formatKrw } from "@/lib/format";
-import { getProductBadge } from "@/lib/productState";
-import ToggleActiveButton from "@/components/ToggleActiveButton";
-import StockAdjuster from "@/components/StockAdjuster";
-import WishlistButton from "@/components/WishlistButton";
-import { getColorByKey, isLightColor } from "@/lib/colors";
 import ImageCarousel from "@/components/ImageCarousel";
 import {
   isWishlisted,
@@ -21,29 +16,6 @@ import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { useSession } from "@/components/SessionProvider";
 
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
-
-type VariantItem = { id: string; color: string; sizeLabel: string; stock: number };
-
-function groupVariantsByColor(variants: VariantItem[]): [string, VariantItem[]][] {
-  const groups = new Map<string, VariantItem[]>();
-  for (const v of variants) {
-    const key = v.color || "FREE";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(v);
-  }
-  // Sort sizes within each group
-  for (const [, items] of groups) {
-    items.sort((a, b) => {
-      const ai = SIZE_ORDER.indexOf(a.sizeLabel);
-      const bi = SIZE_ORDER.indexOf(b.sizeLabel);
-      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    });
-  }
-  // Sort groups alphabetically by color
-  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], "ko"));
-}
-
 type ProductCardProps = {
   id: string;
   title: string;
@@ -54,16 +26,6 @@ type ProductCardProps = {
   images: { url: string }[];
   shopName: string;
   sellerId: string;
-  /** Seller dashboard mode – show badge + actions */
-  sellerMode?: boolean;
-  isActive?: boolean;
-  isDeleted?: boolean;
-  /** Total stock across all variants */
-  totalStock?: number;
-  /** e.g. "S:10 M:8 L:6" */
-  variantSummary?: string;
-  /** Variant data for stock adjusters (seller mode only) */
-  variants?: { id: string; color: string; sizeLabel: string; stock: number }[];
   /** Initial wishlist state from batch check (skips individual API call on mount) */
   initialWishlisted?: boolean;
   /** Seller avatar image URL */
@@ -78,20 +40,12 @@ export default function ProductCard({
   images,
   shopName,
   sellerId,
-  sellerMode,
-  isActive,
-  isDeleted,
-  totalStock,
-  variantSummary,
-  variants,
   initialWishlisted,
   avatarUrl,
 }: ProductCardProps) {
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
   const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
-  const stock = totalStock ?? 0;
-  const isSoldOut = stock <= 0;
 
   const session = useSession();
   // Wishlist state (customer mode only)
@@ -108,24 +62,21 @@ export default function ProductCard({
   const [avatarImgError, setAvatarImgError] = useState(false);
 
   const syncWishlist = useCallback(async () => {
-    if (sellerMode) return;
     if (session) {
       const result = await checkWishlistDB([id]);
       setWishlisted(result[id] ?? false);
     } else {
       setWishlisted(isWishlisted(id));
     }
-  }, [id, sellerMode, session]);
+  }, [id, session]);
 
   useEffect(() => {
-    if (!sellerMode) {
-      if (initialWishlisted === undefined) {
-        syncWishlist();
-        window.addEventListener("wishlist-change", syncWishlist);
-        return () => window.removeEventListener("wishlist-change", syncWishlist);
-      }
+    if (initialWishlisted === undefined) {
+      syncWishlist();
+      window.addEventListener("wishlist-change", syncWishlist);
+      return () => window.removeEventListener("wishlist-change", syncWishlist);
     }
-  }, [syncWishlist, sellerMode, initialWishlisted]);
+  }, [syncWishlist, initialWishlisted]);
 
   useEffect(() => {
     if (initialWishlisted !== undefined) {
@@ -193,128 +144,6 @@ export default function ProductCard({
       console.log("Share cancelled or failed:", err);
     }
   };
-
-  // Determine status badge for seller mode
-  let badgeLabel = "";
-  let badgeClass = "";
-  if (sellerMode) {
-    const badge = getProductBadge({
-      isActive: isActive ?? true,
-      isDeleted: isDeleted ?? false,
-      totalStock: stock,
-    });
-    const badgeMap = {
-      DELETED:  { label: "삭제됨", cls: "bg-red-500 text-white" },
-      HIDDEN:   { label: "숨김",   cls: "bg-gray-500 text-white" },
-      SOLD_OUT: { label: "품절",   cls: "bg-orange-500 text-white" },
-      ACTIVE:   { label: "판매중", cls: "bg-green-500 text-white" },
-    } as const;
-    badgeLabel = badgeMap[badge].label;
-    badgeClass = badgeMap[badge].cls;
-  }
-
-  const dimmed = sellerMode && (isDeleted || !isActive || isSoldOut);
-
-  // Seller mode: keep original layout
-  if (sellerMode) {
-    return (
-      <article className={`bg-white ${dimmed ? "opacity-60" : ""}`}>
-        {/* Product image carousel */}
-        <div className="relative rounded-lg overflow-hidden">
-          <Link href={`/seller/products/${id}/edit`} className="block">
-            <ImageCarousel images={images} aspect="3/4" dots={false} />
-          </Link>
-
-          {/* Status badge */}
-          {badgeLabel && (
-            <span className={`absolute top-2 left-2 z-10 px-2.5 py-1 rounded-lg text-[11px] font-bold ${badgeClass}`}>
-              {badgeLabel}
-            </span>
-          )}
-        </div>
-
-        {/* Product info */}
-        <div className="px-4 py-3">
-          {/* Product title + Price */}
-          <Link href={`/seller/products/${id}/edit`}>
-            <div className="mt-1 flex items-baseline justify-between gap-4">
-              <h3 className="flex-1 min-w-0 text-[16px] font-semibold text-black leading-snug line-clamp-2">
-                {title}
-              </h3>
-              <div className="shrink-0 text-right">
-                {hasDiscount && (
-                  <span className="block text-[13px] text-gray-400 line-through tabular-nums">
-                    {formatKrw(priceKrw)}
-                  </span>
-                )}
-                <span className="text-[16px] font-bold text-black">
-                  {formatKrw(displayPrice)}
-                </span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Stock adjusters + actions */}
-          {variants && variants.length > 0 && !isDeleted ? (
-            <div className="mt-2 space-y-2">
-              {groupVariantsByColor(variants).map(([color, colorVariants]) => (
-                <div key={color}>
-                  {color !== "FREE" && (
-                    <div className="flex items-center gap-1 mb-1">
-                      {(() => {
-                        const ci = getColorByKey(color);
-                        return ci ? (
-                          <span
-                            className={`w-3 h-3 rounded-full shrink-0 ${isLightColor(ci.hex) ? "border border-gray-300" : ""}`}
-                            style={{ backgroundColor: ci.hex }}
-                          />
-                        ) : null;
-                      })()}
-                      <span className="text-[11px] font-medium text-gray-600">
-                        {getColorByKey(color)?.labelKo ?? color}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {colorVariants.map((v) => (
-                      <StockAdjuster
-                        key={v.id}
-                        variantId={v.id}
-                        sizeLabel={v.sizeLabel}
-                        initialStock={v.stock}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-1.5 text-[13px] text-gray-500">
-              재고 {stock}
-              {variantSummary && (
-                <span className="ml-1.5 text-gray-400">({variantSummary})</span>
-              )}
-            </div>
-          )}
-          <div className="mt-3 flex gap-2">
-            {!isDeleted && <ToggleActiveButton productId={id} isActive={isActive ?? true} />}
-            <Link
-              href={`/seller/products/${id}/edit`}
-              className="flex-1 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-[13px] font-medium text-gray-700 active:bg-gray-50 transition-colors"
-            >
-              수정
-            </Link>
-            <Link
-              href={`/seller/products/new?cloneFrom=${id}`}
-              className="flex-1 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-[13px] font-medium text-gray-700 active:bg-gray-50 transition-colors"
-            >
-              복제
-            </Link>
-          </div>
-        </div>
-      </article>
-    );
-  }
 
   // Hidden by user
   if (hidden) return null;
