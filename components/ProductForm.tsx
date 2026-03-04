@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
 import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
@@ -132,13 +132,16 @@ export default function ProductForm({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
 
-  // Auto-extract colors from variantTree
+  // Auto-extract colors from variantTree + existing image tags
   const selectedColors = useMemo(() => {
-    const colors = variantTree
+    const fromVariants = variantTree
       .map((group) => group.color)
       .filter((color) => color !== "FREE" && color !== "");
-    return Array.from(new Set(colors)); // deduplicate
-  }, [variantTree]);
+    const fromImages = mainImages
+      .map((s) => s.colorKey)
+      .filter(Boolean) as string[];
+    return Array.from(new Set([...fromVariants, ...fromImages]));
+  }, [variantTree, mainImages]);
 
   // ---------- Color helpers ----------
   function openColorPickerForGroup(groupIndex: number) {
@@ -622,18 +625,48 @@ export default function ProductForm({
         onMove={(i, d) => moveImage(i, d, setMainImages)}
         submitting={submitting}
         showMainBadge
-        selectedColors={selectedColors}
-        onColorTag={handleColorTag}
       />
       {fieldErrors.mainImages && <p className="-mt-4 mb-4 text-[12px] text-red-500">{fieldErrors.mainImages}</p>}
 
-      {/* Color tag guide */}
-      {selectedColors.length > 0 && (
-        <div className="-mt-4 mb-6 px-3 py-2 bg-gray-50 rounded-lg">
-          <p className="text-[12px] text-gray-500">
-            이미지를 탭하여 컬러를 지정할 수 있습니다. 태그하지 않은 이미지는 모든 컬러에 공통으로 표시됩니다.
-          </p>
-        </div>
+      {/* 이미지 컬러 지정 */}
+      {mainImages.length >= 2 && (
+        <section className="-mt-2 mb-6">
+          <h3 className="text-[14px] font-medium text-gray-700 mb-2">
+            이미지 컬러 지정 <span className="text-gray-400 font-normal">(선택)</span>
+          </h3>
+          {selectedColors.length > 0 ? (
+            <>
+              <p className="text-[12px] text-gray-500 mb-3">
+                각 이미지가 어떤 컬러 상품인지 지정할 수 있습니다. 지정하지 않으면 모든 컬러에 공통으로 표시됩니다.
+              </p>
+              <div className="space-y-2">
+                {mainImages.map((slot, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 shrink-0">
+                      <img src={slot.preview || slot.publicUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="text-[13px] text-gray-500 shrink-0">{i + 1}번</span>
+                    <select
+                      value={slot.colorKey || ""}
+                      onChange={(e) => handleColorTag(i, e.target.value || null)}
+                      className="flex-1 h-9 px-3 rounded-lg border border-gray-200 text-[13px] bg-white"
+                    >
+                      <option value="">공통 (모든 컬러)</option>
+                      {selectedColors.map((ck) => {
+                        const color = getColorByKey(ck);
+                        return <option key={ck} value={ck}>{color?.labelKo || ck}</option>;
+                      })}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-[12px] text-gray-400">
+              아래 바리언트에서 컬러를 추가하면 이미지별 컬러를 지정할 수 있습니다.
+            </p>
+          )}
+        </section>
       )}
 
       {/* ===== Content Images ===== */}
@@ -1166,8 +1199,6 @@ function ImagePickerSection({
   onMove,
   submitting,
   showMainBadge,
-  selectedColors,
-  onColorTag,
 }: {
   label: string;
   required?: boolean;
@@ -1179,34 +1210,14 @@ function ImagePickerSection({
   onMove: (i: number, d: -1 | 1) => void;
   submitting: boolean;
   showMainBadge?: boolean;
-  selectedColors?: string[];
-  onColorTag?: (index: number, colorKey: string | null) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const dragIdxRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didDragRef = useRef(false);
   const [imgDragIndex, setImgDragIndex] = useState<number | null>(null);
-  const [colorTagIndex, setColorTagIndex] = useState<number | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  const hasColors = selectedColors && selectedColors.length > 0 && onColorTag;
-
-  // Close popover on outside click
-  useEffect(() => {
-    if (colorTagIndex === null) return;
-    const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setColorTagIndex(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [colorTagIndex]);
 
   const startDrag = (index: number, pointerX: number, pointerY: number) => {
     if (!listRef.current) return;
-    didDragRef.current = true;
     const allChildren = Array.from(listRef.current.children);
     const offset = images.length < max ? 1 : 0;
     const el = allChildren[offset + index] as HTMLElement | undefined;
@@ -1313,16 +1324,6 @@ function ImagePickerSection({
     window.addEventListener("pointerup", cancelOnUp);
   };
 
-  const handleImageTap = (index: number) => {
-    if (didDragRef.current) {
-      didDragRef.current = false;
-      return;
-    }
-    if (hasColors) {
-      setColorTagIndex(colorTagIndex === index ? null : index);
-    }
-  };
-
   return (
     <section className="mb-6">
       <label className="block text-[14px] font-medium text-gray-700 mb-2">
@@ -1358,7 +1359,6 @@ function ImagePickerSection({
               }`}
               style={{ touchAction: imgDragIndex !== null ? "none" : "auto" }}
               onPointerDown={(e) => handlePointerDown(e, i)}
-              onClick={() => handleImageTap(i)}
             >
               {isDragging ? (
                 <>
@@ -1444,43 +1444,6 @@ function ImagePickerSection({
                 </>
               )}
 
-              {/* Color tag popover */}
-              {colorTagIndex === i && hasColors && (
-                <div
-                  ref={popoverRef}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white rounded-xl border border-gray-200 shadow-lg p-3 min-w-[140px]"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p className="text-[11px] text-gray-500 mb-2">컬러 지정</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedColors!.map((ck) => {
-                      const c = getColorByKey(ck);
-                      const isSelected = slot.colorKey === ck;
-                      return (
-                        <button
-                          key={ck}
-                          type="button"
-                          onClick={() => {
-                            onColorTag!(i, isSelected ? null : ck);
-                            setColorTagIndex(null);
-                          }}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors ${
-                            isSelected
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-200 bg-white text-gray-700"
-                          }`}
-                        >
-                          <span
-                            className={`w-3 h-3 rounded-full ${!isSelected && isLightColor(c?.hex || "#ccc") ? "border border-gray-300" : ""}`}
-                            style={{ backgroundColor: isSelected ? "white" : (c?.hex || "#ccc") }}
-                          />
-                          {c?.labelKo || ck}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
