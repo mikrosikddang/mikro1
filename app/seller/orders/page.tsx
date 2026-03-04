@@ -25,6 +25,7 @@ interface Order {
   totalPayKrw: number;
   createdAt: string;
   items: OrderItem[];
+  buyer: { name: string } | null;
 }
 
 const STATUS_FILTERS = [
@@ -32,7 +33,10 @@ const STATUS_FILTERS = [
   { label: "결제완료", value: "PAID" },
   { label: "배송중", value: "SHIPPED" },
   { label: "환불요청", value: "REFUND_REQUESTED" },
+  { label: "반품진행", value: "RETURN_STARTED" },
   { label: "완료", value: "COMPLETED" },
+  { label: "취소", value: "CANCELLED" },
+  { label: "환불완료", value: "REFUNDED" },
 ] as const;
 
 export default function SellerOrdersPage() {
@@ -119,6 +123,7 @@ export default function SellerOrdersPage() {
                   <div className="flex-1">
                     <p className="text-[12px] text-gray-500 mb-0.5">
                       {order.orderNo}
+                      {order.buyer?.name && <span className="ml-2 text-gray-400">· {order.buyer.name}</span>}
                     </p>
                     <p className="text-[14px] font-medium text-gray-900">
                       {itemText}
@@ -139,7 +144,7 @@ export default function SellerOrdersPage() {
                     {new Date(order.createdAt).toLocaleDateString("ko-KR")}
                   </p>
                   <p className="text-[15px] font-bold text-black">
-                    ₩{order.totalPayKrw.toLocaleString("ko-KR")}
+                    {order.totalPayKrw.toLocaleString("ko-KR")}원
                   </p>
                 </div>
               </Link>

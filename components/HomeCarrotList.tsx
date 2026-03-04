@@ -80,9 +80,8 @@ function CarrotListItem({ product }: { product: Product }) {
             {/* Bottom row: price only (wishlist moved to menu) */}
             <div className="flex items-end justify-between mt-auto pt-1">
               <div className="flex items-baseline gap-0.5">
-                <span className="text-[13px] text-black align-baseline">₩</span>
                 <span className="text-[16px] font-semibold text-black tabular-nums">
-                  {product.priceKrw.toLocaleString()}
+                  {product.priceKrw.toLocaleString()}원
                 </span>
               </div>
             </div>

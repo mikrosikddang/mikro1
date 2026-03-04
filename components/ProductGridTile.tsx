@@ -85,16 +85,16 @@ export default function ProductGridTile({
           <div className="flex items-baseline gap-1">
             <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
             <span className="text-base font-semibold text-black">
-              ₩{displayPrice.toLocaleString()}
+              {displayPrice.toLocaleString()}원
             </span>
           </div>
           <p className="text-[13px] text-gray-400 line-through">
-            ₩{priceKrw.toLocaleString()}
+            {priceKrw.toLocaleString()}원
           </p>
         </div>
       ) : (
         <p className="mt-1 text-base font-semibold text-black">
-          ₩{priceKrw.toLocaleString()}
+          {priceKrw.toLocaleString()}원
         </p>
       )}
     </Link>

@@ -185,7 +185,7 @@ export default function AdminOrdersPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-gray-900">
-                    ₩{order.totalPayKrw.toLocaleString("ko-KR")}
+                    {order.totalPayKrw.toLocaleString("ko-KR")}원
                   </p>
                 </div>
               </div>

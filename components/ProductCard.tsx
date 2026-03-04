@@ -408,19 +408,17 @@ export default function ProductCard({
               {hasDiscount ? (
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
-                  <span className="text-[13px] text-black align-baseline">₩</span>
                   <span className="text-[16px] font-semibold text-black tabular-nums">
-                    {displayPrice.toLocaleString()}
+                    {displayPrice.toLocaleString()}원
                   </span>
                   <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
-                    ₩{priceKrw.toLocaleString()}
+                    {priceKrw.toLocaleString()}원
                   </span>
                 </div>
               ) : (
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-[13px] text-black align-baseline">₩</span>
                   <span className="text-[16px] font-semibold text-black tabular-nums">
-                    {priceKrw.toLocaleString()}
+                    {priceKrw.toLocaleString()}원
                   </span>
                 </div>
               )}

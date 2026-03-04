@@ -59,6 +59,9 @@ export async function GET(request: Request) {
       ],
       take: limit + 1,
       include: {
+        buyer: {
+          select: { name: true },
+        },
         items: {
           include: {
             product: {

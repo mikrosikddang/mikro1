@@ -1,7 +1,7 @@
 /**
  * Price typography component
  * Used in product detail page for consistent price styling
- * Includes tabular-nums and baseline correction for ₩ symbol
+ * Includes tabular-nums for price display
  *
  * Supports sale price display:
  * - When salePrice is provided: shows original price with strikethrough + sale price + discount %
@@ -24,13 +24,12 @@ export default function PriceText({ amount, salePrice }: PriceTextProps) {
       <div>
         <div className="flex items-baseline gap-1.5">
           <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">{discountRate}%</span>
-          <span className="text-[14px] text-gray-700 relative top-[1px]">₩</span>
           <span className="text-[22px] font-bold text-black tabular-nums">
-            {salePrice.toLocaleString()}
+            {salePrice.toLocaleString()}원
           </span>
         </div>
         <p className="text-[13px] text-gray-400 line-through tabular-nums mt-0.5">
-          ₩{amount.toLocaleString()}
+          {amount.toLocaleString()}원
         </p>
       </div>
     );
@@ -38,9 +37,8 @@ export default function PriceText({ amount, salePrice }: PriceTextProps) {
 
   return (
     <div className="flex items-baseline gap-1">
-      <span className="text-[14px] text-gray-700 relative top-[1px]">₩</span>
       <span className="text-[22px] font-bold text-black tabular-nums">
-        {amount.toLocaleString()}
+        {amount.toLocaleString()}원
       </span>
     </div>
   );

@@ -19,7 +19,7 @@ export default async function SellerDashboardPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, recentProducts, allProducts, unansweredInquiries] = await Promise.all([
+  const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, allProducts, unansweredInquiries] = await Promise.all([
     // Unprocessed orders (PAID only — PENDING is pre-payment)
     prisma.order.count({
       where: { sellerId, status: "PAID" },
@@ -28,9 +28,9 @@ export default async function SellerDashboardPage() {
     prisma.order.count({
       where: { sellerId, status: { in: ["REFUND_REQUESTED", "RETURN_STARTED"] } },
     }),
-    // Awaiting shipment (PAID orders)
+    // Currently shipping (SHIPPED orders)
     prisma.order.count({
-      where: { sellerId, status: "PAID" },
+      where: { sellerId, status: "SHIPPED" },
     }),
     // Today's revenue
     prisma.order.aggregate({
@@ -41,27 +41,17 @@ export default async function SellerDashboardPage() {
       },
       _sum: { totalPayKrw: true },
     }),
-    // Recent 5 orders (exclude PENDING/EXPIRED)
+    // Recent 3 orders (exclude PENDING/EXPIRED)
     prisma.order.findMany({
       where: { sellerId, status: { notIn: ["PENDING", "EXPIRED"] } },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 3,
       include: {
         items: {
           include: {
             product: { select: { title: true } },
           },
         },
-      },
-    }),
-    // Recent 5 products
-    prisma.product.findMany({
-      where: { sellerId, isDeleted: false },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: {
-        images: { where: { kind: "MAIN" }, orderBy: { sortOrder: "asc" }, take: 1 },
-        variants: true,
       },
     }),
     // All products for summary counts
@@ -126,6 +116,7 @@ export default async function SellerDashboardPage() {
       case "PAID": return "출고 처리 →";
       case "SHIPPED": return "완료 처리 →";
       case "REFUND_REQUESTED": return "환불 승인 →";
+      case "RETURN_STARTED": return "검수 처리 →";
       default: return null;
     }
   };
@@ -133,15 +124,15 @@ export default async function SellerDashboardPage() {
   return (
     <div className="py-4">
       {/* Header */}
-      <div className="mb-4">
+      <div className="mb-5">
         <h1 className="text-[20px] font-bold text-black mb-1">판매자 센터</h1>
         <p className="text-[14px] text-gray-500">{shopName}</p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-2.5 mb-4">
+      <div className="grid grid-cols-2 gap-2.5 mb-5">
         <Link
-          href="/seller/orders?status=PENDING,PAID"
+          href="/seller/orders?status=PAID"
           className="p-3 bg-white rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
         >
           <p className="text-[13px] text-gray-500 mb-1">미처리 주문</p>
@@ -155,10 +146,10 @@ export default async function SellerDashboardPage() {
           <p className="text-[24px] font-bold text-orange-600">{refundRequests}</p>
         </Link>
         <Link
-          href="/seller/orders?status=PAID"
+          href="/seller/orders?status=SHIPPED"
           className="p-3 bg-white rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
         >
-          <p className="text-[13px] text-gray-500 mb-1">배송 대기</p>
+          <p className="text-[13px] text-gray-500 mb-1">배송중</p>
           <p className="text-[24px] font-bold text-black">{awaitingShipment}</p>
         </Link>
         <Link
@@ -182,7 +173,7 @@ export default async function SellerDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mb-4">
+      <div className="mb-5">
         <h2 className="text-[15px] font-bold text-black mb-3">빠른 작업</h2>
         <div className="grid grid-cols-2 gap-2.5">
           <Link
@@ -195,65 +186,47 @@ export default async function SellerDashboardPage() {
             href="/seller/orders"
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
-            📦 주문 관리
-          </Link>
-          <Link
-            href="/seller/products"
-            className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
-          >
-            📦 상품 관리
+            주문 관리
           </Link>
           <Link
             href="/seller/inquiries"
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
-            💬 문의 관리
+            채팅 관리
           </Link>
           <Link
             href="/seller/shop"
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
-            상점 관리
-          </Link>
-          <Link
-            href={`/s/${sellerId}`}
-            className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
-          >
-            🏪 내 상점 보기
+            배송/기타 정보
           </Link>
         </div>
       </div>
 
       {/* Product Summary */}
-      <div className="p-3 bg-white rounded-lg border border-gray-200 mb-4">
-        <h3 className="text-[15px] font-bold text-black mb-3">상품 현황</h3>
-        <div className="flex gap-4 mb-4">
-          <div className="flex-1">
-            <p className="text-[12px] text-gray-500 mb-1">판매중</p>
-            <p className="text-[20px] font-bold text-black">{productCounts.active}</p>
+      <div className="p-3 bg-white rounded-lg border border-gray-200 mb-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] text-gray-500">판매중</span>
+            <span className="text-[14px] font-bold text-black">{productCounts.active}</span>
+            <span className="text-[12px] text-gray-300 mx-1">·</span>
+            <span className="text-[12px] text-gray-500">숨김</span>
+            <span className="text-[14px] font-bold text-gray-500">{productCounts.hidden}</span>
+            <span className="text-[12px] text-gray-300 mx-1">·</span>
+            <span className="text-[12px] text-gray-500">품절</span>
+            <span className="text-[14px] font-bold text-red-600">{productCounts.soldOut}</span>
           </div>
-          <div className="flex-1">
-            <p className="text-[12px] text-gray-500 mb-1">숨김</p>
-            <p className="text-[20px] font-bold text-gray-600">{productCounts.hidden}</p>
-          </div>
-          <div className="flex-1">
-            <p className="text-[12px] text-gray-500 mb-1">품절</p>
-            <p className="text-[20px] font-bold text-red-600">{productCounts.soldOut}</p>
-          </div>
+          <Link href="/seller/products" className="text-[13px] text-gray-500 font-medium">
+            상품 관리 →
+          </Link>
         </div>
-        <Link
-          href="/seller/products"
-          className="block w-full p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
-        >
-          상품 관리로 이동 →
-        </Link>
       </div>
 
       {/* Recent Orders */}
-      <div className="mb-4">
+      <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-bold text-black">최근 주문</h2>
-          <Link href="/seller/orders" className="text-[13px] text-blue-600 font-medium">
+          <Link href="/seller/orders" className="text-[13px] text-gray-500 font-medium">
             전체보기 →
           </Link>
         </div>
@@ -299,57 +272,6 @@ export default async function SellerDashboardPage() {
         )}
       </div>
 
-      {/* Recent Products */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[15px] font-bold text-black">최근 등록 상품</h2>
-          <Link href="/seller/products" className="text-[13px] text-blue-600 font-medium">
-            전체보기 →
-          </Link>
-        </div>
-        {recentProducts.length === 0 ? (
-          <div className="p-6 bg-gray-50 rounded-xl text-center">
-            <p className="text-[14px] text-gray-500 mb-3">아직 등록된 상품이 없습니다</p>
-            <Link
-              href="/seller/products/new"
-              className="inline-block px-4 py-2 bg-black text-white rounded-lg text-[13px] font-medium"
-            >
-              첫 상품 올리기
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {recentProducts.map((product) => {
-              const imageUrl = product.images[0]?.url || "/placeholder.png";
-              const stock = getTotalStock(product.variants);
-              return (
-                <Link
-                  key={product.id}
-                  href={`/seller/products/${product.id}/edit`}
-                  className="flex gap-3 p-2.5 bg-white border border-gray-200 rounded-lg active:bg-gray-50 transition-colors"
-                >
-                  <img
-                    src={imageUrl}
-                    alt={product.title}
-                    className="w-16 h-16 rounded-lg object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium text-black truncate">
-                      {product.title}
-                    </p>
-                    <p className="text-[13px] text-gray-600">
-                      {formatKrw(product.priceKrw)}
-                    </p>
-                    <p className="text-[12px] text-gray-500">
-                      재고: {stock}개
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

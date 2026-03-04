@@ -958,7 +958,7 @@ export default function ProductForm({
           가격 (원) <span className="text-red-500">*</span>
         </label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">₩</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">원</span>
           <input
             id="price"
             type="text"
@@ -979,7 +979,7 @@ export default function ProductForm({
           할인가 (원) <span className="text-gray-400">(선택)</span>
         </label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">₩</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400">원</span>
           <input
             id="salePrice"
             type="text"

@@ -280,7 +280,7 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
                   {variantText} · 수량 {item.quantity}개
                 </p>
                 <p className="text-[14px] font-bold text-black">
-                  ₩{(item.unitPriceKrw * item.quantity).toLocaleString("ko-KR")}
+                  {(item.unitPriceKrw * item.quantity).toLocaleString("ko-KR")}원
                 </p>
               </div>
             );
@@ -294,19 +294,19 @@ export default function SellerOrderDetailPage({ params }: { params: { id: string
           <div className="flex justify-between">
             <span className="text-gray-600">상품 금액</span>
             <span className="text-gray-900">
-              ₩{order.itemsSubtotalKrw.toLocaleString("ko-KR")}
+              {order.itemsSubtotalKrw.toLocaleString("ko-KR")}원
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">배송비</span>
             <span className="text-gray-900">
-              ₩{order.shippingFeeKrw.toLocaleString("ko-KR")}
+              {order.shippingFeeKrw.toLocaleString("ko-KR")}원
             </span>
           </div>
           <div className="pt-2 border-t border-gray-200 flex justify-between">
             <span className="font-bold text-black">총 결제금액</span>
             <span className="font-bold text-black text-[16px]">
-              ₩{order.totalPayKrw.toLocaleString("ko-KR")}
+              {order.totalPayKrw.toLocaleString("ko-KR")}원
             </span>
           </div>
         </div>
