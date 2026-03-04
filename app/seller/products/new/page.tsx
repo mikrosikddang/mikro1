@@ -34,7 +34,7 @@ export default async function NewProductPage({ searchParams }: Props) {
       description: product.description ?? "",
       mainImages: product.images
         .filter((i) => i.kind === "MAIN")
-        .map((i) => i.url),
+        .map((i) => ({ url: i.url, colorKey: i.colorKey ?? null })),
       contentImages: product.images
         .filter((i) => i.kind === "CONTENT")
         .map((i) => i.url),

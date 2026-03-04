@@ -37,8 +37,8 @@ export default async function EditProductPage({ params }: Props) {
       descriptionLegacy: product.description,
     }),
     mainImages: product.images
-      .filter((i) => i.kind === "MAIN" && !i.colorKey)
-      .map((i) => i.url),
+      .filter((i) => i.kind === "MAIN")
+      .map((i) => ({ url: i.url, colorKey: i.colorKey ?? null })),
     contentImages: product.images
       .filter((i) => i.kind === "CONTENT")
       .map((i) => i.url),
@@ -48,9 +48,6 @@ export default async function EditProductPage({ params }: Props) {
       sizeLabel: v.sizeLabel,
       stock: v.stock,
     })),
-    colorImages: product.images
-      .filter((i) => i.kind === "MAIN" && i.colorKey)
-      .map((i) => ({ colorKey: i.colorKey!, url: i.url })),
   };
 
   return (

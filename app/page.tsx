@@ -26,11 +26,12 @@ type Props = {
     main?: string;
     mid?: string;
     sub?: string;
+    q?: string;
   }>;
 };
 
 export default async function HomePage({ searchParams }: Props) {
-  const { category, main, mid, sub } = await searchParams;
+  const { category, main, mid, sub, q } = await searchParams;
 
   const dbCategory = category ? categoryMap[category] : undefined; // DEPRECATED
 
@@ -60,12 +61,22 @@ export default async function HomePage({ searchParams }: Props) {
       isActive: true,
       isDeleted: false,
       ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
-      // New 3-depth category filter
-      ...(main ? { categoryMain: main } : {}),
-      ...(mid ? { categoryMid: mid } : {}),
-      ...(sub ? { categorySub: sub } : {}),
+      // Search query
+      ...(q ? {
+        OR: [
+          { title: { contains: q, mode: "insensitive" as const } },
+          { categoryMain: { contains: q, mode: "insensitive" as const } },
+          { categoryMid: { contains: q, mode: "insensitive" as const } },
+          { categorySub: { contains: q, mode: "insensitive" as const } },
+          { variants: { some: { color: { contains: q, mode: "insensitive" as const } } } },
+        ],
+      } : {}),
+      // New 3-depth category filter (skip when searching)
+      ...(!q && main ? { categoryMain: main } : {}),
+      ...(!q && mid ? { categoryMid: mid } : {}),
+      ...(!q && sub ? { categorySub: sub } : {}),
       // Fallback to old category for backward compatibility
-      ...(dbCategory && !main ? { category: dbCategory } : {}),
+      ...(!q && dbCategory && !main ? { category: dbCategory } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: 20,
@@ -87,11 +98,22 @@ export default async function HomePage({ searchParams }: Props) {
     ? `${main} > ${mid}`
     : main || dbCategory || null;
 
+  const isSearching = !!q;
+
   return (
     <div className="mx-auto w-full max-w-[420px]">
       <div className="px-4">
-      {/* Breadcrumb (visible when drilled into mid or sub level) */}
-      {main && (
+      {/* Search result header */}
+      {isSearching && (
+        <div className="pt-3 pb-1">
+          <p className="text-[14px] text-gray-700">
+            <span className="font-semibold">'{q}'</span> 검색 결과 <span className="font-semibold">{products.length}</span>건
+          </p>
+        </div>
+      )}
+
+      {/* Breadcrumb (visible when drilled into mid or sub level, hidden during search) */}
+      {!isSearching && main && (
         <div className="flex items-center gap-1 px-1 pt-3 pb-1 text-[12px] text-gray-400">
           <Link href="/" className="hover:text-gray-600 transition-colors">
             전체
@@ -131,7 +153,8 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Category chips (3-depth drill-down) */}
+      {/* Category chips (3-depth drill-down, hidden during search) */}
+      {!isSearching && (
       <div
         key={`chips-${main || ''}-${mid || ''}`}
         className="flex gap-2 overflow-x-auto py-3 scrollbar-hide chip-fade-in"
@@ -209,6 +232,7 @@ export default async function HomePage({ searchParams }: Props) {
           </>
         )}
       </div>
+      )}
       </div>
 
       {/* View mode switcher (feed or carrot list) */}

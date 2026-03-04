@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
 import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
@@ -8,7 +8,6 @@ import { validateVariantTree, formatValidationErrors } from "@/lib/variantValida
 import BulkPasteModal from "@/components/BulkPasteModal";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
 import ColorPickerSheet from "@/components/ColorPickerSheet";
-import ColorImageManager, { type ColorImageData } from "@/components/ColorImageManager";
 import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
 import { getColorByKey, isLightColor } from "@/lib/colors";
 import { resizeImage } from "@/lib/imageResize";
@@ -44,6 +43,7 @@ type ImageSlot = {
   status: "pending" | "uploading" | "done" | "error";
   progress: number;
   publicUrl?: string;
+  colorKey?: string | null;
 };
 
 export type ProductFormInitialValues = {
@@ -56,14 +56,13 @@ export type ProductFormInitialValues = {
   categorySub?: string | null;
   description: string;
   descriptionJson?: any;
-  mainImages: string[];
+  mainImages: { url: string; colorKey?: string | null }[];
   contentImages: string[];
   variants: { id?: string; color?: string; sizeLabel: string; stock: number }[];
-  colorImages?: { colorKey: string; url: string }[];
 };
 
-function urlToSlot(url: string): ImageSlot {
-  return { preview: url, status: "done", progress: 100, publicUrl: url };
+function urlToSlot(url: string, colorKey?: string | null): ImageSlot {
+  return { preview: url, status: "done", progress: 100, publicUrl: url, colorKey: colorKey ?? null };
 }
 
 export default function ProductForm({
@@ -80,7 +79,7 @@ export default function ProductForm({
   const contentInputRef = useRef<HTMLInputElement>(null);
 
   const [mainImages, setMainImages] = useState<ImageSlot[]>(
-    initialValues?.mainImages.map(urlToSlot) ?? [],
+    initialValues?.mainImages.map((img) => urlToSlot(img.url, img.colorKey)) ?? [],
   );
   const [contentImages, setContentImages] = useState<ImageSlot[]>(
     initialValues?.contentImages.map(urlToSlot) ?? [],
@@ -130,20 +129,6 @@ export default function ProductForm({
   const [bulkPasteModal, setBulkPasteModal] = useState<{ groupIndex: number; colorName: string } | null>(null);
   const [stockBulkInput, setStockBulkInput] = useState<Record<number, string>>({});
 
-  // Color images (auto-synced from variantTree)
-  const [colorImages, setColorImages] = useState<ColorImageData[]>(() => {
-    if (initialValues?.colorImages && initialValues.colorImages.length > 0) {
-      // Group flat {colorKey, url}[] into ColorImageData[] ({colorKey, images[]})
-      const map = new Map<string, string[]>();
-      for (const ci of initialValues.colorImages) {
-        if (!map.has(ci.colorKey)) map.set(ci.colorKey, []);
-        map.get(ci.colorKey)!.push(ci.url);
-      }
-      return Array.from(map.entries()).map(([colorKey, images]) => ({ colorKey, images }));
-    }
-    return [];
-  });
-  const [colorImageManagerOpen, setColorImageManagerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
 
@@ -156,11 +141,6 @@ export default function ProductForm({
   }, [variantTree]);
 
   // ---------- Color helpers ----------
-  function handleColorImageseSave(newColorImages: ColorImageData[]) {
-    setColorImages(newColorImages);
-    setColorImageManagerOpen(false);
-  }
-
   function openColorPickerForGroup(groupIndex: number) {
     setColorPickerTargetGroup(groupIndex);
     setColorPickerOpen(true);
@@ -172,6 +152,15 @@ export default function ProductForm({
     }
     setColorPickerOpen(false);
     setColorPickerTargetGroup(null);
+  }
+
+  // ---------- Color tag on main images ----------
+  function handleColorTag(index: number, colorKey: string | null) {
+    setMainImages((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], colorKey };
+      return next;
+    });
   }
 
   // ---------- Image helpers ----------
@@ -455,8 +444,7 @@ export default function ProductForm({
 
     const errs: Record<string, string> = {};
 
-    const hasColorImages = colorImages && colorImages.some(c => c.images.length > 0);
-    if (mainImages.length === 0 && !hasColorImages) errs.mainImages = "대표 이미지 또는 색상별 이미지를 1장 이상 올려주세요";
+    if (mainImages.length === 0) errs.mainImages = "대표 이미지를 1장 이상 올려주세요";
     if (!title.trim()) errs.title = "상품명을 입력해주세요";
 
     const price = parseInt(priceKrw.replace(/,/g, ""), 10);
@@ -517,12 +505,6 @@ export default function ProductForm({
         }
       }
 
-      // Build color images payload (with colorKey)
-      const colorImagesPayload = colorImages.map((ci) => ({
-        colorKey: ci.colorKey,
-        urls: ci.images,
-      }));
-
       // Build structured description
       const descriptionJson = {
         v: 1,
@@ -550,9 +532,11 @@ export default function ProductForm({
         categorySub: categorySub,
         description: description.trim() || undefined,
         descriptionJson,
-        mainImages: mainUrls,
+        mainImages: mainImages.map((slot, i) => ({
+          url: slot.publicUrl || mainUrls[i],
+          colorKey: slot.colorKey || null,
+        })),
         contentImages: contentUrls.length > 0 ? contentUrls : undefined,
-        colorImages: colorImagesPayload.length > 0 ? colorImagesPayload : undefined,
         variants: flatVariants,
       };
 
@@ -638,56 +622,18 @@ export default function ProductForm({
         onMove={(i, d) => moveImage(i, d, setMainImages)}
         submitting={submitting}
         showMainBadge
+        selectedColors={selectedColors}
+        onColorTag={handleColorTag}
       />
       {fieldErrors.mainImages && <p className="-mt-4 mb-4 text-[12px] text-red-500">{fieldErrors.mainImages}</p>}
 
-      {/* ===== Color-Specific Images ===== */}
+      {/* Color tag guide */}
       {selectedColors.length > 0 && (
-        <section className="mb-6">
-          <label className="block text-[14px] font-medium text-gray-700 mb-2">
-            색상별 이미지 (선택)
-          </label>
-          <p className="text-[12px] text-gray-500 mb-3">
-            아래 옵션에서 선택한 색상별로 다른 이미지를 설정할 수 있습니다. 최대 5장까지 등록 가능합니다.
+        <div className="-mt-4 mb-6 px-3 py-2 bg-gray-50 rounded-lg">
+          <p className="text-[12px] text-gray-500">
+            이미지를 탭하여 컬러를 지정할 수 있습니다. 태그하지 않은 이미지는 모든 컬러에 공통으로 표시됩니다.
           </p>
-
-          {/* Selected colors display */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {selectedColors.map((colorKey) => {
-              const color = getColorByKey(colorKey);
-              const colorImageData = colorImages.find((ci) => ci.colorKey === colorKey);
-              const imageCount = colorImageData?.images.length || 0;
-
-              return (
-                <div
-                  key={colorKey}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full ${isLightColor(color?.hex || "#ccc") ? "border border-gray-300" : ""}`}
-                    style={{ backgroundColor: color?.hex || "#ccc" }}
-                  />
-                  <span className="text-[13px] font-medium text-gray-900">
-                    {color?.labelKo || colorKey}
-                  </span>
-                  {imageCount > 0 && (
-                    <span className="text-[11px] text-gray-500">({imageCount}장)</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Action button */}
-          <button
-            type="button"
-            onClick={() => setColorImageManagerOpen(true)}
-            disabled={submitting}
-            className="w-full h-10 px-4 rounded-lg bg-black text-white text-[14px] font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors disabled:opacity-50"
-          >
-            색상별 이미지 설정
-          </button>
-        </section>
+        </div>
       )}
 
       {/* ===== Content Images ===== */}
@@ -1201,15 +1147,6 @@ export default function ProductForm({
         onSelectColor={handleColorPickerSelect}
       />
 
-      {/* Color Image Manager */}
-      {colorImageManagerOpen && (
-        <ColorImageManager
-          colors={selectedColors}
-          initialColorImages={colorImages}
-          onSave={handleColorImageseSave}
-          onCancel={() => setColorImageManagerOpen(false)}
-        />
-      )}
     </form>
   );
 }
@@ -1229,6 +1166,8 @@ function ImagePickerSection({
   onMove,
   submitting,
   showMainBadge,
+  selectedColors,
+  onColorTag,
 }: {
   label: string;
   required?: boolean;
@@ -1240,14 +1179,34 @@ function ImagePickerSection({
   onMove: (i: number, d: -1 | 1) => void;
   submitting: boolean;
   showMainBadge?: boolean;
+  selectedColors?: string[];
+  onColorTag?: (index: number, colorKey: string | null) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const dragIdxRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didDragRef = useRef(false);
   const [imgDragIndex, setImgDragIndex] = useState<number | null>(null);
+  const [colorTagIndex, setColorTagIndex] = useState<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const hasColors = selectedColors && selectedColors.length > 0 && onColorTag;
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (colorTagIndex === null) return;
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setColorTagIndex(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [colorTagIndex]);
 
   const startDrag = (index: number, pointerX: number, pointerY: number) => {
     if (!listRef.current) return;
+    didDragRef.current = true;
     const allChildren = Array.from(listRef.current.children);
     const offset = images.length < max ? 1 : 0;
     const el = allChildren[offset + index] as HTMLElement | undefined;
@@ -1259,7 +1218,6 @@ function ImagePickerSection({
     const startX = pointerX;
     const startY = pointerY;
 
-    // Switch to fixed position so element follows pointer
     el.style.position = "fixed";
     el.style.left = `${origLeft}px`;
     el.style.top = `${origTop}px`;
@@ -1274,13 +1232,11 @@ function ImagePickerSection({
     const handleMove = (ev: PointerEvent) => {
       if (dragIdxRef.current === null || !listRef.current) return;
 
-      // Move element with pointer
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       el.style.left = `${origLeft + dx}px`;
       el.style.top = `${origTop + dy}px`;
 
-      // Calculate swap target
       const currentIdx = dragIdxRef.current;
       const thumbChildren = Array.from(listRef.current.children).slice(
         images.length < max ? 1 : 0
@@ -1295,7 +1251,6 @@ function ImagePickerSection({
           (currentIdx < i && ev.clientX > midX) ||
           (currentIdx > i && ev.clientX < midX)
         ) {
-          // Swap and update fixed position origin for new index
           onMove(currentIdx, (i - currentIdx) as -1 | 1);
           dragIdxRef.current = i;
           setImgDragIndex(i);
@@ -1305,7 +1260,6 @@ function ImagePickerSection({
     };
 
     const handleUp = () => {
-      // Restore styles
       el.style.position = "";
       el.style.left = "";
       el.style.top = "";
@@ -1329,13 +1283,11 @@ function ImagePickerSection({
     const startX = e.clientX;
     const startY = e.clientY;
 
-    // Long-press: 300ms threshold
     longPressTimerRef.current = setTimeout(() => {
       longPressTimerRef.current = null;
       startDrag(index, startX, startY);
     }, 300);
 
-    // Cancel long-press if pointer moves too much (allows normal scroll)
     const cancelOnMove = (ev: PointerEvent) => {
       const dx = Math.abs(ev.clientX - startX);
       const dy = Math.abs(ev.clientY - startY);
@@ -1359,6 +1311,16 @@ function ImagePickerSection({
 
     window.addEventListener("pointermove", cancelOnMove);
     window.addEventListener("pointerup", cancelOnUp);
+  };
+
+  const handleImageTap = (index: number) => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+    if (hasColors) {
+      setColorTagIndex(colorTagIndex === index ? null : index);
+    }
   };
 
   return (
@@ -1386,20 +1348,19 @@ function ImagePickerSection({
         {/* Thumbnails */}
         {images.map((slot, i) => {
           const isDragging = imgDragIndex === i;
+          const colorInfo = slot.colorKey ? getColorByKey(slot.colorKey) : null;
 
           return (
             <div
               key={i}
               className={`shrink-0 w-20 h-20 relative rounded-xl bg-gray-100 transition-all ${
-                isDragging
-                  ? "overflow-visible"
-                  : "overflow-hidden"
+                isDragging ? "overflow-visible" : "overflow-hidden"
               }`}
               style={{ touchAction: imgDragIndex !== null ? "none" : "auto" }}
               onPointerDown={(e) => handlePointerDown(e, i)}
+              onClick={() => handleImageTap(i)}
             >
               {isDragging ? (
-                /* Placeholder at original position + floating content via fixed style */
                 <>
                   <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-100" />
                   <div className="opacity-90 shadow-lg scale-105 rounded-xl overflow-hidden">
@@ -1422,15 +1383,18 @@ function ImagePickerSection({
                     </span>
                   )}
 
-                  {/* Upload overlay */}
-                  {slot.status === "uploading" && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  {/* Color dot overlay */}
+                  {colorInfo && (
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+                      <span
+                        className={`w-3 h-3 rounded-full border border-white shadow-sm ${isLightColor(colorInfo.hex) ? "border-gray-300" : ""}`}
+                        style={{ backgroundColor: colorInfo.hex }}
+                      />
                     </div>
                   )}
 
                   {/* Done check */}
-                  {slot.status === "done" && (
+                  {slot.status === "done" && !colorInfo && (
                     <div className="absolute bottom-0.5 right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -1438,33 +1402,37 @@ function ImagePickerSection({
                     </div>
                   )}
 
+                  {/* Upload overlay */}
+                  {slot.status === "uploading" && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    </div>
+                  )}
+
                   {/* Controls */}
                   {!submitting && (
                     <div className="absolute top-0.5 right-0.5 flex gap-0.5">
-                      {/* Move left */}
                       {i > 0 && (
                         <button
                           type="button"
-                          onClick={() => onMove(i, -1)}
+                          onClick={(e) => { e.stopPropagation(); onMove(i, -1); }}
                           className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
                         >
                           ←
                         </button>
                       )}
-                      {/* Move right */}
                       {i < images.length - 1 && (
                         <button
                           type="button"
-                          onClick={() => onMove(i, 1)}
+                          onClick={(e) => { e.stopPropagation(); onMove(i, 1); }}
                           className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px]"
                         >
                           →
                         </button>
                       )}
-                      {/* Remove */}
                       <button
                         type="button"
-                        onClick={() => onRemove(i)}
+                        onClick={(e) => { e.stopPropagation(); onRemove(i); }}
                         className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
                       >
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1474,6 +1442,44 @@ function ImagePickerSection({
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Color tag popover */}
+              {colorTagIndex === i && hasColors && (
+                <div
+                  ref={popoverRef}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white rounded-xl border border-gray-200 shadow-lg p-3 min-w-[140px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-[11px] text-gray-500 mb-2">컬러 지정</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedColors!.map((ck) => {
+                      const c = getColorByKey(ck);
+                      const isSelected = slot.colorKey === ck;
+                      return (
+                        <button
+                          key={ck}
+                          type="button"
+                          onClick={() => {
+                            onColorTag!(i, isSelected ? null : ck);
+                            setColorTagIndex(null);
+                          }}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors ${
+                            isSelected
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-200 bg-white text-gray-700"
+                          }`}
+                        >
+                          <span
+                            className={`w-3 h-3 rounded-full ${!isSelected && isLightColor(c?.hex || "#ccc") ? "border border-gray-300" : ""}`}
+                            style={{ backgroundColor: isSelected ? "white" : (c?.hex || "#ccc") }}
+                          />
+                          {c?.labelKo || ck}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           );

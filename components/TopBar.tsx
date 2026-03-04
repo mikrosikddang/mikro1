@@ -41,7 +41,7 @@ export default function TopBar() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`);
       searchInputRef.current?.blur();
     }
   };

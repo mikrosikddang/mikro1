@@ -178,7 +178,6 @@ export async function POST(req: NextRequest) {
       descriptionJson,
       mainImages,
       contentImages,
-      colorImages,
       variants,
     } = body as {
       title: string;
@@ -190,9 +189,8 @@ export async function POST(req: NextRequest) {
       categorySub?: string;
       description?: string;
       descriptionJson?: any;
-      mainImages: string[];
+      mainImages: { url: string; colorKey?: string | null }[];
       contentImages?: string[];
-      colorImages?: { colorKey: string; urls: string[] }[];
       variants: { color?: string; sizeLabel: string; stock: number }[];
     };
 
@@ -220,7 +218,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!mainImages || !Array.isArray(mainImages) || mainImages.length === 0) {
+    if (!mainImages || !Array.isArray(mainImages) || mainImages.length === 0 || !mainImages.every((img) => img && typeof img.url === "string")) {
       return NextResponse.json({ error: "대표 이미지를 1장 이상 올려주세요" }, { status: 400 });
     }
     if (mainImages.length > 10) {
@@ -260,13 +258,14 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create MAIN images
+      // Create MAIN images (with optional colorKey)
       await tx.productImage.createMany({
-        data: mainImages.map((url: string, i: number) => ({
+        data: mainImages.map((img, i) => ({
           productId: p.id,
-          url,
+          url: img.url,
           kind: "MAIN" as const,
           sortOrder: i,
+          colorKey: img.colorKey || null,
         })),
       });
 
@@ -280,35 +279,6 @@ export async function POST(req: NextRequest) {
             sortOrder: i,
           })),
         });
-      }
-
-      // Create color-specific MAIN images
-      if (colorImages && colorImages.length > 0) {
-        const colorImageRecords: Array<{
-          productId: string;
-          url: string;
-          kind: "MAIN";
-          sortOrder: number;
-          colorKey: string;
-        }> = [];
-
-        colorImages.forEach((colorImage) => {
-          colorImage.urls.forEach((url, index) => {
-            colorImageRecords.push({
-              productId: p.id,
-              url,
-              kind: "MAIN" as const,
-              sortOrder: index,
-              colorKey: colorImage.colorKey,
-            });
-          });
-        });
-
-        if (colorImageRecords.length > 0) {
-          await tx.productImage.createMany({
-            data: colorImageRecords,
-          });
-        }
       }
 
       // Create variants (normalized)
