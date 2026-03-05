@@ -22,7 +22,7 @@ type RoomInfo = {
   otherAvatarUrl: string | null;
 };
 
-export default function ChatRoomPage({ params }: { params: { roomId: string } }) {
+export default function ChatRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const [roomId, setRoomId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);

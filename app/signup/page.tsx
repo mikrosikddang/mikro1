@@ -12,17 +12,34 @@ function SignupForm() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState(searchParams.get("error") ? "소셜 로그인에 실패했습니다. 다시 시도해주세요." : "");
   const [loading, setLoading] = useState(false);
 
+  function formatPhone(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!email.trim() || !password.trim() || !passwordConfirm.trim()) {
+    if (!email.trim() || !phone.trim() || !password.trim() || !passwordConfirm.trim()) {
       setError("모든 필드를 입력해주세요");
+      return;
+    }
+
+    const normalizedPhone = formatPhone(phone.trim());
+    setPhone(normalizedPhone);
+
+    const phoneRegex = /^010-\d{4}-\d{4}$/;
+    if (!phoneRegex.test(normalizedPhone)) {
+      setError("전화번호는 010-0000-0000 형식으로 입력해주세요");
       return;
     }
 
@@ -45,6 +62,7 @@ function SignupForm() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           email: email.trim(),
+          phone: normalizedPhone,
           password: password.trim(),
         }),
       });
@@ -97,6 +115,21 @@ function SignupForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="이메일"
               autoComplete="email"
+              className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
+              onBlur={() => setPhone((prev) => formatPhone(prev))}
+              placeholder="전화번호 (010-0000-0000)"
+              autoComplete="tel"
+              inputMode="numeric"
+              maxLength={13}
               className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
               disabled={loading}
             />

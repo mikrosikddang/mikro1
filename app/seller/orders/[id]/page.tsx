@@ -49,9 +49,7 @@ interface Order {
   items: OrderItem[];
 }
 
-type Props = { params: Promise<{ id: string }> };
-
-export default function SellerOrderDetailPage({ params }: { params: { id: string } }) {
+export default function SellerOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);

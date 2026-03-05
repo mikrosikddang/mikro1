@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 /**
  * POST /api/auth/signup
- * Body: { email: string, password: string }
+ * Body: { email: string, phone: string, password: string }
  *
  * - 이메일 중복 검증
  * - 비밀번호 해시 저장 (bcrypt)
@@ -16,9 +16,9 @@ export const runtime = "nodejs";
  * - 자동 로그인 (쿠키 발급)
  */
 export async function POST(req: NextRequest) {
-  let body: { email?: string; password?: string; name?: string };
+  let body: { email?: string; phone?: string; password?: string; name?: string };
   try {
-    body = (await req.json()) as { email?: string; password?: string; name?: string };
+    body = (await req.json()) as { email?: string; phone?: string; password?: string; name?: string };
   } catch {
     return NextResponse.json(
       { error: "잘못된 요청입니다" },
@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { email, password, name } = body;
+  const { email, phone, password, name } = body;
 
   // 입력 검증
-  if (!email || !password) {
+  if (!email || !phone || !password) {
     return NextResponse.json(
-      { error: "이메일과 비밀번호를 입력해주세요" },
+      { error: "이메일, 전화번호, 비밀번호를 입력해주세요" },
       { status: 400 },
     );
   }
@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
   if (!emailRegex.test(email)) {
     return NextResponse.json(
       { error: "올바른 이메일 형식이 아닙니다" },
+      { status: 400 },
+    );
+  }
+
+  const phoneRegex = /^010-\d{4}-\d{4}$/;
+  if (!phoneRegex.test(phone)) {
+    return NextResponse.json(
+      { error: "전화번호는 010-0000-0000 형식으로 입력해주세요" },
       { status: 400 },
     );
   }
@@ -55,11 +63,19 @@ export async function POST(req: NextRequest) {
 
   try {
     // 중복 이메일 확인
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { phone }],
+      },
     });
 
     if (existingUser) {
+      if (existingUser.phone === phone) {
+        return NextResponse.json(
+          { error: "이미 사용 중인 전화번호입니다" },
+          { status: 409 },
+        );
+      }
       return NextResponse.json(
         { error: "이미 사용 중인 이메일입니다" },
         { status: 409 },
@@ -73,6 +89,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.create({
       data: {
         email,
+        phone,
         password: hashedPassword,
         role: "CUSTOMER",
         name: name?.trim() || undefined,
