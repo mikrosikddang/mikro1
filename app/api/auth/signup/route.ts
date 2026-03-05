@@ -53,10 +53,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 비밀번호 최소 길이
-  if (password.length < 6) {
+  // 비밀번호: 8자 이상 + 대/소문자 + 숫자 + 특수문자
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!passwordRegex.test(password)) {
     return NextResponse.json(
-      { error: "비밀번호는 최소 6자 이상이어야 합니다" },
+      { error: "비밀번호는 최소 8자, 대문자, 소문자, 숫자, 특수문자 혼용이어야 합니다" },
       { status: 400 },
     );
   }

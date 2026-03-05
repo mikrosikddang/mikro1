@@ -48,8 +48,9 @@ function SignupForm() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("비밀번호는 최소 6자 이상이어야 합니다");
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      setError("비밀번호는 최소 8자, 대문자, 소문자, 숫자, 특수문자 혼용이어야 합니다");
       return;
     }
 
@@ -101,7 +102,7 @@ function SignupForm() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="이름 (선택)"
+              placeholder="이름"
               autoComplete="name"
               className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
               disabled={loading}
@@ -140,7 +141,7 @@ function SignupForm() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호 (최소 6자)"
+              placeholder="비밀번호는 최소 8자, 대문자, 소문자, 숫자, 특수문자 혼용"
               autoComplete="new-password"
               className="w-full h-12 px-4 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors"
               disabled={loading}
