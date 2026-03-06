@@ -404,7 +404,7 @@ export default function SellerApplyPage() {
               disabled={submitting}
             />
             <p className="mt-1 text-[12px] text-gray-500">
-              전자상거래법에 따라 상점 페이지에 표시됩니다.
+              입점 심사 및 정산/세무 확인 용도로만 사용됩니다.
             </p>
           </div>
 

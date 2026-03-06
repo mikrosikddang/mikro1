@@ -15,45 +15,22 @@ export interface SellerShopHeaderProps {
   sellerId: string;
   shopName: string;
   bio?: string | null;
-  locationText?: string | null;
-  type?: string | null;
-  marketBuilding?: string | null;
-  floor?: string | null;
-  roomNo?: string | null;
   avatarUrl?: string | null;
   csEmail?: string | null;
-  bizRegNo?: string | null;
 }
 
 export default function SellerShopHeader({
   sellerId,
   shopName,
   bio,
-  locationText,
-  type,
-  marketBuilding,
-  floor,
-  roomNo,
   avatarUrl,
   csEmail,
-  bizRegNo,
 }: SellerShopHeaderProps) {
   const session = useSession();
   const isSelf = session ? session.userId === sellerId : false;
 
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
-
-  // Build legacy location string from old fields
-  const legacyLocationParts = [
-    marketBuilding,
-    floor ? `${floor}층` : null,
-    roomNo,
-  ].filter(Boolean);
-  const legacyLocation = legacyLocationParts.length > 0 ? legacyLocationParts.join(" · ") : null;
-
-  // Use new locationText if available, otherwise fall back to legacy
-  const displayLocation = locationText || legacyLocation;
 
   // CS button: only show when csEmail exists
   const csLink = csEmail ? `mailto:${csEmail}` : null;
@@ -88,16 +65,6 @@ export default function SellerShopHeader({
             {bio && (
               <p className="text-[14px] text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">
                 {bio}
-              </p>
-            )}
-            {displayLocation && (
-              <p className="text-[13px] text-gray-500">
-                {displayLocation}
-              </p>
-            )}
-            {bizRegNo && (
-              <p className="text-[12px] text-gray-400 mt-1">
-                사업자등록번호: {bizRegNo}
               </p>
             )}
           </div>

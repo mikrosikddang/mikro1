@@ -78,14 +78,8 @@ export default async function SellerShopPage({ params }: Props) {
           sellerId={sellerId}
           shopName={profile.shopName}
           bio={profile.bio}
-          locationText={profile.locationText}
-          type={profile.type}
-          marketBuilding={profile.marketBuilding}
-          floor={profile.floor}
-          roomNo={profile.roomNo}
           avatarUrl={profile.avatarUrl}
           csEmail={profile.csEmail}
-          bizRegNo={profile.bizRegNo}
         />
       </Container>
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
 
@@ -25,28 +26,28 @@ export default async function BrandsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
             {sellers.map((seller) => (
               <Link
                 key={seller.id}
                 href={`/s/${seller.userId}`}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
               >
-                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-[20px] font-bold text-gray-500 shadow-sm mb-2">
-                  {seller.shopName.charAt(0)}
-                </div>
-                <span className="text-[14px] font-medium text-gray-900 text-center">
-                  {seller.shopName}
-                </span>
-                {seller.type && (
-                  <span className="mt-1 text-[11px] text-gray-400">
-                    {seller.type}
-                  </span>
+                {seller.avatarUrl ? (
+                  <Image
+                    src={seller.avatarUrl}
+                    alt={seller.shopName}
+                    width={44}
+                    height={44}
+                    className="w-11 h-11 rounded-full object-cover bg-white shrink-0"
+                  />
+                ) : (
+                  <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-[18px] font-bold text-gray-500 shrink-0">
+                    {seller.shopName.charAt(0)}
+                  </div>
                 )}
-                <span className="mt-0.5 text-[11px] text-gray-400">
-                  {[seller.marketBuilding, seller.floor && `${seller.floor}층`]
-                    .filter(Boolean)
-                    .join(" ")}
+                <span className="text-[15px] font-medium text-gray-900 truncate">
+                  {seller.shopName}
                 </span>
               </Link>
             ))}
