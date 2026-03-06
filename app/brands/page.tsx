@@ -5,7 +5,7 @@ import Container from "@/components/Container";
 
 export default async function BrandsPage() {
   const sellers = await prisma.sellerProfile.findMany({
-    where: { status: "APPROVED" },
+    where: { status: "APPROVED", user: { role: "SELLER_ACTIVE" } },
     orderBy: { shopName: "asc" },
     include: { user: true },
   });

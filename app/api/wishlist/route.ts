@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -31,12 +32,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, isDeleted: true },
+    const product = await prisma.product.findFirst({
+      where: getPublicProductWhere({ id: productId }),
+      select: { id: true },
     });
 
-    if (!product || product.isDeleted) {
+    if (!product) {
       return NextResponse.json(
         { error: "상품을 찾을 수 없습니다" },
         { status: 404 },
@@ -107,18 +108,19 @@ export async function GET(req: NextRequest) {
             salePriceKrw: true,
             isActive: true,
             isDeleted: true,
+            seller: {
+              select: {
+                role: true,
+                sellerProfile: {
+                  select: { status: true, shopName: true },
+                },
+              },
+            },
             images: {
               where: { kind: "MAIN", colorKey: null },
               orderBy: { sortOrder: "asc" },
               take: 1,
               select: { url: true },
-            },
-            seller: {
-              select: {
-                sellerProfile: {
-                  select: { shopName: true },
-                },
-              },
             },
           },
         },
@@ -142,7 +144,11 @@ export async function GET(req: NextRequest) {
         salePriceKrw: w.product.salePriceKrw,
         imageUrl: w.product.images[0]?.url ?? null,
         shopName: w.product.seller.sellerProfile?.shopName ?? null,
-        isAvailable: w.product.isActive && !w.product.isDeleted,
+        isAvailable:
+          w.product.isActive &&
+          !w.product.isDeleted &&
+          w.product.seller.role === "SELLER_ACTIVE" &&
+          w.product.seller.sellerProfile?.status === "APPROVED",
         createdAt: w.createdAt,
       })),
       nextCursor,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -28,9 +29,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const where: Prisma.ProductWhereInput = {
-      isActive: true,
-      isDeleted: false,
+    const where: Prisma.ProductWhereInput = getPublicProductWhere({
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { categoryMain: { contains: q, mode: "insensitive" } },
@@ -39,7 +38,7 @@ export async function GET(req: NextRequest) {
         { variants: { some: { color: { contains: q, mode: "insensitive" } } } },
       ],
       ...(cursor && { createdAt: { lt: new Date(cursor) } }),
-    };
+    });
 
     const [products, totalCount] = await Promise.all([
       prisma.product.findMany({

@@ -15,6 +15,7 @@ import ProductSellerActions from "./ProductSellerActions";
 import ReviewSection, { ReviewSummary } from "./ReviewSection";
 import InquirySection from "./InquirySection";
 import ScrollToTop from "@/components/ScrollToTop";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -24,8 +25,8 @@ export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
 
   const [product, session] = await Promise.all([
-    prisma.product.findUnique({
-      where: { id },
+    prisma.product.findFirst({
+      where: getPublicProductWhere({ id }),
       include: {
         images: { orderBy: { sortOrder: "asc" } },
         seller: { include: { sellerProfile: true } },
@@ -35,7 +36,7 @@ export default async function ProductDetailPage({ params }: Props) {
     getSession(),
   ]);
 
-  if (!product || product.isDeleted || !product.isActive) notFound();
+  if (!product) notFound();
 
   const shopName = product.seller.sellerProfile?.shopName ?? "알수없음";
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -25,8 +26,8 @@ export async function GET(
     const limit = Math.min(Number(searchParams.get("limit")) || 20, 50);
 
     // Verify product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    const product = await prisma.product.findFirst({
+      where: getPublicProductWhere({ id: productId }),
       select: { id: true },
     });
 

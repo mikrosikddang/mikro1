@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -26,8 +27,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const session = await getSession();
 
     // Verify product exists and get sellerId
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    const product = await prisma.product.findFirst({
+      where: getPublicProductWhere({ id: productId }),
       select: { id: true, sellerId: true },
     });
 
@@ -144,22 +145,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // Verify product exists and is active
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, isDeleted: true, isActive: true },
+    const product = await prisma.product.findFirst({
+      where: getPublicProductWhere({ id: productId }),
+      select: { id: true },
     });
 
     if (!product) {
       return NextResponse.json(
         { error: "상품을 찾을 수 없습니다" },
         { status: 404 },
-      );
-    }
-
-    if (product.isDeleted || !product.isActive) {
-      return NextResponse.json(
-        { error: "판매 중인 상품이 아닙니다" },
-        { status: 400 },
       );
     }
 

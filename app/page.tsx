@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import HomeClientView from "@/components/HomeClientView";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 import {
   MAIN_CATEGORIES,
   getMidCategories,
@@ -49,7 +50,7 @@ export default async function HomePage({ searchParams }: Props) {
   // 상품이 존재하는 categoryMain 목록 조회
   const activeCats = await prisma.product.groupBy({
     by: ['categoryMain'],
-    where: { isActive: true, isDeleted: false },
+    where: getPublicProductWhere(),
     _count: true,
   });
   const activeMainCategories = activeCats
@@ -57,9 +58,7 @@ export default async function HomePage({ searchParams }: Props) {
     .map(r => r.categoryMain!);
 
   const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      isDeleted: false,
+    where: getPublicProductWhere({
       ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
       // Search query
       ...(q ? {
@@ -77,7 +76,7 @@ export default async function HomePage({ searchParams }: Props) {
       ...(!q && sub ? { categorySub: sub } : {}),
       // Fallback to old category for backward compatibility
       ...(!q && dbCategory && !main ? { category: dbCategory } : {}),
-    },
+    }),
     orderBy: { createdAt: "desc" },
     take: 20,
     include: {

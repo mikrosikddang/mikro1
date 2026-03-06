@@ -11,6 +11,7 @@ type Product = {
   id: string;
   title: string;
   priceKrw: number;
+  salePriceKrw?: number | null;
   sellerId: string;
   createdAt: Date;
   images: { url: string }[];
@@ -84,6 +85,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
           id={product.id}
           title={product.title}
           priceKrw={product.priceKrw}
+          salePriceKrw={product.salePriceKrw}
           images={product.images.map((i) => ({ url: i.url }))}
           shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
           sellerId={product.sellerId}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     const safeIds = ids.slice(0, 50);
 
     const products = await prisma.product.findMany({
-      where: { id: { in: safeIds }, isActive: true, isDeleted: false },
+      where: getPublicProductWhere({ id: { in: safeIds } }),
       include: {
         images: { where: { kind: "MAIN" }, orderBy: { sortOrder: "asc" } },
         seller: { include: { sellerProfile: true } },

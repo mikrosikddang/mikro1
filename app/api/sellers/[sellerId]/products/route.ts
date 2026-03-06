@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -29,16 +30,14 @@ export async function GET(request: Request, { params }: Props) {
     );
 
     // Build query conditions
-    const where = {
+    const where = getPublicProductWhere({
       sellerId,
-      isActive: true,
-      isDeleted: false,
       ...(cursor && {
         createdAt: {
           lt: new Date(cursor),
         },
       }),
-    };
+    });
 
     // Fetch products with pagination
     const products = await prisma.product.findMany({

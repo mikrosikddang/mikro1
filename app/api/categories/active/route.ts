@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicProductWhere } from "@/lib/publicVisibility";
 
 /**
  * GET /api/categories/active
@@ -9,7 +10,7 @@ export async function GET() {
   try {
     const result = await prisma.product.groupBy({
       by: ["categoryMain"],
-      where: { isActive: true, isDeleted: false },
+      where: getPublicProductWhere(),
       _count: true,
     });
 

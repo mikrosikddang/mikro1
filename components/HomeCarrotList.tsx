@@ -9,6 +9,7 @@ type Product = {
   id: string;
   title: string;
   priceKrw: number;
+  salePriceKrw?: number | null;
   sellerId: string;
   images: { url: string }[];
   seller: {
@@ -35,6 +36,11 @@ function CarrotListItem({ product }: { product: Product }) {
 
   const imageUrl = product.images[0]?.url || "/placeholder.png";
   const shopName = product.seller.sellerProfile?.shopName || "알수없음";
+  const hasDiscount =
+    product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
+  const discountRate = hasDiscount
+    ? Math.round((1 - product.salePriceKrw! / product.priceKrw) * 100)
+    : 0;
 
   return (
     <>
@@ -77,13 +83,29 @@ function CarrotListItem({ product }: { product: Product }) {
               {shopName}
             </p>
 
-            {/* Bottom row: price only (wishlist moved to menu) */}
+            {/* Bottom row: price */}
             <div className="flex items-end justify-between mt-auto pt-1">
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-[16px] font-semibold text-black tabular-nums">
-                  {product.priceKrw.toLocaleString()}원
-                </span>
-              </div>
+              {hasDiscount ? (
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[13px] font-bold text-red-500">
+                      {discountRate}%
+                    </span>
+                    <span className="text-[16px] font-semibold text-black tabular-nums">
+                      {product.salePriceKrw!.toLocaleString()}원
+                    </span>
+                  </div>
+                  <span className="text-[12px] text-gray-400 line-through tabular-nums">
+                    {product.priceKrw.toLocaleString()}원
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-[16px] font-semibold text-black tabular-nums">
+                    {product.priceKrw.toLocaleString()}원
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
