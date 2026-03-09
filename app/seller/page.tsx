@@ -195,10 +195,10 @@ export default async function SellerDashboardPage() {
             채팅 관리
           </Link>
           <Link
-            href="/seller/shop"
+            href="/seller/settings"
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
-            배송/기타 정보
+            상점 설정
           </Link>
         </div>
       </div>

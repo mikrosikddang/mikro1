@@ -13,8 +13,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "mikro – 동대문 패션 플랫폼",
-  description: "동대문 패션을 쉽고 빠르게",
+  title: "mikro – 미크로브랜드",
+  description: "작지만 스토리가 있는 패션",
 };
 
 export const viewport: Viewport = {

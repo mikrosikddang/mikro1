@@ -137,6 +137,7 @@ model SellerProfile {
 
   bizRegNo       String?              // 사업자등록번호 (전자상거래법 표시용)
   bizRegImageUrl String?              // S3 URL
+  bizRegSubmittedAt DateTime?         // 사업자 정보 제출 시점
   avatarUrl      String?              // Profile avatar URL
   bio            String?              @db.VarChar(160) // 소개글 160자
   locationText   String?              @db.VarChar(60)  // 위치 표시용 텍스트 (예: "동대문 · A층 · 101")
@@ -149,6 +150,11 @@ model SellerProfile {
   exchangeGuide  String?              @db.Text         // 교환/반품 안내
   refundGuide    String?              @db.Text         // 환불 안내
   etcGuide       String?              @db.Text         // 기타 안내
+  settlementBank String?              @db.VarChar(40)  // 정산 은행
+  settlementAccountNo String?         @db.VarChar(60)  // 정산 계좌번호
+  settlementAccountHolder String?     @db.VarChar(40)  // 정산 예금주
+  settlementSubmittedAt DateTime?     // 정산 계좌 제출 시점
+  complianceReviewPending Boolean      @default(false) // 사업자/정산 정보 변경 검토 필요 여부
   status         SellerApprovalStatus @default(PENDING)
   rejectedReason String?
 

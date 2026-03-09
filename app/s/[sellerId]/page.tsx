@@ -84,7 +84,6 @@ export default async function SellerShopPage({ params }: Props) {
           shopName={profile.shopName}
           bio={profile.bio}
           avatarUrl={profile.avatarUrl}
-          csEmail={profile.csEmail}
         />
       </Container>
 

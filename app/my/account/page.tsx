@@ -14,6 +14,12 @@ type UserData = {
   createdAt: string;
 };
 
+type PendingConnect = {
+  provider: "kakao" | "naver";
+  providerName: string;
+  providerPhone: string;
+};
+
 export default function AccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -35,6 +41,12 @@ export default function AccountPage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
 
+  // Social connect mismatch confirmation
+  const [pendingConnect, setPendingConnect] = useState<PendingConnect | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectSuccess, setConnectSuccess] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/user/me")
       .then((res) => {
@@ -55,6 +67,49 @@ export default function AccountPage() {
       .catch((err) => setInfoError(err.message))
       .finally(() => setLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("/api/auth/connect/pending");
+        if (!res.ok) return;
+        const data = await res.json();
+        setPendingConnect(data.pending ?? null);
+      } catch {
+        // ignore
+      }
+    };
+    fetchPending();
+
+    const params = new URLSearchParams(window.location.search);
+    const successProvider = params.get("connectSuccess");
+    const errorCode = params.get("connectError");
+    if (successProvider === "kakao" || successProvider === "naver") {
+      setConnectSuccess(`${successProvider === "kakao" ? "카카오" : "네이버"} 계정이 연동되었습니다`);
+      params.delete("connectSuccess");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
+    }
+    if (errorCode) {
+      const errorMap: Record<string, string> = {
+        kakao_failed: "카카오 연동에 실패했습니다",
+        kakao_state: "카카오 연동 검증에 실패했습니다. 다시 시도해주세요",
+        kakao_token: "카카오 인증 토큰 발급에 실패했습니다",
+        kakao_profile: "카카오 프로필 조회에 실패했습니다",
+        kakao_required_info: "카카오 계정의 이름/전화번호 동의가 필요합니다",
+        kakao_already_linked: "이미 다른 계정에 연동된 카카오 계정입니다",
+        naver_failed: "네이버 연동에 실패했습니다",
+        naver_state: "네이버 연동 검증에 실패했습니다. 다시 시도해주세요",
+        naver_token: "네이버 인증 토큰 발급에 실패했습니다",
+        naver_profile: "네이버 프로필 조회에 실패했습니다",
+        naver_required_info: "네이버 계정의 이름/전화번호 동의가 필요합니다",
+        naver_already_linked: "이미 다른 계정에 연동된 네이버 계정입니다",
+      };
+      setConnectError(errorMap[errorCode] ?? "소셜 계정 연동에 실패했습니다");
+      params.delete("connectError");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
+    }
+  }, [user]);
 
   const handleInfoSave = async () => {
     setInfoSaving(true);
@@ -159,6 +214,48 @@ export default function AccountPage() {
   const inputClass =
     "w-full px-3 py-2.5 rounded-lg border border-gray-200 text-[14px] focus:outline-none focus:border-black transition-colors";
   const labelClass = "block text-[13px] font-medium text-gray-700 mb-1";
+
+  const startConnect = (provider: "kakao" | "naver") => {
+    setConnectError(null);
+    window.location.href = `/api/auth/${provider}/connect`;
+  };
+
+  const handlePendingDecision = async (applyUpdates: boolean) => {
+    setConnectLoading(true);
+    setConnectError(null);
+    try {
+      const res = await fetch("/api/auth/connect/pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applyUpdates }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "연동 처리에 실패했습니다");
+      }
+
+      if (data.cancelled) {
+        setPendingConnect(null);
+        setConnectSuccess("소셜 계정 연동을 취소했습니다");
+        return;
+      }
+
+      setPendingConnect(null);
+      setConnectSuccess("소셜 계정 연동이 완료되었습니다");
+      const meRes = await fetch("/api/user/me");
+      if (meRes.ok) {
+        const me = await meRes.json();
+        setUser(me);
+        setName(me.name ?? "");
+        setPhone(me.phone ?? "");
+      }
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : "연동 처리에 실패했습니다");
+    } finally {
+      setConnectLoading(false);
+    }
+  };
 
   return (
     <div className="py-4 px-4">
@@ -299,6 +396,41 @@ export default function AccountPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
         <h2 className="text-[16px] font-bold text-black mb-4">소셜 계정 연동</h2>
 
+        {pendingConnect && (
+          <div className="mb-4 p-3 bg-amber-50 rounded-lg">
+            <p className="text-[13px] text-amber-800 font-medium mb-2">
+              {pendingConnect.provider === "kakao" ? "카카오" : "네이버"} 정보와 현재 회원정보가 다릅니다
+            </p>
+            <div className="space-y-1 text-[12px] text-amber-900">
+              <p>현재 정보: {user.name ?? "-"} / {user.phone ?? "-"}</p>
+              <p>
+                소셜 정보: {pendingConnect.providerName} / {pendingConnect.providerPhone}
+              </p>
+            </div>
+            <p className="mt-2 text-[12px] text-amber-800">
+              기존 정보를 수정해야만 연동할 수 있습니다.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => handlePendingDecision(true)}
+                disabled={connectLoading}
+                className="flex-1 h-9 rounded-lg bg-black text-white text-[13px] font-medium disabled:opacity-50"
+              >
+                {connectLoading ? "처리 중..." : "기존 정보 수정 후 연동"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePendingDecision(false)}
+                disabled={connectLoading}
+                className="flex-1 h-9 rounded-lg bg-gray-100 text-gray-700 text-[13px] font-medium disabled:opacity-50"
+              >
+                연동 취소
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           {/* Kakao */}
           <div className="flex items-center justify-between">
@@ -313,7 +445,7 @@ export default function AccountPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => alert("준비 중입니다")}
+                onClick={() => startConnect("kakao")}
                 className="px-3 py-1.5 rounded-lg bg-gray-100 text-[13px] text-gray-600 font-medium active:bg-gray-200 transition-colors"
               >
                 연동하기
@@ -334,7 +466,7 @@ export default function AccountPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => alert("준비 중입니다")}
+                onClick={() => startConnect("naver")}
                 className="px-3 py-1.5 rounded-lg bg-gray-100 text-[13px] text-gray-600 font-medium active:bg-gray-200 transition-colors"
               >
                 연동하기
@@ -350,6 +482,13 @@ export default function AccountPage() {
               {providerLabel} 계정이 유일한 로그인 수단입니다. 연동 해제하려면 먼저 비밀번호를 설정하세요.
             </p>
           </div>
+        )}
+
+        {connectError && (
+          <p className="mt-3 text-[12px] text-red-500">{connectError}</p>
+        )}
+        {connectSuccess && (
+          <p className="mt-3 text-[13px] text-green-600">{connectSuccess}</p>
         )}
       </div>
 

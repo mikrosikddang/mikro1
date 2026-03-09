@@ -6,17 +6,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
+import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
 
 export interface SellerShopHeaderProps {
   sellerId: string;
   shopName: string;
   bio?: string | null;
   avatarUrl?: string | null;
-  csEmail?: string | null;
 }
 
 export default function SellerShopHeader({
@@ -24,17 +24,53 @@ export default function SellerShopHeader({
   shopName,
   bio,
   avatarUrl,
-  csEmail,
 }: SellerShopHeaderProps) {
   const session = useSession();
   const isSelf = session ? session.userId === sellerId : false;
 
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [viewMode, setViewMode] = useState<HomeFeedViewMode>(() => {
+    if (typeof window === "undefined") return "carrot";
+    return getHomeFeedViewMode();
+  });
 
-  // CS button: only show when csEmail exists
-  const csLink = csEmail ? `mailto:${csEmail}` : null;
-  const csLabel = csEmail ? "이메일 문의" : null;
+  useEffect(() => {
+    const handleViewModeChange = (event: CustomEvent<{ mode: HomeFeedViewMode }>) => {
+      setViewMode(event.detail.mode);
+    };
+    window.addEventListener("homeFeedViewModeChange", handleViewModeChange as EventListener);
+    return () => {
+      window.removeEventListener("homeFeedViewModeChange", handleViewModeChange as EventListener);
+    };
+  }, []);
+
+  const handleToggleViewMode = () => {
+    const nextMode: HomeFeedViewMode = viewMode === "feed" ? "carrot" : "feed";
+    setHomeFeedViewMode(nextMode);
+    setViewMode(nextMode);
+    window.dispatchEvent(new CustomEvent("homeFeedViewModeChange", { detail: { mode: nextMode } }));
+  };
+
+  const handleShareProfile = async () => {
+    const profileUrl = `${window.location.origin}/s/${sellerId}`;
+    const shareData = {
+      title: shopName,
+      text: `${shopName} 상점 프로필`,
+      url: profileUrl,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(profileUrl);
+      alert("프로필 링크가 복사되었습니다");
+    } catch {
+      alert("프로필 공유에 실패했습니다");
+    }
+  };
 
   return (
     <>
@@ -96,15 +132,20 @@ export default function SellerShopHeader({
               <div className="flex-1">
                 <FollowButton sellerId={sellerId} size="md" className="w-full h-11" />
               </div>
-              {/* CS Button - only shown when csEmail exists */}
-              {csLink && csLabel && (
-                <Link
-                  href={csLink}
-                  className="flex-1 h-11 bg-black text-white rounded-lg text-[15px] font-medium flex items-center justify-center active:bg-gray-800 transition-colors"
-                >
-                  {csLabel}
-                </Link>
-              )}
+              <button
+                type="button"
+                onClick={handleToggleViewMode}
+                className="flex-1 h-11 bg-gray-100 text-black rounded-lg text-[14px] font-medium active:bg-gray-200 transition-colors"
+              >
+                {viewMode === "feed" ? "리스트보기" : "피드보기"}
+              </button>
+              <button
+                type="button"
+                onClick={handleShareProfile}
+                className="flex-1 h-11 bg-black text-white rounded-lg text-[14px] font-medium active:bg-gray-800 transition-colors"
+              >
+                프로필공유
+              </button>
             </>
           )}
         </div>

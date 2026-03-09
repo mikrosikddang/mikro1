@@ -63,7 +63,48 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { shopName, bio, locationText, csEmail, csPhone, csHours, avatarUrl, bizRegNo, csKakaoId, csAddress, shippingGuide, exchangeGuide, refundGuide, etcGuide } = body;
+    const {
+      shopName,
+      bio,
+      locationText,
+      type,
+      marketBuilding,
+      floor,
+      roomNo,
+      managerPhone,
+      csEmail,
+      csPhone,
+      csHours,
+      avatarUrl,
+      bizRegNo,
+      bizRegImageUrl,
+      csKakaoId,
+      csAddress,
+      shippingGuide,
+      exchangeGuide,
+      refundGuide,
+      etcGuide,
+      settlementBank,
+      settlementAccountNo,
+      settlementAccountHolder,
+    } = body;
+
+    const current = await prisma.sellerProfile.findUnique({
+      where: { userId: session.userId },
+    });
+
+    if (!current) {
+      return NextResponse.json(
+        { error: "판매자 프로필을 찾을 수 없습니다" },
+        { status: 404 }
+      );
+    }
+
+    const normalize = (value: unknown) => {
+      if (typeof value !== "string") return null;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
 
     // Validation
     if (shopName !== undefined && shopName !== null) {
@@ -86,6 +127,41 @@ export async function PATCH(req: NextRequest) {
     if (locationText !== undefined && locationText && locationText.length > 60) {
       return NextResponse.json(
         { error: "위치는 60자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (type !== undefined && type && type.length > 30) {
+      return NextResponse.json(
+        { error: "상점 유형은 30자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (marketBuilding !== undefined && marketBuilding && marketBuilding.length > 40) {
+      return NextResponse.json(
+        { error: "상가명은 40자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (floor !== undefined && floor && floor.length > 20) {
+      return NextResponse.json(
+        { error: "층 정보는 20자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (roomNo !== undefined && roomNo && roomNo.length > 20) {
+      return NextResponse.json(
+        { error: "호수 정보는 20자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (managerPhone !== undefined && managerPhone && managerPhone.length > 30) {
+      return NextResponse.json(
+        { error: "담당자 전화번호는 30자 이하여야 합니다" },
         { status: 400 }
       );
     }
@@ -115,6 +191,71 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    if (bizRegNo !== undefined && bizRegNo) {
+      const bizRegNoRegex = /^\d{3}-\d{2}-\d{5}$/;
+      if (!bizRegNoRegex.test(bizRegNo.trim())) {
+        return NextResponse.json(
+          { error: "사업자등록번호는 000-00-00000 형식으로 입력해주세요" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const nextSettlementBank =
+      settlementBank !== undefined ? normalize(settlementBank) : normalize(current.settlementBank);
+    const nextSettlementAccountNo =
+      settlementAccountNo !== undefined ? normalize(settlementAccountNo) : normalize(current.settlementAccountNo);
+    const nextSettlementAccountHolder =
+      settlementAccountHolder !== undefined ? normalize(settlementAccountHolder) : normalize(current.settlementAccountHolder);
+
+    const hasAnySettlementField =
+      Boolean(nextSettlementBank) ||
+      Boolean(nextSettlementAccountNo) ||
+      Boolean(nextSettlementAccountHolder);
+
+    if (
+      hasAnySettlementField &&
+      (!nextSettlementBank || !nextSettlementAccountNo || !nextSettlementAccountHolder)
+    ) {
+      return NextResponse.json(
+        { error: "정산 계좌 정보는 은행/계좌번호/예금주를 모두 입력해주세요" },
+        { status: 400 }
+      );
+    }
+
+    if (nextSettlementBank && nextSettlementBank.length > 40) {
+      return NextResponse.json(
+        { error: "정산 은행명은 40자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+    if (nextSettlementAccountNo && nextSettlementAccountNo.length > 60) {
+      return NextResponse.json(
+        { error: "정산 계좌번호는 60자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+    if (nextSettlementAccountHolder && nextSettlementAccountHolder.length > 40) {
+      return NextResponse.json(
+        { error: "예금주명은 40자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    const nextBizRegNo = bizRegNo !== undefined ? normalize(bizRegNo) : normalize(current.bizRegNo);
+    const nextBizRegImageUrl =
+      bizRegImageUrl !== undefined ? normalize(bizRegImageUrl) : normalize(current.bizRegImageUrl);
+    const settlementTouched =
+      (settlementBank !== undefined && normalize(settlementBank) !== normalize(current.settlementBank)) ||
+      (settlementAccountNo !== undefined &&
+        normalize(settlementAccountNo) !== normalize(current.settlementAccountNo)) ||
+      (settlementAccountHolder !== undefined &&
+        normalize(settlementAccountHolder) !== normalize(current.settlementAccountHolder));
+    const bizTouched =
+      (bizRegNo !== undefined && nextBizRegNo !== normalize(current.bizRegNo)) ||
+      (bizRegImageUrl !== undefined && nextBizRegImageUrl !== normalize(current.bizRegImageUrl));
+    const complianceTouched = settlementTouched || bizTouched;
+
     // SellerProfile 업데이트
     const updated = await prisma.sellerProfile.update({
       where: { userId: session.userId },
@@ -122,17 +263,35 @@ export async function PATCH(req: NextRequest) {
         ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
         ...(bio !== undefined && { bio: bio?.trim() || null }),
         ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
+        ...(type !== undefined && { type: type?.trim() || null }),
+        ...(marketBuilding !== undefined && { marketBuilding: marketBuilding?.trim() || null }),
+        ...(floor !== undefined && { floor: floor?.trim() || null }),
+        ...(roomNo !== undefined && { roomNo: roomNo?.trim() || null }),
+        ...(managerPhone !== undefined && { managerPhone: managerPhone?.trim() || null }),
         ...(csEmail !== undefined && { csEmail: csEmail?.trim() || null }),
         ...(csPhone !== undefined && { csPhone: csPhone?.trim() || null }),
         ...(csHours !== undefined && { csHours: csHours?.trim() || null }),
         ...(avatarUrl !== undefined && { avatarUrl }),
         ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
+        ...(bizRegImageUrl !== undefined && { bizRegImageUrl: bizRegImageUrl?.trim() || null }),
         ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
         ...(csAddress !== undefined && { csAddress: csAddress?.trim() || null }),
         ...(shippingGuide !== undefined && { shippingGuide: shippingGuide?.trim() || null }),
         ...(exchangeGuide !== undefined && { exchangeGuide: exchangeGuide?.trim() || null }),
         ...(refundGuide !== undefined && { refundGuide: refundGuide?.trim() || null }),
         ...(etcGuide !== undefined && { etcGuide: etcGuide?.trim() || null }),
+        ...(settlementBank !== undefined && { settlementBank: settlementBank?.trim() || null }),
+        ...(settlementAccountNo !== undefined && {
+          settlementAccountNo: settlementAccountNo?.trim() || null,
+        }),
+        ...(settlementAccountHolder !== undefined && {
+          settlementAccountHolder: settlementAccountHolder?.trim() || null,
+        }),
+        ...(bizTouched &&
+          (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),
+        ...(settlementTouched &&
+          hasAnySettlementField && { settlementSubmittedAt: new Date() }),
+        ...(complianceTouched && { complianceReviewPending: true }),
       },
     });
 
