@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSession, canAccessSellerFeatures } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { buildDescriptionInitialValues } from "@/lib/descriptionSchema";
 import ProductForm, { type ProductFormInitialValues } from "@/components/ProductForm";
+import { hasSellerPortalAccess } from "@/lib/sellerPortal";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -10,7 +11,7 @@ export default async function EditProductPage({ params }: Props) {
   const { id } = await params;
 
   const session = await getSession();
-  if (!session || !canAccessSellerFeatures(session.role)) notFound();
+  if (!session || !(await hasSellerPortalAccess(session))) notFound();
 
   const product = await prisma.product.findUnique({
     where: { id },

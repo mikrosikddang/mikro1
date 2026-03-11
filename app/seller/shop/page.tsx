@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { SellerKind, SocialChannelType } from "@prisma/client";
+import {
+  SELLER_KIND_OPTIONS,
+  SOCIAL_CHANNEL_OPTIONS,
+  buildDefaultCreatorSlug,
+  isOfflineSellerKind,
+  needsCreatorProfile,
+} from "@/lib/sellerTypes";
 
 type ContactType = "kakao" | "phone" | "other";
 
@@ -29,6 +37,7 @@ export default function ShopManagePage() {
   const [shopName, setShopName] = useState("");
   const [bio, setBio] = useState("");
   const [locationText, setLocationText] = useState("");
+  const [sellerKind, setSellerKind] = useState<SellerKind>(SellerKind.WHOLESALE_STORE);
 
   // Seller apply fields (editable)
   const [shopType, setShopType] = useState("");
@@ -39,6 +48,12 @@ export default function ShopManagePage() {
   const [managerPhone, setManagerPhone] = useState("");
   const [bizRegNo, setBizRegNo] = useState("");
   const [bizRegImageUrl, setBizRegImageUrl] = useState("");
+  const [creatorSlug, setCreatorSlug] = useState("");
+  const [socialChannelType, setSocialChannelType] = useState<SocialChannelType | "">("");
+  const [socialChannelUrl, setSocialChannelUrl] = useState("");
+  const [followerCount, setFollowerCount] = useState("");
+  const [isBusinessSeller, setIsBusinessSeller] = useState(true);
+  const [commissionRateBps, setCommissionRateBps] = useState("1200");
 
   // CS fields
   const [contactType, setContactType] = useState<ContactType>("phone");
@@ -68,6 +83,8 @@ export default function ShopManagePage() {
 
   const getResolvedMarketBuilding = () =>
     marketBuilding === "기타" ? marketBuildingCustom.trim() : marketBuilding;
+  const showOfflineFields = isOfflineSellerKind(sellerKind);
+  const showCreatorFields = needsCreatorProfile(sellerKind);
 
   useEffect(() => {
     fetch("/api/seller/profile")
@@ -79,6 +96,7 @@ export default function ShopManagePage() {
         setShopName(data.shopName ?? "");
         setBio(data.bio ?? "");
         setLocationText(data.locationText ?? "");
+        setSellerKind(data.sellerKind ?? SellerKind.WHOLESALE_STORE);
         setShopType(data.type ?? "");
 
         const isPreset = MARKET_BUILDINGS.slice(0, -1).includes(data.marketBuilding ?? "");
@@ -89,6 +107,18 @@ export default function ShopManagePage() {
         setManagerPhone(data.managerPhone ?? "");
         setBizRegNo(data.bizRegNo ?? "");
         setBizRegImageUrl(data.bizRegImageUrl ?? "");
+        setCreatorSlug(
+          data.creatorSlug ?? buildDefaultCreatorSlug(data.shopName ?? "")
+        );
+        setSocialChannelType(data.socialChannelType ?? "");
+        setSocialChannelUrl(data.socialChannelUrl ?? "");
+        setFollowerCount(
+          data.followerCount != null ? String(data.followerCount) : ""
+        );
+        setIsBusinessSeller(data.isBusinessSeller ?? true);
+        setCommissionRateBps(
+          data.commissionRateBps != null ? String(data.commissionRateBps) : "1200"
+        );
 
         setCsPhone(data.csPhone ?? "");
         setCsKakaoId(data.csKakaoId ?? "");
@@ -147,16 +177,46 @@ export default function ShopManagePage() {
       setError("상점 유형을 선택해주세요");
       return;
     }
-    if (!getResolvedMarketBuilding()) {
+    if (showOfflineFields && !getResolvedMarketBuilding()) {
       setError("상가명을 입력해주세요");
       return;
     }
-    if (!floor.trim() || !roomNo.trim()) {
+    if (showOfflineFields && (!floor.trim() || !roomNo.trim())) {
       setError("층/호수를 입력해주세요");
       return;
     }
     if (!managerPhone.trim()) {
       setError("담당자 연락처를 입력해주세요");
+      return;
+    }
+    if (showCreatorFields && !creatorSlug.trim()) {
+      setError("크리에이터 슬러그를 입력해주세요");
+      return;
+    }
+    if (
+      showCreatorFields &&
+      !/^[a-z0-9][a-z0-9-_]{1,39}$/.test(creatorSlug.trim())
+    ) {
+      setError("크리에이터 슬러그 형식을 확인해주세요");
+      return;
+    }
+    if (
+      (sellerKind === SellerKind.INFLUENCER || sellerKind === SellerKind.HYBRID) &&
+      (!socialChannelType || !socialChannelUrl.trim())
+    ) {
+      setError("대표 SNS 채널 정보를 입력해주세요");
+      return;
+    }
+    if (socialChannelUrl.trim() && !/^https?:\/\//.test(socialChannelUrl.trim())) {
+      setError("대표 SNS 채널 URL은 http 또는 https로 시작해야 합니다");
+      return;
+    }
+    if (followerCount.trim() && !/^\d+$/.test(followerCount.trim())) {
+      setError("팔로워 수는 숫자로 입력해주세요");
+      return;
+    }
+    if (!commissionRateBps.trim() || !/^\d+$/.test(commissionRateBps.trim())) {
+      setError("기본 수수료율은 숫자로 입력해주세요");
       return;
     }
 
@@ -190,13 +250,20 @@ export default function ShopManagePage() {
           shopName: shopName.trim(),
           bio: bio.trim() || null,
           locationText: locationText.trim() || null,
+          sellerKind,
           type: shopType.trim(),
-          marketBuilding: getResolvedMarketBuilding() || null,
-          floor: floor.trim() || null,
-          roomNo: roomNo.trim() || null,
+          marketBuilding: showOfflineFields ? getResolvedMarketBuilding() || null : null,
+          floor: showOfflineFields ? floor.trim() || null : null,
+          roomNo: showOfflineFields ? roomNo.trim() || null : null,
           managerPhone: managerPhone.trim() || null,
           bizRegNo: formatBizRegNo(bizRegNo.trim()) || null,
           bizRegImageUrl: bizRegImageUrl || null,
+          creatorSlug: showCreatorFields ? creatorSlug.trim() : null,
+          socialChannelType: socialChannelType || null,
+          socialChannelUrl: socialChannelUrl.trim() || null,
+          followerCount: followerCount.trim() ? Number(followerCount.trim()) : null,
+          isBusinessSeller,
+          commissionRateBps: Number(commissionRateBps.trim()),
           csPhone: csPhoneValue,
           csKakaoId: csKakaoIdValue,
           csEmail: csEmailValue,
@@ -261,7 +328,7 @@ export default function ShopManagePage() {
       <div className="mb-4">
         <h1 className="text-[20px] font-bold text-black">상점 설정</h1>
         <p className="text-[14px] text-gray-500 mt-1">
-          가입 정보, CS/배송 정보, 정산 계좌를 통합 관리합니다
+          가입 정보, 공동구매 정보, CS/배송 정보, 정산 계좌를 통합 관리합니다
         </p>
       </div>
 
@@ -274,6 +341,38 @@ export default function ShopManagePage() {
       {/* Section 1: 기본/입점 정보 */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
         <h2 className="text-[15px] font-bold text-black mb-4">기본 · 입점 정보</h2>
+
+        <div className="mb-4">
+          <label className={labelClass}>입점 유형</label>
+          <div className="grid grid-cols-2 gap-2">
+            {SELLER_KIND_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setSellerKind(option.value);
+                  if (!creatorSlug.trim() && option.value !== SellerKind.WHOLESALE_STORE) {
+                    setCreatorSlug(buildDefaultCreatorSlug(shopName));
+                  }
+                }}
+                className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                  sellerKind === option.value
+                    ? "border-black bg-gray-900 text-white"
+                    : "border-gray-200 bg-white text-gray-700"
+                }`}
+              >
+                <div className="text-[13px] font-semibold">{option.label}</div>
+                <div
+                  className={`mt-1 text-[12px] ${
+                    sellerKind === option.value ? "text-gray-300" : "text-gray-500"
+                  }`}
+                >
+                  {option.description}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="mb-3">
           <label className={labelClass}>상점명</label>
@@ -311,6 +410,88 @@ export default function ShopManagePage() {
           />
         </div>
 
+        {showCreatorFields && (
+          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-3 text-[14px] font-bold text-black">크리에이터 정보</h3>
+            <div className="mb-3">
+              <label className={labelClass}>크리에이터 슬러그</label>
+              <input
+                type="text"
+                value={creatorSlug}
+                onChange={(e) =>
+                  setCreatorSlug(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-_]+/g, "-")
+                      .replace(/-{2,}/g, "-")
+                      .replace(/^-+|-+$/g, "")
+                  )
+                }
+                className={inputClass}
+                placeholder="예: mikro-live"
+              />
+              <p className="mt-1 text-[12px] text-gray-500">
+                공유 링크의 ref 코드로 사용됩니다.
+              </p>
+            </div>
+
+            <div className="mb-3">
+              <label className={labelClass}>대표 SNS 채널</label>
+              <select
+                value={socialChannelType}
+                onChange={(e) =>
+                  setSocialChannelType(e.target.value as SocialChannelType | "")
+                }
+                className={selectClass}
+              >
+                <option value="">선택해주세요</option>
+                {SOCIAL_CHANNEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label className={labelClass}>대표 SNS URL</label>
+              <input
+                type="url"
+                value={socialChannelUrl}
+                onChange={(e) => setSocialChannelUrl(e.target.value)}
+                className={inputClass}
+                placeholder="https://instagram.com/..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>팔로워 수</label>
+                <input
+                  type="text"
+                  value={followerCount}
+                  onChange={(e) => setFollowerCount(e.target.value.replace(/[^\d]/g, ""))}
+                  className={inputClass}
+                  placeholder="예: 120000"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>기본 수수료율 (bps)</label>
+                <input
+                  type="text"
+                  value={commissionRateBps}
+                  onChange={(e) =>
+                    setCommissionRateBps(e.target.value.replace(/[^\d]/g, ""))
+                  }
+                  className={inputClass}
+                  placeholder="예: 1200"
+                />
+                <p className="mt-1 text-[12px] text-gray-500">1200 = 12%</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-3">
           <label className={labelClass}>상점 유형</label>
           <div className="flex gap-2">
@@ -331,56 +512,60 @@ export default function ShopManagePage() {
           </div>
         </div>
 
-        <div className="mb-3">
-          <label className={labelClass}>상가명</label>
-          <select
-            value={marketBuilding}
-            onChange={(e) => {
-              setMarketBuilding(e.target.value);
-              if (e.target.value !== "기타") setMarketBuildingCustom("");
-            }}
-            className={selectClass}
-          >
-            <option value="">선택해주세요</option>
-            {MARKET_BUILDINGS.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
-          {marketBuilding === "기타" && (
-            <input
-              type="text"
-              value={marketBuildingCustom}
-              onChange={(e) => setMarketBuildingCustom(e.target.value)}
-              className={`${inputClass} mt-2`}
-              placeholder="상가명을 직접 입력해주세요"
-            />
-          )}
-        </div>
+        {showOfflineFields && (
+          <>
+            <div className="mb-3">
+              <label className={labelClass}>상가명</label>
+              <select
+                value={marketBuilding}
+                onChange={(e) => {
+                  setMarketBuilding(e.target.value);
+                  if (e.target.value !== "기타") setMarketBuildingCustom("");
+                }}
+                className={selectClass}
+              >
+                <option value="">선택해주세요</option>
+                {MARKET_BUILDINGS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+              {marketBuilding === "기타" && (
+                <input
+                  type="text"
+                  value={marketBuildingCustom}
+                  onChange={(e) => setMarketBuildingCustom(e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="상가명을 직접 입력해주세요"
+                />
+              )}
+            </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <label className={labelClass}>층</label>
-            <input
-              type="text"
-              value={floor}
-              onChange={(e) => setFloor(e.target.value)}
-              className={inputClass}
-              placeholder="예: 3"
-            />
-          </div>
-          <div>
-            <label className={labelClass}>호수</label>
-            <input
-              type="text"
-              value={roomNo}
-              onChange={(e) => setRoomNo(e.target.value)}
-              className={inputClass}
-              placeholder="예: 302"
-            />
-          </div>
-        </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className={labelClass}>층</label>
+                <input
+                  type="text"
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                  className={inputClass}
+                  placeholder="예: 3"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>호수</label>
+                <input
+                  type="text"
+                  value={roomNo}
+                  onChange={(e) => setRoomNo(e.target.value)}
+                  className={inputClass}
+                  placeholder="예: 302"
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="mb-3">
           <label className={labelClass}>담당자 연락처</label>
@@ -391,6 +576,34 @@ export default function ShopManagePage() {
             className={inputClass}
             placeholder="010-1234-5678"
           />
+        </div>
+
+        <div className="mb-3">
+          <label className={labelClass}>정산 구분</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBusinessSeller(true)}
+              className={`rounded-lg px-3 py-2 text-[13px] font-medium ${
+                isBusinessSeller
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              사업자 정산
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBusinessSeller(false)}
+              className={`rounded-lg px-3 py-2 text-[13px] font-medium ${
+                !isBusinessSeller
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              개인 정산
+            </button>
+          </div>
         </div>
 
         <div className="mb-3">
@@ -445,6 +658,25 @@ export default function ShopManagePage() {
           />
         </div>
       </div>
+
+      {showCreatorFields && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-bold text-black">공동구매 운영</h2>
+              <p className="mt-1 text-[13px] text-gray-500">
+                캠페인 링크, 랜딩, 주문 귀속을 관리합니다.
+              </p>
+            </div>
+            <a
+              href="/seller/campaigns"
+              className="rounded-lg bg-black px-3 py-2 text-[13px] font-medium text-white"
+            >
+              캠페인 관리
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Section 2: CS 정보 */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">

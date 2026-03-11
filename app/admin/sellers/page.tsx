@@ -1,16 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface SellerProfile {
   id: string;
   shopName: string;
+  sellerKind: "WHOLESALE_STORE" | "INFLUENCER" | "BRAND" | "HYBRID";
   type: string | null;
   marketBuilding: string | null;
   floor: string | null;
   roomNo: string | null;
   managerName: string | null;
   managerPhone: string | null;
+  creatorSlug: string | null;
+  commissionRateBps: number;
+  complianceReviewPending: boolean;
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectedReason: string | null;
   user: {
@@ -19,28 +24,33 @@ interface SellerProfile {
     phone: string | null;
     name: string | null;
     role: string;
+    _count: {
+      campaigns: number;
+    };
   };
   createdAt: string;
 }
 
 export default function AdminSellersPage() {
+  const searchParams = useSearchParams();
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >("PENDING");
+  >(searchParams.get("status") === "ALL" ? "ALL" : "PENDING");
 
   useEffect(() => {
     loadSellers();
-  }, [statusFilter]);
+  }, [statusFilter, searchParams]);
 
   const loadSellers = async () => {
     setLoading(true);
     try {
-      const url =
-        statusFilter === "ALL"
-          ? "/api/admin/sellers"
-          : `/api/admin/sellers?status=${statusFilter}`;
+      const params = new URLSearchParams();
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      const userId = searchParams.get("userId");
+      if (userId) params.set("userId", userId);
+      const url = `/api/admin/sellers${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("판매자 목록을 불러오는데 실패했습니다");
       const data = await res.json();
@@ -101,11 +111,71 @@ export default function AdminSellersPage() {
     }
   };
 
+  const handleCommissionUpdate = async (
+    sellerId: string,
+    currentCommissionRateBps: number,
+  ) => {
+    const input = prompt(
+      "새 기본 수수료율을 bps로 입력하세요. 예: 1200 = 12%",
+      String(currentCommissionRateBps),
+    );
+    if (input == null) return;
+    const nextValue = Number(input);
+    if (!Number.isFinite(nextValue) || nextValue < 0 || nextValue > 10000) {
+      alert("0~10000 범위의 숫자를 입력해주세요");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/sellers/${sellerId}/commission`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commissionRateBps: nextValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "수수료율 변경에 실패했습니다");
+      }
+      alert("기본 수수료율을 변경했습니다");
+      loadSellers();
+    } catch (error: any) {
+      console.error("수수료율 변경 오류:", error);
+      alert(error.message || "수수료율 변경에 실패했습니다");
+    }
+  };
+
+  const handleComplianceReviewClear = async (sellerId: string) => {
+    try {
+      const res = await fetch(
+        `/api/admin/sellers/${sellerId}/compliance-review`,
+        {
+          method: "PATCH",
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "검토 상태 변경에 실패했습니다");
+      }
+      alert("운영 검토를 완료 처리했습니다");
+      loadSellers();
+    } catch (error: any) {
+      console.error("운영 검토 처리 오류:", error);
+      alert(error.message || "운영 검토 처리에 실패했습니다");
+    }
+  };
+
   const statusLabels = {
     ALL: "전체",
     PENDING: "대기",
     APPROVED: "승인",
     REJECTED: "거부",
+  };
+
+  const sellerKindLabels = {
+    WHOLESALE_STORE: "도매 셀러",
+    INFLUENCER: "인플루언서",
+    BRAND: "브랜드",
+    HYBRID: "하이브리드",
   };
 
   return (
@@ -169,6 +239,12 @@ export default function AdminSellersPage() {
 
               <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                 <div>
+                  <p className="text-gray-500">입점 유형</p>
+                  <p className="font-medium text-gray-900">
+                    {sellerKindLabels[seller.sellerKind]}
+                  </p>
+                </div>
+                <div>
                   <p className="text-gray-500">업종</p>
                   <p className="font-medium text-gray-900">
                     {seller.type || "-"}
@@ -195,6 +271,30 @@ export default function AdminSellersPage() {
                     {seller.managerPhone && ` (${seller.managerPhone})`}
                   </p>
                 </div>
+                <div>
+                  <p className="text-gray-500">크리에이터 ref</p>
+                  <p className="font-medium text-gray-900">
+                    {seller.creatorSlug || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">기본 수수료</p>
+                  <p className="font-medium text-gray-900">
+                    {(seller.commissionRateBps / 100).toFixed(2)}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">캠페인 수</p>
+                  <p className="font-medium text-gray-900">
+                    {seller.user._count.campaigns}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">운영 검토</p>
+                  <p className="font-medium text-gray-900">
+                    {seller.complianceReviewPending ? "필요" : "없음"}
+                  </p>
+                </div>
               </div>
 
               {seller.status === "REJECTED" && seller.rejectedReason && (
@@ -205,6 +305,27 @@ export default function AdminSellersPage() {
                   <p className="text-sm text-red-800">{seller.rejectedReason}</p>
                 </div>
               )}
+
+              <div className="mb-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      handleCommissionUpdate(seller.id, seller.commissionRateBps)
+                    }
+                    className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    수수료율 수정
+                  </button>
+                  {seller.complianceReviewPending && (
+                    <button
+                      onClick={() => handleComplianceReviewClear(seller.id)}
+                      className="px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+                    >
+                      검토 완료
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {seller.status === "PENDING" && (
                 <div className="flex gap-2">

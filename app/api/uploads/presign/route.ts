@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     // Auth guard: SELLER only
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
 
     const { fileName, contentType, fileSize } = await req.json();
 

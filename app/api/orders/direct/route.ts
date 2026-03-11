@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, canAccessSellerFeatures } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
+import {
+  attachOrderAttributionAndCommission,
+  readAttributionFromRequest,
+} from "@/lib/attribution";
 
 export const runtime = "nodejs";
 
@@ -31,6 +35,7 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const attribution = readAttributionFromRequest(request);
 
     // Parse request
     const body = (await request.json()) as DirectOrderRequest;
@@ -100,6 +105,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (product.sellerId === session.userId) {
+      return NextResponse.json(
+        { error: "SELF_PURCHASE_NOT_ALLOWED" },
+        { status: 409 }
+      );
+    }
+
     // 4. Calculate pricing SERVER-SIDE (할인가 우선)
     const unitPriceKrw = product.salePriceKrw ?? product.priceKrw;
     const itemsSubtotalKrw = unitPriceKrw * body.quantity;
@@ -137,6 +149,17 @@ export async function POST(request: NextRequest) {
           expiresAt,
         },
       });
+
+      await attachOrderAttributionAndCommission(
+        tx,
+        {
+          id: order.id,
+          sellerId: product.sellerId,
+          itemsSubtotalKrw,
+          productIds: [product.id],
+        },
+        attribution,
+      );
 
       // Create order item
       await tx.orderItem.create({

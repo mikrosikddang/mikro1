@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session); // Seller-only access
+    const session = await requireSeller(_session); // Seller-only access
 
     const url = new URL(request.url);
     const status = url.searchParams.get("status");

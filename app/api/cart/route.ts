@@ -86,8 +86,12 @@ export async function GET() {
                     take: 1,
                   },
                   seller: {
-                    include: {
-                      sellerProfile: true,
+                    select: {
+                      sellerProfile: {
+                        select: {
+                          shopName: true,
+                        },
+                      },
                     },
                   },
                 },

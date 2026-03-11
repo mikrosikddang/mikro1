@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signSession, buildCookieOptions } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
+import {
+  readAttributionFromRequest,
+  upsertUserAttribution,
+} from "@/lib/attribution";
 import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
@@ -63,6 +67,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const attribution = readAttributionFromRequest(req);
+
     // 중복 이메일 확인
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -96,6 +102,8 @@ export async function POST(req: NextRequest) {
         name: name?.trim() || undefined,
       },
     });
+
+    await upsertUserAttribution(prisma, user.id, attribution);
 
     // 자동 로그인 - 쿠키 발급
     const session: Session = {

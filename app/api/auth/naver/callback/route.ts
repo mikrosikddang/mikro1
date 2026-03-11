@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { signSession, buildCookieOptions } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
+import {
+  readAttributionFromRequest,
+  upsertUserAttribution,
+} from "@/lib/attribution";
 
 export const runtime = "nodejs";
 
@@ -17,6 +21,7 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${baseUrl}/api/auth/naver/callback`;
 
   try {
+    const attribution = readAttributionFromRequest(req);
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
@@ -119,6 +124,8 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+
+    await upsertUserAttribution(prisma, user.id, attribution);
 
     // 4. 세션 쿠키 발급
     const session: Session = {

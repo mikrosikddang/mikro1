@@ -4,6 +4,10 @@ import {
   getClientIp,
   rateLimitResponse,
 } from "@/lib/rateLimit";
+import {
+  ATTRIBUTION_COOKIE_KEYS,
+  buildAttributionCookieValues,
+} from "@/lib/attributionShared";
 
 /** Route-specific rate limit rules (matched in order, first match wins) */
 const RATE_RULES: {
@@ -92,23 +96,145 @@ function corsHeaders(origin: string | null) {
 }
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const method = request.method;
   const origin = request.headers.get("origin");
+  const isApiRoute = pathname.startsWith("/api/");
+
+  const response = NextResponse.next();
+  const existingSessionKey =
+    request.cookies.get(ATTRIBUTION_COOKIE_KEYS.sessionKey)?.value ?? null;
+
+  if (!isApiRoute && method === "GET" && !existingSessionKey) {
+    response.cookies.set(
+      ATTRIBUTION_COOKIE_KEYS.sessionKey,
+      crypto.randomUUID(),
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      },
+    );
+  }
+
+  const attribution = buildAttributionCookieValues(searchParams);
+  if (!isApiRoute && method === "GET" && attribution.hasAny) {
+    const nowIso = new Date().toISOString();
+    const firstTouchedAt =
+      request.cookies.get(ATTRIBUTION_COOKIE_KEYS.firstTouchedAt)?.value ?? nowIso;
+    const sessionKey =
+      existingSessionKey ?? crypto.randomUUID();
+
+    response.cookies.set(ATTRIBUTION_COOKIE_KEYS.sessionKey, sessionKey, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(ATTRIBUTION_COOKIE_KEYS.firstTouchedAt, firstTouchedAt, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(ATTRIBUTION_COOKIE_KEYS.lastTouchedAt, nowIso, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(
+      ATTRIBUTION_COOKIE_KEYS.landingPath,
+      `${pathname}${request.nextUrl.search}`,
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      },
+    );
+
+    if (attribution.refCode) {
+      response.cookies.set(ATTRIBUTION_COOKIE_KEYS.ref, attribution.refCode, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+    if (attribution.campaignKey) {
+      response.cookies.set(
+        ATTRIBUTION_COOKIE_KEYS.campaign,
+        attribution.campaignKey,
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      );
+    }
+    if (attribution.utmSource) {
+      response.cookies.set(
+        ATTRIBUTION_COOKIE_KEYS.utmSource,
+        attribution.utmSource,
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      );
+    }
+    if (attribution.utmMedium) {
+      response.cookies.set(
+        ATTRIBUTION_COOKIE_KEYS.utmMedium,
+        attribution.utmMedium,
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      );
+    }
+    if (attribution.utmCampaign) {
+      response.cookies.set(
+        ATTRIBUTION_COOKIE_KEYS.utmCampaign,
+        attribution.utmCampaign,
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      );
+    }
+  }
 
   // Handle CORS preflight
-  if (pathname.startsWith("/api/") && method === "OPTIONS") {
+  if (isApiRoute && method === "OPTIONS") {
     return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
   }
 
   // Only rate-limit mutation methods on API routes
   if (
-    !pathname.startsWith("/api/") ||
+    !isApiRoute ||
     !["POST", "PATCH", "PUT", "DELETE"].includes(method)
   ) {
-    const response = NextResponse.next();
     // Add CORS headers to all API responses
-    if (pathname.startsWith("/api/") && origin && ALLOWED_ORIGINS.includes(origin)) {
+    if (isApiRoute && origin && ALLOWED_ORIGINS.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
     }
     return response;
@@ -142,7 +268,6 @@ export function middleware(request: NextRequest) {
   }
 
   // Add rate limit info + CORS headers
-  const response = NextResponse.next();
   response.headers.set("X-RateLimit-Remaining", String(result.remaining));
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
@@ -151,5 +276,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt)$).*)",
+  ],
 };

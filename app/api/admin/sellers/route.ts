@@ -23,11 +23,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
+    const userIdParam = searchParams.get("userId");
 
     // Build filter
     const where: any = {};
     if (statusParam && ["PENDING", "APPROVED", "REJECTED"].includes(statusParam)) {
       where.status = statusParam as SellerApprovalStatus;
+    }
+    if (userIdParam) {
+      where.userId = userIdParam;
     }
 
     const sellers = await prisma.sellerProfile.findMany({
@@ -40,6 +44,11 @@ export async function GET(request: NextRequest) {
             phone: true,
             name: true,
             role: true,
+            _count: {
+              select: {
+                campaigns: true,
+              },
+            },
           },
         },
       },

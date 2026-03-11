@@ -19,7 +19,17 @@ export default async function SellerDashboardPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [unprocessedOrders, refundRequests, awaitingShipment, todayRevenue, recentOrders, allProducts, unansweredInquiries] = await Promise.all([
+  const [
+    unprocessedOrders,
+    refundRequests,
+    awaitingShipment,
+    todayRevenue,
+    recentOrders,
+    allProducts,
+    unansweredInquiries,
+    activeCampaigns,
+    expectedCampaignCommission,
+  ] = await Promise.all([
     // Unprocessed orders (PAID only — PENDING is pre-payment)
     prisma.order.count({
       where: { sellerId, status: "PAID" },
@@ -66,6 +76,19 @@ export default async function SellerDashboardPage() {
         answer: null,
       },
     }).catch(() => 0),
+    prisma.campaign.count({
+      where: {
+        sellerId,
+        status: "ACTIVE",
+      },
+    }).catch(() => 0),
+    prisma.orderCommission.aggregate({
+      where: {
+        beneficiaryUserId: sellerId,
+        status: { in: ["PENDING", "PAYABLE"] },
+      },
+      _sum: { commissionAmountKrw: true },
+    }).catch(() => ({ _sum: { commissionAmountKrw: 0 } })),
   ]);
 
   const todaySales = todayRevenue._sum.totalPayKrw || 0;
@@ -189,6 +212,12 @@ export default async function SellerDashboardPage() {
             주문 관리
           </Link>
           <Link
+            href="/seller/campaigns"
+            className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
+          >
+            공동구매 캠페인
+          </Link>
+          <Link
             href="/seller/inquiries"
             className="p-3 bg-gray-100 text-gray-900 rounded-lg text-[14px] font-medium text-center active:bg-gray-200 transition-colors"
           >
@@ -220,6 +249,25 @@ export default async function SellerDashboardPage() {
             상품 관리 →
           </Link>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 mb-5">
+        <Link
+          href="/seller/campaigns"
+          className="p-3 bg-white rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
+        >
+          <p className="text-[13px] text-gray-500 mb-1">운영중 캠페인</p>
+          <p className="text-[24px] font-bold text-black">{activeCampaigns}</p>
+        </Link>
+        <Link
+          href="/seller/campaigns"
+          className="p-3 bg-white rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
+        >
+          <p className="text-[13px] text-gray-500 mb-1">예상 수수료</p>
+          <p className="text-[18px] font-bold text-black">
+            {formatKrw(expectedCampaignCommission._sum.commissionAmountKrw || 0)}
+          </p>
+        </Link>
       </div>
 
       {/* Recent Orders */}

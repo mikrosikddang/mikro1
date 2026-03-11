@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export async function PATCH(req: NextRequest) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
     const sellerId = session.userId;
 
     const body = await req.json();

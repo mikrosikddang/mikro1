@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "./authTypes";
 import type { UserRole } from "@prisma/client";
 import { canAccessSellerFeatures as canAccessSellerFeaturesRole, isSeller } from "./roles";
+import { hasSellerPortalAccess } from "./sellerPortal";
 
 /**
  * Check if a user can use buyer features (cart, checkout, orders).
@@ -35,6 +36,12 @@ export function canAccessSellerFeatures(session: Session | null): boolean {
   if (!session) return false;
 
   return canAccessSellerFeaturesRole(session.role);
+}
+
+export async function hasApprovedSellerAccess(
+  session: Session | null,
+): Promise<boolean> {
+  return hasSellerPortalAccess(session);
 }
 
 /**
@@ -69,7 +76,7 @@ export function requireBuyerFeatures(session: Session | null): Session {
  * @param session - Current user session (or null)
  * @returns The session if valid, or throws a NextResponse
  */
-export function requireSeller(session: Session | null): Session {
+export async function requireSeller(session: Session | null): Promise<Session> {
   if (!session) {
     throw NextResponse.json(
       { error: "Unauthorized" },
@@ -77,7 +84,8 @@ export function requireSeller(session: Session | null): Session {
     );
   }
 
-  if (!canAccessSellerFeatures(session)) {
+  const allowed = await hasApprovedSellerAccess(session);
+  if (!allowed) {
     throw NextResponse.json(
       { error: "Forbidden: Seller access required" },
       { status: 403 }

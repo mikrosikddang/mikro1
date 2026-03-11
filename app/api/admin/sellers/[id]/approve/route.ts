@@ -48,7 +48,11 @@ export async function POST(
       // Update profile status
       const updatedProfile = await tx.sellerProfile.update({
         where: { id },
-        data: { status: "APPROVED", rejectedReason: null },
+        data: {
+          status: "APPROVED",
+          rejectedReason: null,
+          complianceReviewPending: false,
+        },
       });
 
       // Update user role to SELLER_ACTIVE

@@ -19,6 +19,35 @@ enum SellerApprovalStatus {
   REJECTED
 }
 
+enum SellerKind {
+  WHOLESALE_STORE
+  INFLUENCER
+  BRAND
+  HYBRID
+}
+
+enum SocialChannelType {
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+  NAVER_BLOG
+  OTHER
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+  ARCHIVED
+}
+
+enum CommissionSettlementStatus {
+  PENDING
+  PAYABLE
+  SETTLED
+  CANCELLED
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -85,6 +114,11 @@ model User {
   hiddenProducts HiddenProduct[]
   buyerChats     ChatRoom[] @relation("BuyerChats")
   sellerChats    ChatRoom[] @relation("SellerChats")
+  userAttribution UserAttribution?
+  campaigns       Campaign[]        @relation("SellerCampaigns")
+  referralVisits  CampaignVisit[]   @relation("CampaignVisitSeller")
+  referredOrders  OrderAttribution[] @relation("OrderAttributionReferrer")
+  commissionOrders OrderCommission[] @relation("OrderCommissionBeneficiary")
 }
 
 model CartItem {
@@ -127,10 +161,17 @@ model SellerProfile {
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   shopName       String
+  sellerKind     SellerKind           @default(WHOLESALE_STORE)
   type           String?              // 여성/남성/혼합 (MVP는 string)
   marketBuilding String?              // 상가명
   floor          String?              // 층
   roomNo         String?              // 호수
+  creatorSlug    String?              @unique
+  socialChannelType SocialChannelType?
+  socialChannelUrl  String?
+  followerCount     Int?
+  isBusinessSeller  Boolean           @default(true)
+  commissionRateBps Int               @default(1000)
 
   managerName    String?
   managerPhone   String?
@@ -196,6 +237,7 @@ model Product {
   inquiries   Inquiry[]
   wishlistItems  Wishlist[]
   hiddenByUsers  HiddenProduct[]
+  campaignProducts CampaignProduct[]
 
   @@index([categoryMain, categoryMid, categorySub])
   @@index([sellerId])
@@ -269,6 +311,8 @@ model Order {
   items        OrderItem[]
   payment      Payment?
   shipment     Shipment?
+  attribution  OrderAttribution?
+  commission   OrderCommission?
 
   @@index([buyerId])
   @@index([sellerId])
@@ -404,6 +448,133 @@ model Coupon {
   createdAt         DateTime     @default(now())
 
   userCoupons       UserCoupon[]
+  campaigns         Campaign[]
+}
+
+model Campaign {
+  id                       String        @id @default(cuid())
+  sellerId                 String
+  seller                   User          @relation("SellerCampaigns", fields: [sellerId], references: [id], onDelete: Cascade)
+  title                    String
+  slug                     String        @unique
+  description              String?       @db.Text
+  coverImageUrl            String?
+  landingHeadline          String?
+  landingBody              String?       @db.Text
+  couponId                 String?
+  coupon                   Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  refCode                  String        @unique
+  status                   CampaignStatus @default(DRAFT)
+  startsAt                 DateTime?
+  endsAt                   DateTime?
+  defaultCommissionRateBps Int?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  products         CampaignProduct[]
+  visits           CampaignVisit[]
+  userAttributions UserAttribution[]
+  orderAttributions OrderAttribution[]
+  orderCommissions  OrderCommission[]
+
+  @@index([sellerId, status])
+  @@index([startsAt, endsAt])
+}
+
+model CampaignProduct {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, productId])
+  @@index([campaignId, sortOrder])
+  @@index([productId])
+}
+
+model CampaignVisit {
+  id          String    @id @default(cuid())
+  campaignId   String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  sellerId     String?
+  seller       User?     @relation("CampaignVisitSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  refCode      String?
+  creatorSlug  String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  landingPath  String?
+  sessionKey   String?
+  createdAt    DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([sellerId, createdAt])
+}
+
+model UserAttribution {
+  id            String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId     String?
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  refCode        String?
+  creatorSlug    String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  landingPath    String?
+  firstTouchedAt DateTime?
+  lastTouchedAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([campaignId])
+}
+
+model OrderAttribution {
+  id            String    @id @default(cuid())
+  orderId        String    @unique
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  campaignId     String?
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  referrerUserId String?
+  referrerUser   User?     @relation("OrderAttributionReferrer", fields: [referrerUserId], references: [id], onDelete: SetNull)
+  refCode        String?
+  creatorSlug    String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  landingPath    String?
+  firstTouchedAt DateTime?
+  lastTouchedAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([campaignId])
+  @@index([referrerUserId])
+}
+
+model OrderCommission {
+  id                 String                     @id @default(cuid())
+  orderId            String                     @unique
+  order              Order                      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  beneficiaryUserId  String?
+  beneficiaryUser    User?                      @relation("OrderCommissionBeneficiary", fields: [beneficiaryUserId], references: [id], onDelete: SetNull)
+  campaignId         String?
+  campaign           Campaign?                  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  commissionRateBps  Int
+  commissionBaseKrw  Int
+  commissionAmountKrw Int
+  status             CommissionSettlementStatus @default(PENDING)
+  payableAt          DateTime?
+  settledAt          DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([beneficiaryUserId, status])
+  @@index([campaignId, status])
 }
 
 model UserCoupon {

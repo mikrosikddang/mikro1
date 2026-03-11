@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { requireBuyerFeatures } from "@/lib/roleGuards";
 import { generateOrderNo } from "@/lib/order-utils";
 import { OrderStatus } from "@prisma/client";
+import {
+  attachOrderAttributionAndCommission,
+  readAttributionFromRequest,
+} from "@/lib/attribution";
 
 export const runtime = "nodejs";
 
@@ -24,10 +28,11 @@ interface CreateOrdersRequest {
  * - Idempotency via checkoutAttemptId
  * - NO stock deduction (happens in payment confirm)
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const _session = await getSession();
     const session = requireBuyerFeatures(_session); // Now allows sellers to buy
+    const attribution = readAttributionFromRequest(request);
 
     const body = (await request.json()) as CreateOrdersRequest;
 
@@ -230,6 +235,17 @@ export async function POST(request: Request) {
             expiresAt,
           },
         });
+
+        await attachOrderAttributionAndCommission(
+          tx,
+          {
+            id: order.id,
+            sellerId,
+            itemsSubtotalKrw,
+            productIds: items.map((item) => item.variant.product.id),
+          },
+          attribution,
+        );
 
         // Create order items with price snapshots
         for (const cartItem of items) {

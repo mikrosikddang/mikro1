@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canAccessSellerFeatures } from "@/lib/roles";
+import { SellerKind, SocialChannelType } from "@prisma/client";
+import {
+  normalizeCreatorSlug,
+  validateSellerKindRequirements,
+} from "@/lib/sellerTypes";
+import { hasSellerPortalAccess } from "@/lib/sellerPortal";
 
 /**
  * GET /api/seller/profile
@@ -14,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
   }
 
-  if (!canAccessSellerFeatures(session.role)) {
+  if (!(await hasSellerPortalAccess(session))) {
     return NextResponse.json(
       { error: "판매자 권한이 필요합니다" },
       { status: 403 }
@@ -54,7 +59,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
   }
 
-  if (!canAccessSellerFeatures(session.role)) {
+  if (!(await hasSellerPortalAccess(session))) {
     return NextResponse.json(
       { error: "판매자 권한이 필요합니다" },
       { status: 403 }
@@ -67,6 +72,7 @@ export async function PATCH(req: NextRequest) {
       shopName,
       bio,
       locationText,
+      sellerKind,
       type,
       marketBuilding,
       floor,
@@ -87,6 +93,12 @@ export async function PATCH(req: NextRequest) {
       settlementBank,
       settlementAccountNo,
       settlementAccountHolder,
+      creatorSlug,
+      socialChannelType,
+      socialChannelUrl,
+      followerCount,
+      isBusinessSeller,
+      commissionRateBps,
     } = body;
 
     const current = await prisma.sellerProfile.findUnique({
@@ -134,6 +146,15 @@ export async function PATCH(req: NextRequest) {
     if (type !== undefined && type && type.length > 30) {
       return NextResponse.json(
         { error: "상점 유형은 30자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    const nextSellerKind =
+      sellerKind !== undefined ? (sellerKind as SellerKind) : current.sellerKind;
+    if (!Object.values(SellerKind).includes(nextSellerKind)) {
+      return NextResponse.json(
+        { error: "올바른 입점 유형이 아닙니다" },
         { status: 400 }
       );
     }
@@ -201,6 +222,82 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    const nextCreatorSlug =
+      creatorSlug !== undefined
+        ? normalizeCreatorSlug(creatorSlug ?? "")
+        : current.creatorSlug;
+    if (
+      nextCreatorSlug &&
+      !/^[a-z0-9][a-z0-9-_]{1,39}$/.test(nextCreatorSlug)
+    ) {
+      return NextResponse.json(
+        { error: "크리에이터 슬러그는 영문 소문자, 숫자, -, _ 조합으로 2~40자여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      socialChannelType !== undefined &&
+      socialChannelType !== null &&
+      !Object.values(SocialChannelType).includes(socialChannelType as SocialChannelType)
+    ) {
+      return NextResponse.json(
+        { error: "대표 SNS 채널 타입이 올바르지 않습니다" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      socialChannelUrl !== undefined &&
+      socialChannelUrl &&
+      !/^https?:\/\//.test(socialChannelUrl.trim())
+    ) {
+      return NextResponse.json(
+        { error: "대표 SNS 채널 URL은 http 또는 https로 시작해야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      followerCount !== undefined &&
+      followerCount !== null &&
+      (!Number.isFinite(followerCount) || followerCount < 0)
+    ) {
+      return NextResponse.json(
+        { error: "팔로워 수는 0 이상 숫자로 입력해주세요" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      commissionRateBps !== undefined &&
+      commissionRateBps !== null &&
+      (!Number.isFinite(commissionRateBps) ||
+        commissionRateBps < 0 ||
+        commissionRateBps > 10000)
+    ) {
+      return NextResponse.json(
+        { error: "수수료율은 0~10000bps 범위여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    if (nextCreatorSlug) {
+      const existingSlug = await prisma.sellerProfile.findFirst({
+        where: {
+          creatorSlug: nextCreatorSlug,
+          userId: { not: session.userId },
+        },
+        select: { id: true },
+      });
+      if (existingSlug) {
+        return NextResponse.json(
+          { error: "이미 사용 중인 크리에이터 슬러그입니다" },
+          { status: 409 }
+        );
+      }
+    }
+
     const nextSettlementBank =
       settlementBank !== undefined ? normalize(settlementBank) : normalize(current.settlementBank);
     const nextSettlementAccountNo =
@@ -256,6 +353,28 @@ export async function PATCH(req: NextRequest) {
       (bizRegImageUrl !== undefined && nextBizRegImageUrl !== normalize(current.bizRegImageUrl));
     const complianceTouched = settlementTouched || bizTouched;
 
+    const kindValidation = validateSellerKindRequirements({
+      sellerKind: nextSellerKind,
+      marketBuilding:
+        marketBuilding !== undefined
+          ? normalize(marketBuilding)
+          : normalize(current.marketBuilding),
+      floor: floor !== undefined ? normalize(floor) : normalize(current.floor),
+      roomNo: roomNo !== undefined ? normalize(roomNo) : normalize(current.roomNo),
+      creatorSlug: nextCreatorSlug,
+      socialChannelType:
+        socialChannelType !== undefined
+          ? (socialChannelType as SocialChannelType | null)
+          : current.socialChannelType,
+      socialChannelUrl:
+        socialChannelUrl !== undefined
+          ? normalize(socialChannelUrl)
+          : normalize(current.socialChannelUrl),
+    });
+    if (kindValidation) {
+      return NextResponse.json({ error: kindValidation }, { status: 400 });
+    }
+
     // SellerProfile 업데이트
     const updated = await prisma.sellerProfile.update({
       where: { userId: session.userId },
@@ -263,6 +382,7 @@ export async function PATCH(req: NextRequest) {
         ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
         ...(bio !== undefined && { bio: bio?.trim() || null }),
         ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
+        ...(sellerKind !== undefined && { sellerKind: nextSellerKind }),
         ...(type !== undefined && { type: type?.trim() || null }),
         ...(marketBuilding !== undefined && { marketBuilding: marketBuilding?.trim() || null }),
         ...(floor !== undefined && { floor: floor?.trim() || null }),
@@ -286,6 +406,25 @@ export async function PATCH(req: NextRequest) {
         }),
         ...(settlementAccountHolder !== undefined && {
           settlementAccountHolder: settlementAccountHolder?.trim() || null,
+        }),
+        ...(creatorSlug !== undefined && { creatorSlug: nextCreatorSlug || null }),
+        ...(socialChannelType !== undefined && {
+          socialChannelType: (socialChannelType as SocialChannelType | null) ?? null,
+        }),
+        ...(socialChannelUrl !== undefined && {
+          socialChannelUrl: socialChannelUrl?.trim() || null,
+        }),
+        ...(followerCount !== undefined && {
+          followerCount:
+            followerCount === null || followerCount === ""
+              ? null
+              : Math.floor(Number(followerCount)),
+        }),
+        ...(isBusinessSeller !== undefined && {
+          isBusinessSeller: Boolean(isBusinessSeller),
+        }),
+        ...(commissionRateBps !== undefined && {
+          commissionRateBps: Math.floor(Number(commissionRateBps)),
         }),
         ...(bizTouched &&
           (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),

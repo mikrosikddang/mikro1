@@ -33,7 +33,7 @@ function buildVariantSummary(variants: { color: string; sizeLabel: string; stock
 export async function GET(req: NextRequest) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
     const sellerId = session.userId;
 
     const { searchParams } = new URL(req.url);
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
 
     const sellerId = session.userId;
     const body = await req.json();

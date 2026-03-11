@@ -17,7 +17,7 @@ type Props = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, { params }: Props) {
   try {
     const session = await getSession();
-    const seller = requireSeller(session);
+    const seller = await requireSeller(session);
     const { id: productId } = await params;
 
     // Verify product belongs to this seller

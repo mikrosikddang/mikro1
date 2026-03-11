@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { OrderStatus, PaymentStatus } from "@prisma/client";
+import {
+  CommissionSettlementStatus,
+  OrderStatus,
+  PaymentStatus,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { cancelPayment } from "@/lib/toss";
 import { notifyOrderStatusChange } from "@/lib/notifications";
@@ -208,6 +212,11 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          await tx.orderCommission.updateMany({
+            where: { orderId },
+            data: { status: CommissionSettlementStatus.CANCELLED },
+          });
+
           // Commit the failure state (do NOT throw — we want this committed)
           return;
         }
@@ -242,6 +251,13 @@ export async function POST(req: NextRequest) {
             },
           });
         }
+
+        await tx.orderCommission.updateMany({
+          where: { orderId },
+          data: {
+            status: CommissionSettlementStatus.PAYABLE,
+          },
+        });
       }
     });
   } catch (err) {

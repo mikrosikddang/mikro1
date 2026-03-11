@@ -15,7 +15,7 @@ type Props = { params: Promise<{ id: string }> };
 export async function GET(request: Request, { params }: Props) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session); // Seller-only access
+    const session = await requireSeller(_session); // Seller-only access
 
     const { id } = await params;
 

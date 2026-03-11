@@ -43,36 +43,47 @@ export async function POST(
       );
     }
 
-    const sellerProfile = await prisma.sellerProfile.findUnique({
-      where: { id },
+    const result = await prisma.$transaction(async (tx) => {
+      const sellerProfile = await tx.sellerProfile.findUnique({
+        where: { id },
+      });
+
+      if (!sellerProfile) {
+        throw new Error("SELLER_NOT_FOUND");
+      }
+
+      if (sellerProfile.status === "REJECTED") {
+        return {
+          ok: true,
+          alreadyRejected: true,
+          sellerProfile,
+        };
+      }
+
+      const updatedProfile = await tx.sellerProfile.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          rejectedReason: body.reason.trim(),
+        },
+      });
+
+      await tx.user.update({
+        where: { id: sellerProfile.userId },
+        data: { role: "CUSTOMER" },
+      });
+
+      return { ok: true, sellerProfile: updatedProfile };
     });
 
-    if (!sellerProfile) {
+    return NextResponse.json(result);
+  } catch (error: any) {
+    if (error.message?.includes("SELLER_NOT_FOUND")) {
       return NextResponse.json(
         { error: "Seller not found" },
         { status: 404 }
       );
     }
-
-    if (sellerProfile.status === "REJECTED") {
-      return NextResponse.json({
-        ok: true,
-        alreadyRejected: true,
-        sellerProfile,
-      });
-    }
-
-    // Update profile status and set reason
-    const updatedProfile = await prisma.sellerProfile.update({
-      where: { id },
-      data: {
-        status: "REJECTED",
-        rejectedReason: body.reason.trim(),
-      },
-    });
-
-    return NextResponse.json({ ok: true, sellerProfile: updatedProfile });
-  } catch (error) {
     console.error("POST /api/admin/sellers/[id]/reject error:", error);
     return NextResponse.json(
       { error: "Failed to reject seller" },

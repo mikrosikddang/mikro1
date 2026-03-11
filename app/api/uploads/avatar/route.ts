@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canAccessSellerFeatures } from "@/lib/roles";
 import { uploadToS3 } from "@/lib/s3";
+import { hasSellerPortalAccess } from "@/lib/sellerPortal";
 
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
   }
 
-  if (!canAccessSellerFeatures(session.role)) {
+  if (!(await hasSellerPortalAccess(session))) {
     return NextResponse.json(
       { error: "판매자 권한이 필요합니다" },
       { status: 403 },

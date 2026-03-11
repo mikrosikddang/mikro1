@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "all";

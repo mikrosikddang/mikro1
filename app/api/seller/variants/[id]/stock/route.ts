@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
 
     const { id: variantId } = await params;
 

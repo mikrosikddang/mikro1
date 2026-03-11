@@ -30,6 +30,9 @@ export default async function AdminLayout({
               <Link href="/admin/sellers" className="hover:underline">
                 판매자 관리
               </Link>
+              <Link href="/admin/campaigns" className="hover:underline">
+                캠페인 관리
+              </Link>
               <Link href="/admin/orders" className="hover:underline">
                 주문 관리
               </Link>

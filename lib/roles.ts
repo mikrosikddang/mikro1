@@ -45,10 +45,10 @@ export function isAdmin(role: UserRole): boolean {
 
 /**
  * Check if a role can access seller features
- * (Includes both seller roles and admin)
+ * (Approved sellers and admin only)
  */
 export function canAccessSellerFeatures(role: UserRole): boolean {
-  return isSeller(role) || isAdmin(role);
+  return isSellerActive(role) || isAdmin(role);
 }
 
 /**

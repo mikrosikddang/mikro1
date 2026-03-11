@@ -19,7 +19,7 @@ interface RouteContext {
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const _session = await getSession();
-    const session = requireSeller(_session);
+    const session = await requireSeller(_session);
 
     const { id: inquiryId } = await context.params;
     const body = await req.json();
