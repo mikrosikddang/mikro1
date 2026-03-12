@@ -3,7 +3,9 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SellerKind, SocialChannelType } from "@prisma/client";
 import {
+  isReservedStoreSlug,
   normalizeCreatorSlug,
+  normalizeStoreSlug,
   validateSellerKindRequirements,
 } from "@/lib/sellerTypes";
 import { hasSellerPortalAccess } from "@/lib/sellerPortal";
@@ -70,6 +72,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const {
       shopName,
+      storeSlug,
       bio,
       locationText,
       sellerKind,
@@ -127,6 +130,27 @@ export async function PATCH(req: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    const nextStoreSlug =
+      storeSlug !== undefined ? normalizeStoreSlug(storeSlug ?? "") : current.storeSlug;
+    if (!nextStoreSlug) {
+      return NextResponse.json(
+        { error: "상점 URL은 필수입니다" },
+        { status: 400 }
+      );
+    }
+    if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(nextStoreSlug)) {
+      return NextResponse.json(
+        { error: "상점 URL은 영문 소문자, 숫자, -, _ 조합으로 2~40자여야 합니다" },
+        { status: 400 }
+      );
+    }
+    if (isReservedStoreSlug(nextStoreSlug)) {
+      return NextResponse.json(
+        { error: "사용할 수 없는 상점 URL입니다" },
+        { status: 400 }
+      );
     }
 
     if (bio !== undefined && bio && bio.length > 160) {
@@ -298,6 +322,20 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    const existingStoreSlug = await prisma.sellerProfile.findFirst({
+      where: {
+        storeSlug: nextStoreSlug,
+        userId: { not: session.userId },
+      },
+      select: { id: true },
+    });
+    if (existingStoreSlug) {
+      return NextResponse.json(
+        { error: "이미 사용 중인 상점 URL입니다" },
+        { status: 409 }
+      );
+    }
+
     const nextSettlementBank =
       settlementBank !== undefined ? normalize(settlementBank) : normalize(current.settlementBank);
     const nextSettlementAccountNo =
@@ -380,6 +418,7 @@ export async function PATCH(req: NextRequest) {
       where: { userId: session.userId },
       data: {
         ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
+        ...(storeSlug !== undefined && { storeSlug: nextStoreSlug }),
         ...(bio !== undefined && { bio: bio?.trim() || null }),
         ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
         ...(sellerKind !== undefined && { sellerKind: nextSellerKind }),

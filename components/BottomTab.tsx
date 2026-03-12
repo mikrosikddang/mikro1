@@ -4,15 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
-import { isSellerActive } from "@/lib/roles";
-import { getSellerMode, setSellerMode as persistSellerMode } from "@/lib/uiPrefs";
+import { isAdmin, isSellerActive } from "@/lib/roles";
+import {
+  getAdminMode,
+  getSellerMode,
+  setAdminMode as persistAdminMode,
+  setSellerMode as persistSellerMode,
+} from "@/lib/uiPrefs";
 
 export default function BottomTab() {
   const pathname = usePathname();
   const session = useSession();
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
+  const isAdminUser = session ? isAdmin(session.role) : false;
 
   const [sellerMode, setSellerMode] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
 
   // Poll chat unread count
@@ -48,6 +55,19 @@ export default function BottomTab() {
     return () => window.removeEventListener("sellerModeChange", handler);
   }, [isSellerActiveUser]);
 
+  useEffect(() => {
+    if (isAdminUser) {
+      setAdminMode(getAdminMode() === "admin");
+    }
+
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setAdminMode(detail.mode === "admin");
+    };
+    window.addEventListener("adminModeChange", handler);
+    return () => window.removeEventListener("adminModeChange", handler);
+  }, [isAdminUser]);
+
   // Auto-activate seller mode when navigating to /seller paths
   useEffect(() => {
     if (isSellerActiveUser && pathname.startsWith("/seller") && !sellerMode) {
@@ -58,6 +78,18 @@ export default function BottomTab() {
       );
     }
   }, [pathname, isSellerActiveUser, sellerMode]);
+
+  useEffect(() => {
+    if (isAdminUser && pathname.startsWith("/admin") && !adminMode) {
+      setAdminMode(true);
+      persistAdminMode("admin");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("adminModeChange", { detail: { mode: "admin" } }),
+        );
+      }
+    }
+  }, [pathname, isAdminUser, adminMode]);
 
   const buyerTabs = [
     { label: "홈", href: "/" },
@@ -76,10 +108,18 @@ export default function BottomTab() {
       ]
     : buyerTabs;
 
-  const tabs = sellerMode ? sellerTabs : buyerTabs;
+  const adminTabs = [
+    { label: "관리자", href: "/admin" },
+    { label: "판매자", href: "/admin/sellers" },
+    { label: "캠페인", href: "/admin/campaigns" },
+    { label: "주문", href: "/admin/orders" },
+    { label: "분쟁", href: "/admin/disputes" },
+  ];
 
-  // Hide bottom tab in admin area (seller pages are shown when seller mode is on)
-  if (pathname.startsWith("/admin")) {
+  const tabs = adminMode && isAdminUser ? adminTabs : sellerMode ? sellerTabs : buyerTabs;
+
+  // Hide bottom tab in admin area unless admin mode is on
+  if (pathname.startsWith("/admin") && !(adminMode && isAdminUser)) {
     return null;
   }
 

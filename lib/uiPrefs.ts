@@ -5,13 +5,15 @@
 
 export type HomeFeedViewMode = "feed" | "carrot";
 export type SellerMode = "buyer" | "seller";
+export type AdminMode = "user" | "admin";
 
 const STORAGE_KEYS = {
   HOME_FEED_VIEW_MODE: "homeFeedViewMode",
   SELLER_MODE: "sellerMode",
+  ADMIN_MODE: "adminMode",
 };
 
-const DEFAULT_VIEW_MODE: HomeFeedViewMode = "carrot";
+const DEFAULT_VIEW_MODE: HomeFeedViewMode = "feed";
 
 /**
  * Get current home feed view mode
@@ -72,5 +74,36 @@ export function setSellerMode(mode: SellerMode): void {
     localStorage.setItem(STORAGE_KEYS.SELLER_MODE, mode);
   } catch (error) {
     console.error("Failed to save sellerMode to localStorage:", error);
+  }
+}
+
+/**
+ * Get current admin mode
+ */
+export function getAdminMode(): AdminMode {
+  if (typeof window === "undefined") return "user";
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.ADMIN_MODE);
+    if (stored === "user" || stored === "admin") {
+      return stored;
+    }
+  } catch (error) {
+    console.error("Failed to read adminMode from localStorage:", error);
+  }
+
+  return "user";
+}
+
+/**
+ * Set admin mode
+ */
+export function setAdminMode(mode: AdminMode): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_MODE, mode);
+  } catch (error) {
+    console.error("Failed to save adminMode to localStorage:", error);
   }
 }

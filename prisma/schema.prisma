@@ -161,6 +161,7 @@ model SellerProfile {
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   shopName       String
+  storeSlug      String?              @unique
   sellerKind     SellerKind           @default(WHOLESALE_STORE)
   type           String?              // 여성/남성/혼합 (MVP는 string)
   marketBuilding String?              // 상가명

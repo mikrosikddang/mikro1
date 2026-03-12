@@ -42,7 +42,7 @@ export default async function AdminLayout({
             </nav>
           </div>
           <div className="text-xs bg-red-800 px-2 py-1 rounded">
-            관리자: {session.name || session.email || session.userId.substring(0, 8)}
+            관리자: {session.name || session.userId.substring(0, 8)}
           </div>
         </div>
       </div>

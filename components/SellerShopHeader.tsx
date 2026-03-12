@@ -31,7 +31,7 @@ export default function SellerShopHeader({
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [viewMode, setViewMode] = useState<HomeFeedViewMode>(() => {
-    if (typeof window === "undefined") return "carrot";
+    if (typeof window === "undefined") return "feed";
     return getHomeFeedViewMode();
   });
 
@@ -53,7 +53,7 @@ export default function SellerShopHeader({
   };
 
   const handleShareProfile = async () => {
-    const profileUrl = `${window.location.origin}/s/${sellerId}`;
+    const profileUrl = window.location.href;
     const shareData = {
       title: shopName,
       text: `${shopName} 상점 프로필`,

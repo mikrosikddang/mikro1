@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { canAccessSellerFeatures, isAdmin, isSellerActive } from "@/lib/roles";
-import { getSellerMode } from "@/lib/uiPrefs";
+import { isAdmin, isSellerActive } from "@/lib/roles";
+import { getAdminMode, getSellerMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 import SellerModeToggle from "@/components/SellerModeToggle";
+import AdminModeToggle from "@/components/AdminModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
@@ -29,11 +30,11 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
-  const isSeller = session ? canAccessSellerFeatures(session.role) : false;
   const isAdminUser = session ? isAdmin(session.role) : false;
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
 
   const [sellerMode, setSellerModeState] = useState(false);
+  const [adminMode, setAdminModeState] = useState(false);
 
   useEffect(() => {
     if (isSellerActiveUser) {
@@ -47,6 +48,19 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     window.addEventListener("sellerModeChange", handler);
     return () => window.removeEventListener("sellerModeChange", handler);
   }, [isSellerActiveUser]);
+
+  useEffect(() => {
+    if (isAdminUser) {
+      setAdminModeState(getAdminMode() === "admin");
+    }
+
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setAdminModeState(detail.mode === "admin");
+    };
+    window.addEventListener("adminModeChange", handler);
+    return () => window.removeEventListener("adminModeChange", handler);
+  }, [isAdminUser]);
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -144,25 +158,27 @@ export default function Drawer({ open, onClose }: DrawerProps) {
                 {/* User name + role pill */}
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-[18px] font-semibold text-gray-900 leading-tight truncate">
-                    {session.name || session.email || "사용자"}
+                    {session.name || "사용자"}
                   </h2>
                   <span
                     className={`inline-block text-[11px] font-semibold px-2 py-[3px] rounded-full flex-shrink-0 ${
                       isAdminUser
                         ? "bg-red-50 text-red-600"
-                        : isSeller
+                        : isSellerActiveUser
                         ? "bg-blue-50 text-blue-600"
                         : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {isAdminUser ? "관리자" : isSeller ? "판매자" : "일반"}
+                    {isAdminUser ? "관리자" : isSellerActiveUser ? "판매자" : "일반"}
                   </span>
                 </div>
                 {/* Subtitle */}
                 <p className="text-[13px] font-normal text-gray-500 mt-[2px]">
                   {isAdminUser
-                    ? "플랫폼 관리자"
-                    : isSeller
+                    ? adminMode
+                      ? "어드민 모드 사용 중"
+                      : "플랫폼 관리자"
+                    : isSellerActiveUser
                     ? "판매자 계정"
                     : "일반 회원"}
                 </p>
@@ -206,7 +222,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             )}
 
             {/* Seller Section - shown above browse when seller mode is ON */}
-            {isSeller && session && sellerMode && (
+            {isSellerActiveUser && session && sellerMode && (
               <MenuSection title="판매자">
                 <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
@@ -224,7 +240,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             </MenuSection>
 
             {/* Seller Section - shown below browse when seller mode is OFF */}
-            {isSeller && session && !sellerMode && (
+            {isSellerActiveUser && session && !sellerMode && (
               <MenuSection title="판매자">
                 <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
@@ -238,6 +254,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuSection title="관리자">
                 <MenuItem label="플랫폼 관리" href="/admin" isSubmenu />
                 <MenuItem label="판매자 승인" href="/admin/sellers" isSubmenu />
+                <MenuItem label="캠페인 관리" href="/admin/campaigns" isSubmenu />
                 <MenuItem label="주문 모니터링" href="/admin/orders" isSubmenu />
                 <MenuItem label="분쟁 처리" href="/admin/disputes" isSubmenu />
               </MenuSection>
@@ -257,6 +274,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               )}
             </MenuSection>
           </div>
+          <AdminModeToggle onToggle={onClose} />
         </nav>
 
         {/* Logout Confirm Modal */}

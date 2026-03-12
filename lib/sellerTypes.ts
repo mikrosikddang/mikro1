@@ -42,6 +42,33 @@ export const SOCIAL_CHANNEL_OPTIONS: Array<{
   { value: SocialChannelType.OTHER, label: "기타" },
 ];
 
+export const RESERVED_STORE_SLUGS = new Set([
+  "admin",
+  "api",
+  "apply",
+  "brands",
+  "c",
+  "cart",
+  "chat",
+  "checkout",
+  "info",
+  "login",
+  "my",
+  "news",
+  "notifications",
+  "orders",
+  "p",
+  "policy",
+  "s",
+  "seller",
+  "signup",
+  "wishlist",
+  "_next",
+  "favicon.ico",
+  "robots.txt",
+  "sitemap.xml",
+]);
+
 export function isOfflineSellerKind(kind: SellerKind) {
   return kind === SellerKind.WHOLESALE_STORE || kind === SellerKind.HYBRID;
 }
@@ -79,6 +106,16 @@ export function normalizeCreatorSlug(value: string) {
     .slice(0, 40);
 }
 
+export function normalizeStoreSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
 export function defaultCommissionRateBps(kind: SellerKind) {
   switch (kind) {
     case SellerKind.INFLUENCER:
@@ -100,6 +137,19 @@ export function buildDefaultCreatorSlug(
   if (existingSlug) return existingSlug;
   const base = normalizeCreatorSlug(shopName);
   return base || `seller-${Date.now().toString(36)}`;
+}
+
+export function buildDefaultStoreSlug(
+  shopName: string,
+  existingSlug?: string | null,
+) {
+  if (existingSlug) return existingSlug;
+  const base = normalizeStoreSlug(shopName);
+  return base || `shop-${Date.now().toString(36)}`;
+}
+
+export function isReservedStoreSlug(slug: string) {
+  return RESERVED_STORE_SLUGS.has(slug);
 }
 
 export type SellerProfileLike = Pick<

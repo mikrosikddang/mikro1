@@ -40,7 +40,7 @@ export default function MenuProfileRow() {
   const isSeller = canAccessSellerFeatures(session.role);
   const isAdminUser = isAdmin(session.role);
 
-  const displayName = session.name || session.email || session.userId.substring(0, 8);
+  const displayName = session.name || "사용자";
   const roleLabel = isAdminUser ? "관리자" : isSeller ? "판매자" : "고객";
   const roleBadgeColor = isAdminUser
     ? "bg-red-50 text-red-600"

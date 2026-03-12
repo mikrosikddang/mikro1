@@ -15,8 +15,10 @@ import {
 import {
   buildDefaultCreatorSlug,
   defaultCommissionRateBps,
+  isReservedStoreSlug,
   needsCreatorProfile,
   normalizeCreatorSlug,
+  normalizeStoreSlug,
   validateSellerKindRequirements,
 } from "@/lib/sellerTypes";
 
@@ -24,6 +26,7 @@ export const runtime = "nodejs";
 
 interface SellerApplyRequest {
   shopName: string;
+  storeSlug: string;
   sellerKind: SellerKind;
   type: string;
   marketBuilding?: string;
@@ -96,6 +99,7 @@ export async function POST(request: Request) {
       return trimmed ? trimmed : null;
     };
     const sellerKind = body.sellerKind ?? SellerKind.WHOLESALE_STORE;
+    const storeSlug = normalizeStoreSlug(body.storeSlug ?? "");
     const creatorSlug =
       needsCreatorProfile(sellerKind)
         ? normalize(body.creatorSlug) != null
@@ -107,6 +111,13 @@ export async function POST(request: Request) {
     if (!body.shopName?.trim()) {
       return NextResponse.json(
         { error: "상점명은 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!storeSlug) {
+      return NextResponse.json(
+        { error: "상점 URL은 필수입니다." },
         { status: 400 }
       );
     }
@@ -190,6 +201,20 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(storeSlug)) {
+      return NextResponse.json(
+        { error: "상점 URL은 영문 소문자, 숫자, -, _ 조합으로 2~40자여야 합니다." },
+        { status: 400 }
+      );
+    }
+
+    if (isReservedStoreSlug(storeSlug)) {
+      return NextResponse.json(
+        { error: "사용할 수 없는 상점 URL입니다." },
+        { status: 400 }
+      );
+    }
+
     if (
       body.followerCount != null &&
       (!Number.isFinite(body.followerCount) || body.followerCount < 0)
@@ -217,6 +242,14 @@ export async function POST(request: Request) {
         })
       : null;
 
+    const existingStoreSlug = await prisma.sellerProfile.findFirst({
+      where: {
+        storeSlug,
+        userId: { not: session.userId },
+      },
+      select: { id: true },
+    });
+
     if (existingSlug) {
       return NextResponse.json(
         { error: "이미 사용 중인 크리에이터 슬러그입니다." },
@@ -224,8 +257,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (existingStoreSlug) {
+      return NextResponse.json(
+        { error: "이미 사용 중인 상점 URL입니다." },
+        { status: 409 }
+      );
+    }
+
     const profileData = {
       shopName: body.shopName.trim(),
+      storeSlug,
       sellerKind,
       type: body.type.trim(),
       marketBuilding: normalize(body.marketBuilding),

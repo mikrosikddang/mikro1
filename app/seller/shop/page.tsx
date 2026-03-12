@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { SellerKind, SocialChannelType } from "@prisma/client";
 import {
+  buildDefaultStoreSlug,
   SELLER_KIND_OPTIONS,
   SOCIAL_CHANNEL_OPTIONS,
   buildDefaultCreatorSlug,
+  isReservedStoreSlug,
   isOfflineSellerKind,
   needsCreatorProfile,
 } from "@/lib/sellerTypes";
@@ -35,6 +37,7 @@ export default function ShopManagePage() {
 
   // Basic profile
   const [shopName, setShopName] = useState("");
+  const [storeSlug, setStoreSlug] = useState("");
   const [bio, setBio] = useState("");
   const [locationText, setLocationText] = useState("");
   const [sellerKind, setSellerKind] = useState<SellerKind>(SellerKind.WHOLESALE_STORE);
@@ -94,6 +97,7 @@ export default function ShopManagePage() {
       })
       .then((data) => {
         setShopName(data.shopName ?? "");
+        setStoreSlug(data.storeSlug ?? buildDefaultStoreSlug(data.shopName ?? ""));
         setBio(data.bio ?? "");
         setLocationText(data.locationText ?? "");
         setSellerKind(data.sellerKind ?? SellerKind.WHOLESALE_STORE);
@@ -173,6 +177,18 @@ export default function ShopManagePage() {
       setError("상점명을 입력해주세요");
       return;
     }
+    if (!storeSlug.trim()) {
+      setError("상점 URL을 입력해주세요");
+      return;
+    }
+    if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(storeSlug.trim())) {
+      setError("상점 URL 형식을 확인해주세요");
+      return;
+    }
+    if (isReservedStoreSlug(storeSlug.trim())) {
+      setError("사용할 수 없는 상점 URL입니다");
+      return;
+    }
     if (!shopType.trim()) {
       setError("상점 유형을 선택해주세요");
       return;
@@ -248,6 +264,7 @@ export default function ShopManagePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shopName: shopName.trim(),
+          storeSlug: storeSlug.trim(),
           bio: bio.trim() || null,
           locationText: locationText.trim() || null,
           sellerKind,
@@ -379,11 +396,39 @@ export default function ShopManagePage() {
           <input
             type="text"
             value={shopName}
-            onChange={(e) => setShopName(e.target.value)}
+            onChange={(e) => {
+              const nextShopName = e.target.value;
+              setShopName(nextShopName);
+              if (!storeSlug.trim()) {
+                setStoreSlug(buildDefaultStoreSlug(nextShopName));
+              }
+            }}
             maxLength={30}
             className={inputClass}
             placeholder="상점명"
           />
+        </div>
+
+        <div className="mb-3">
+          <label className={labelClass}>상점 URL</label>
+          <input
+            type="text"
+            value={storeSlug}
+            onChange={(e) =>
+              setStoreSlug(
+                e.target.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9-_]+/g, "-")
+                  .replace(/-{2,}/g, "-")
+                  .replace(/^-+|-+$/g, ""),
+              )
+            }
+            className={inputClass}
+            placeholder="예: mikrocloset"
+          />
+          <p className="mt-1 text-[12px] text-gray-500">
+            공개 상점 주소로 `www.mikrobrand.kr/{storeSlug || "storename"}` 형태로 사용됩니다.
+          </p>
         </div>
 
         <div className="mb-3">

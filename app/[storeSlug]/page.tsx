@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import Container from "@/components/Container";
@@ -7,45 +7,34 @@ import ProductGrid from "@/components/ProductGrid";
 import ScrollToTop from "@/components/ScrollToTop";
 import { getPublicProductWhere } from "@/lib/publicVisibility";
 
-export const revalidate = 60; // ISR: 60초
+export const revalidate = 60;
 
-type Props = { params: Promise<{ sellerId: string }> };
+type Props = { params: Promise<{ storeSlug: string }> };
 
-export default async function SellerShopPage({ params }: Props) {
-  const { sellerId } = await params;
+export default async function SellerStoreSlugPage({ params }: Props) {
+  const { storeSlug } = await params;
 
-  // Fetch seller profile
   const seller = await prisma.user.findFirst({
     where: {
-      id: sellerId,
       role: "SELLER_ACTIVE",
       sellerProfile: {
         is: {
           status: "APPROVED",
+          storeSlug,
         },
       },
     },
     include: { sellerProfile: true },
   });
 
-  const session = await getSession();
-
   if (!seller || !seller.sellerProfile) {
-    if (session && session.userId === sellerId) {
-      redirect("/apply/seller");
-    }
     notFound();
   }
 
-  if (seller.sellerProfile.storeSlug) {
-    redirect(`/${seller.sellerProfile.storeSlug}`);
-  }
-
+  const session = await getSession();
+  const sellerId = seller.id;
   const isOwner = session?.userId === sellerId;
 
-  const profile = seller.sellerProfile;
-
-  // Fetch initial products for SSR (first page)
   const limit = 30;
   const products = await prisma.product.findMany({
     where: getPublicProductWhere({ sellerId }),
@@ -64,7 +53,6 @@ export default async function SellerShopPage({ params }: Props) {
     },
   });
 
-  // Pagination logic
   const hasMore = products.length > limit;
   const items = hasMore ? products.slice(0, limit) : products;
   const nextCursor = hasMore
@@ -82,16 +70,14 @@ export default async function SellerShopPage({ params }: Props) {
     <>
       <ScrollToTop />
       <Container>
-        {/* Instagram-style header */}
         <SellerShopHeader
           sellerId={sellerId}
-          shopName={profile.shopName}
-          bio={profile.bio}
-          avatarUrl={profile.avatarUrl}
+          shopName={seller.sellerProfile.shopName}
+          bio={seller.sellerProfile.bio}
+          avatarUrl={seller.sellerProfile.avatarUrl}
         />
       </Container>
 
-      {/* Instagram-style product grid - full width, no padding */}
       <div className="mx-auto w-full max-w-[420px]">
         <ProductGrid
           sellerId={sellerId}

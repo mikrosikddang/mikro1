@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { SellerKind, SocialChannelType } from "@prisma/client";
 import Container from "@/components/Container";
 import {
+  buildDefaultStoreSlug,
   SELLER_KIND_OPTIONS,
   SOCIAL_CHANNEL_OPTIONS,
   buildDefaultCreatorSlug,
+  isReservedStoreSlug,
   isOfflineSellerKind,
   needsCreatorProfile,
 } from "@/lib/sellerTypes";
@@ -34,6 +36,7 @@ interface FormErrors {
 type FormState = {
   sellerKind: SellerKind;
   shopName: string;
+  storeSlug: string;
   type: string;
   bizRegNo: string;
   bizLicenseImage: string;
@@ -60,6 +63,7 @@ type FormState = {
 const INITIAL_FORM: FormState = {
   sellerKind: SellerKind.WHOLESALE_STORE,
   shopName: "",
+  storeSlug: "",
   type: "",
   bizRegNo: "",
   bizLicenseImage: "",
@@ -164,6 +168,7 @@ export default function SellerApplyPage() {
         setFormData({
           sellerKind: p.sellerKind || SellerKind.WHOLESALE_STORE,
           shopName: p.shopName || "",
+          storeSlug: p.storeSlug || buildDefaultStoreSlug(p.shopName || ""),
           type: p.type || "",
           bizRegNo: p.bizRegNo || "",
           bizLicenseImage: p.bizRegImageUrl || "",
@@ -236,6 +241,14 @@ export default function SellerApplyPage() {
     const nextErrors: FormErrors = {};
 
     if (!formData.shopName.trim()) nextErrors.shopName = "상점명을 입력해주세요.";
+    if (!formData.storeSlug.trim()) {
+      nextErrors.storeSlug = "상점 URL을 입력해주세요.";
+    } else if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(formData.storeSlug.trim())) {
+      nextErrors.storeSlug =
+        "상점 URL은 영문 소문자, 숫자, -, _ 조합으로 2~40자여야 합니다.";
+    } else if (isReservedStoreSlug(formData.storeSlug.trim())) {
+      nextErrors.storeSlug = "사용할 수 없는 상점 URL입니다.";
+    }
     if (!formData.type) nextErrors.type = "상점 유형을 선택해주세요.";
     if (!formData.managerPhone.trim()) {
       nextErrors.managerPhone = "담당자 연락처를 입력해주세요.";
@@ -328,6 +341,7 @@ export default function SellerApplyPage() {
         body: JSON.stringify({
           sellerKind: formData.sellerKind,
           shopName: formData.shopName.trim(),
+          storeSlug: formData.storeSlug.trim(),
           bizRegNo: formData.bizRegNo.trim() || null,
           type: formData.type,
           marketBuilding: resolvedMarketBuilding || null,
@@ -496,8 +510,17 @@ export default function SellerApplyPage() {
             <input
               type="text"
               value={formData.shopName}
-              onChange={(e) => updateField("shopName", e.target.value)}
+              onChange={(e) => {
+                const nextShopName = e.target.value;
+                updateField("shopName", nextShopName);
+                if (!formData.storeSlug.trim()) {
+                  updateField("storeSlug", buildDefaultStoreSlug(nextShopName));
+                }
+              }}
               onBlur={() => {
+                if (!formData.storeSlug.trim()) {
+                  updateField("storeSlug", buildDefaultStoreSlug(formData.shopName));
+                }
                 if (!formData.creatorSlug.trim() && showCreatorFields) {
                   updateField(
                     "creatorSlug",
@@ -510,6 +533,33 @@ export default function SellerApplyPage() {
               disabled={submitting}
             />
             {inlineError("shopName")}
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-2 block text-[14px] font-medium text-gray-700">
+              상점 URL <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.storeSlug}
+              onChange={(e) =>
+                updateField(
+                  "storeSlug",
+                  e.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-_]+/g, "-")
+                    .replace(/-{2,}/g, "-")
+                    .replace(/^-+|-+$/g, ""),
+                )
+              }
+              placeholder="예: mikrocloset"
+              className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+              disabled={submitting}
+            />
+            <p className="mt-1 text-[12px] text-gray-500">
+              공개 상점 주소로 `www.mikrobrand.kr/{formData.storeSlug || "storename"}` 형태로 사용됩니다.
+            </p>
+            {inlineError("storeSlug")}
           </div>
 
           <div className="mb-4">
