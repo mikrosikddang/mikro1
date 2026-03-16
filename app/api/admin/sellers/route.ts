@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { SellerApprovalStatus } from "@prisma/client";
+import { requireAdmin } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -16,10 +17,7 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    requireAdmin(await getSession());
 
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
@@ -55,11 +53,49 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ sellers });
+    const sellerIds = sellers.map((seller) => seller.id);
+    const adminActionLogs = sellerIds.length
+      ? await prisma.adminActionLog.findMany({
+          where: {
+            entityType: "SELLER",
+            entityId: { in: sellerIds },
+          },
+          include: {
+            admin: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
+    const logMap = adminActionLogs.reduce<
+      Record<string, typeof adminActionLogs>
+    >((acc, log) => {
+      acc[log.entityId] ??= [];
+      if (acc[log.entityId].length < 3) {
+        acc[log.entityId].push(log);
+      }
+      return acc;
+    }, {});
+
+    return NextResponse.json({
+      sellers: sellers.map((seller) => ({
+        ...seller,
+        recentActions: logMap[seller.id] ?? [],
+      })),
+    });
   } catch (error) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     console.error("GET /api/admin/sellers error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch sellers" },
+      { error: "판매자 목록을 불러오지 못했습니다" },
       { status: 500 }
     );
   }

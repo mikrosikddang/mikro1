@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/roleGuards";
+import { createAdminActionLog } from "@/lib/adminActionLog";
 
 export const runtime = "nodejs";
 
@@ -28,17 +30,14 @@ export async function POST(
   context: RouteContext
 ) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const session = requireAdmin(await getSession());
 
     const { id } = await context.params;
     const body = (await request.json()) as RejectRequest;
 
     if (!body.reason || body.reason.trim().length < 10) {
       return NextResponse.json(
-        { error: "Rejection reason must be at least 10 characters" },
+        { error: "거부 사유는 최소 10자 이상이어야 합니다" },
         { status: 400 }
       );
     }
@@ -73,20 +72,41 @@ export async function POST(
         data: { role: "CUSTOMER" },
       });
 
+      await createAdminActionLog(tx, {
+        adminId: session.userId,
+        entityType: "SELLER",
+        entityId: sellerProfile.id,
+        action: "SELLER_REJECTED",
+        summary: "판매자 신청을 반려했습니다.",
+        reason: body.reason.trim(),
+        beforeJson: {
+          status: sellerProfile.status,
+          rejectedReason: sellerProfile.rejectedReason,
+        },
+        afterJson: {
+          status: "REJECTED",
+          rejectedReason: body.reason.trim(),
+          userRole: "CUSTOMER",
+        },
+      });
+
       return { ok: true, sellerProfile: updatedProfile };
     });
 
     return NextResponse.json(result);
   } catch (error: any) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     if (error.message?.includes("SELLER_NOT_FOUND")) {
       return NextResponse.json(
-        { error: "Seller not found" },
+        { error: "판매자 프로필을 찾을 수 없습니다" },
         { status: 404 }
       );
     }
     console.error("POST /api/admin/sellers/[id]/reject error:", error);
     return NextResponse.json(
-      { error: "Failed to reject seller" },
+      { error: "판매자 반려에 실패했습니다" },
       { status: 500 }
     );
   }

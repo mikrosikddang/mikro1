@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
 import type { OrderStatus } from "@prisma/client";
+import AdminOrderOverrideButton from "@/components/admin/AdminOrderOverrideButton";
 
 interface Order {
   id: string;
@@ -31,6 +33,8 @@ interface Order {
 
 export default function AdminOrdersPage() {
   const searchParams = useSearchParams();
+  const sellerId = searchParams?.get("sellerId");
+  const buyerId = searchParams?.get("buyerId");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "ALL">(
@@ -39,15 +43,16 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-  }, [selectedStatus]);
+  }, [selectedStatus, sellerId, buyerId]);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const url =
-        selectedStatus === "ALL"
-          ? "/api/admin/orders"
-          : `/api/admin/orders?status=${selectedStatus}`;
+      const params = new URLSearchParams();
+      if (selectedStatus !== "ALL") params.set("status", selectedStatus);
+      if (sellerId) params.set("sellerId", sellerId);
+      if (buyerId) params.set("buyerId", buyerId);
+      const url = `/api/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("주문 목록을 불러오는데 실패했습니다");
       const data = await res.json();
@@ -57,47 +62,6 @@ export default function AdminOrdersPage() {
       alert("주문 목록을 불러오는데 실패했습니다");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOverride = async (orderId: string, currentStatus: OrderStatus) => {
-    const newStatus = prompt(
-      `주문 ${orderId}의 상태를 변경합니다 (현재: ${getStatusLabel(currentStatus)}):\n\n가능한 상태: PENDING, PAID, SHIPPED, COMPLETED, CANCELLED, REFUND_REQUESTED, RETURN_STARTED, RETURN_REJECTED, REFUNDED, FAILED, EXPIRED`
-    );
-
-    if (!newStatus) return;
-
-    const reason = prompt("변경 사유를 입력하세요 (최소 10자 이상, 필수):");
-    if (!reason || reason.trim().length < 10) {
-      alert("변경 사유는 최소 10자 이상이어야 합니다");
-      return;
-    }
-
-    if (
-      !confirm(
-        `⚠️ 주문 상태 강제 변경\n\n주문: ${orderId}\n현재: ${getStatusLabel(currentStatus)}\n변경: ${newStatus}\n\n이 작업은 긴급 상황에서만 사용해야 합니다. 계속하시겠습니까?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/override`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: newStatus.toUpperCase(), reason }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "주문 상태 변경에 실패했습니다");
-      }
-
-      alert("주문 상태가 성공적으로 변경되었습니다. 이 작업은 로그에 기록됩니다.");
-      loadOrders();
-    } catch (error: any) {
-      console.error("주문 상태 변경 오류:", error);
-      alert(error.message || "주문 상태 변경에 실패했습니다");
     }
   };
 
@@ -125,6 +89,13 @@ export default function AdminOrdersPage() {
         <p className="text-sm text-gray-600 mb-4">
           플랫폼의 모든 주문을 모니터링합니다. 상태 변경은 분쟁 해결 시에만 사용하세요.
         </p>
+        {(sellerId || buyerId) && (
+          <p className="mb-4 text-sm text-gray-500">
+            필터:
+            {sellerId ? ` 판매자 ${sellerId}` : ""}
+            {buyerId ? ` 구매자 ${buyerId}` : ""}
+          </p>
+        )}
 
         {/* Status filters */}
         <div className="flex flex-wrap gap-2">
@@ -192,18 +163,19 @@ export default function AdminOrdersPage() {
 
               {/* Override button - only for special cases */}
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleOverride(order.id, order.status)}
-                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors"
-                >
-                  🛡️ 상태 변경
-                </button>
-                <a
+                <AdminOrderOverrideButton
+                  orderId={order.id}
+                  currentStatus={order.status}
+                  buttonLabel="🛡️ 상태 변경"
+                  buttonClassName="rounded px-3 py-1.5 text-xs font-medium text-white transition-colors bg-red-600 hover:bg-red-700"
+                  onSuccess={loadOrders}
+                />
+                <Link
                   href={`/admin/orders/${order.id}`}
                   className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
                 >
                   상세 보기 →
-                </a>
+                </Link>
               </div>
             </div>
           ))}

@@ -114,7 +114,7 @@ export default async function AdminDashboardPage() {
       {/* Quick links */}
       <div className="mt-8">
         <h2 className="text-lg font-bold text-gray-900 mb-4">바로가기</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <Link
             href="/admin/sellers"
             className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -131,6 +131,33 @@ export default async function AdminDashboardPage() {
             <p className="font-medium text-gray-900">📦 주문 모니터링</p>
             <p className="text-sm text-gray-600">
               분쟁 해결을 위한 주문 상태 확인 및 변경
+            </p>
+          </Link>
+          <Link
+            href="/admin/campaigns"
+            className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <p className="font-medium text-gray-900">📣 캠페인 관리</p>
+            <p className="text-sm text-gray-600">
+              상태 변경과 성과 현황을 운영 기준으로 확인
+            </p>
+          </Link>
+          <Link
+            href="/admin/coupons"
+            className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <p className="font-medium text-gray-900">🎟️ 쿠폰 관리</p>
+            <p className="text-sm text-gray-600">
+              운영 쿠폰 생성 및 발급 현황 확인
+            </p>
+          </Link>
+          <Link
+            href="/admin/disputes"
+            className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <p className="font-medium text-gray-900">📝 분쟁 메모</p>
+            <p className="text-sm text-gray-600">
+              주문 운영 메모와 분쟁 대응 기록 확인
             </p>
           </Link>
         </div>

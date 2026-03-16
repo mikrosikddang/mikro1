@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/roleGuards";
+import { createAdminActionLog } from "@/lib/adminActionLog";
 
 export const runtime = "nodejs";
 
@@ -21,10 +23,7 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const session = requireAdmin(await getSession());
 
     const body = await req.json();
     const {
@@ -116,21 +115,47 @@ export async function POST(req: NextRequest) {
     }
 
     // Create coupon
-    const coupon = await prisma.coupon.create({
-      data: {
-        code: normalizedCode,
-        name: name.trim(),
-        discountType: discountType as "PERCENT" | "FIXED",
-        discountValue,
-        minOrderAmount: minOrderAmount ?? null,
-        maxDiscountAmount: maxDiscountAmount ?? null,
-        totalCount: totalCount ?? null,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-      },
+    const coupon = await prisma.$transaction(async (tx) => {
+      const createdCoupon = await tx.coupon.create({
+        data: {
+          code: normalizedCode,
+          name: name.trim(),
+          discountType: discountType as "PERCENT" | "FIXED",
+          discountValue,
+          minOrderAmount: minOrderAmount ?? null,
+          maxDiscountAmount: maxDiscountAmount ?? null,
+          totalCount: totalCount ?? null,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+        },
+      });
+
+      await createAdminActionLog(tx, {
+        adminId: session.userId,
+        entityType: "COUPON",
+        entityId: createdCoupon.id,
+        action: "COUPON_CREATED",
+        summary: "관리자 쿠폰을 생성했습니다.",
+        afterJson: {
+          code: createdCoupon.code,
+          name: createdCoupon.name,
+          discountType: createdCoupon.discountType,
+          discountValue: createdCoupon.discountValue,
+          minOrderAmount: createdCoupon.minOrderAmount,
+          maxDiscountAmount: createdCoupon.maxDiscountAmount,
+          totalCount: createdCoupon.totalCount,
+          isActive: createdCoupon.isActive,
+          expiresAt: createdCoupon.expiresAt?.toISOString() ?? null,
+        },
+      });
+
+      return createdCoupon;
     });
 
     return NextResponse.json({ ok: true, coupon });
   } catch (error) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     console.error("POST /api/admin/coupons error:", error);
     return NextResponse.json(
       { error: "쿠폰 생성 중 오류가 발생했습니다" },
@@ -147,10 +172,7 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    requireAdmin(await getSession());
 
     const { searchParams } = new URL(req.url);
     const activeParam = searchParams.get("active");
@@ -184,6 +206,9 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     console.error("GET /api/admin/coupons error:", error);
     return NextResponse.json(
       { error: "쿠폰 목록 조회 중 오류가 발생했습니다" },

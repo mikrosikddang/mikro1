@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
+import { requireAdmin } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -12,19 +13,20 @@ export const runtime = "nodejs";
  * Query params:
  * - status: OrderStatus (optional)
  * - limit: number (optional, default 100)
+ * - sellerId: string (optional)
+ * - buyerId: string (optional)
  *
  * Auth: ADMIN only
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || !isAdmin(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    requireAdmin(await getSession());
 
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
     const limitParam = searchParams.get("limit");
+    const sellerIdParam = searchParams.get("sellerId");
+    const buyerIdParam = searchParams.get("buyerId");
 
     // Auto-expire expired PENDING orders platform-wide
     await prisma.order.updateMany({
@@ -35,12 +37,19 @@ export async function GET(request: NextRequest) {
       data: { status: "EXPIRED" },
     });
 
-    // Build filter — exclude PENDING unless explicitly requested
-    const where: any = {};
+    const where: {
+      status?: OrderStatus;
+      sellerId?: string;
+      buyerId?: string;
+    } = {};
     if (statusParam && Object.values(OrderStatus).includes(statusParam as OrderStatus)) {
       where.status = statusParam as OrderStatus;
-    } else {
-      where.status = { not: "PENDING" as const };
+    }
+    if (sellerIdParam) {
+      where.sellerId = sellerIdParam;
+    }
+    if (buyerIdParam) {
+      where.buyerId = buyerIdParam;
     }
 
     const limit = limitParam ? Math.min(parseInt(limitParam, 10), 500) : 100;
@@ -81,9 +90,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ orders });
   } catch (error) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     console.error("GET /api/admin/orders error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch orders" },
+      { error: "주문 목록을 불러오지 못했습니다" },
       { status: 500 }
     );
   }

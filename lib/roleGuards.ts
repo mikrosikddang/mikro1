@@ -8,7 +8,11 @@
 import { NextResponse } from "next/server";
 import type { Session } from "./authTypes";
 import type { UserRole } from "@prisma/client";
-import { canAccessSellerFeatures as canAccessSellerFeaturesRole, isSeller } from "./roles";
+import {
+  canAccessSellerFeatures as canAccessSellerFeaturesRole,
+  isAdmin,
+  isSeller,
+} from "./roles";
 import { hasSellerPortalAccess } from "./sellerPortal";
 
 /**
@@ -88,6 +92,24 @@ export async function requireSeller(session: Session | null): Promise<Session> {
   if (!allowed) {
     throw NextResponse.json(
       { error: "Forbidden: Seller access required" },
+      { status: 403 }
+    );
+  }
+
+  return session;
+}
+
+export function requireAdmin(session: Session | null): Session {
+  if (!session) {
+    throw NextResponse.json(
+      { error: "로그인이 필요합니다" },
+      { status: 401 }
+    );
+  }
+
+  if (!isAdmin(session.role)) {
+    throw NextResponse.json(
+      { error: "관리자 권한이 필요합니다" },
       { status: 403 }
     );
   }

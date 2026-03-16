@@ -119,6 +119,7 @@ model User {
   referralVisits  CampaignVisit[]   @relation("CampaignVisitSeller")
   referredOrders  OrderAttribution[] @relation("OrderAttributionReferrer")
   commissionOrders OrderCommission[] @relation("OrderCommissionBeneficiary")
+  adminActionLogs AdminActionLog[]  @relation("AdminActionLogActor")
 }
 
 model CartItem {
@@ -381,6 +382,24 @@ model OrderAuditLog {
 
   @@index([orderId])
   @@index([adminId])
+}
+
+model AdminActionLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     User     @relation("AdminActionLogActor", fields: [adminId], references: [id], onDelete: Restrict)
+  entityType String  @db.VarChar(40)
+  entityId   String
+  action     String  @db.VarChar(80)
+  summary    String  @db.Text
+  reason     String? @db.Text
+  beforeJson Json?
+  afterJson  Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([adminId, createdAt])
 }
 
 model SellerFollow {

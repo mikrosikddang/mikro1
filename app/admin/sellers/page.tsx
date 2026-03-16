@@ -1,11 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import AdminModal from "@/components/admin/AdminModal";
+
+interface SellerRecentAction {
+  id: string;
+  action: string;
+  summary: string;
+  reason: string | null;
+  createdAt: string;
+  admin: {
+    id: string;
+    email: string | null;
+    name: string | null;
+  };
+}
 
 interface SellerProfile {
   id: string;
   shopName: string;
+  storeSlug: string | null;
   sellerKind: "WHOLESALE_STORE" | "INFLUENCER" | "BRAND" | "HYBRID";
   type: string | null;
   marketBuilding: string | null;
@@ -28,141 +44,31 @@ interface SellerProfile {
       campaigns: number;
     };
   };
+  recentActions: SellerRecentAction[];
   createdAt: string;
 }
+
+type SellerActionType = "approve" | "reject" | "commission" | "compliance" | null;
 
 export default function AdminSellersPage() {
   const searchParams = useSearchParams();
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [commissionInput, setCommissionInput] = useState("");
+  const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
+  const [actionType, setActionType] = useState<SellerActionType>(null);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >(searchParams.get("status") === "ALL" ? "ALL" : "PENDING");
+  >((searchParams.get("status") as "ALL" | "PENDING" | "APPROVED" | "REJECTED") || "ALL");
 
   useEffect(() => {
     loadSellers();
   }, [statusFilter, searchParams]);
 
-  const loadSellers = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
-      const userId = searchParams.get("userId");
-      if (userId) params.set("userId", userId);
-      const url = `/api/admin/sellers${params.toString() ? `?${params.toString()}` : ""}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("판매자 목록을 불러오는데 실패했습니다");
-      const data = await res.json();
-      setSellers(data.sellers || []);
-    } catch (error) {
-      console.error("판매자 로딩 오류:", error);
-      alert("판매자 목록을 불러오는데 실패했습니다");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApprove = async (sellerId: string) => {
-    if (!confirm("이 판매자 신청을 승인하시겠습니까?")) return;
-
-    try {
-      const res = await fetch(`/api/admin/sellers/${sellerId}/approve`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "판매자 승인에 실패했습니다");
-      }
-
-      alert("판매자가 성공적으로 승인되었습니다");
-      loadSellers();
-    } catch (error: any) {
-      console.error("판매자 승인 오류:", error);
-      alert(error.message || "판매자 승인에 실패했습니다");
-    }
-  };
-
-  const handleReject = async (sellerId: string) => {
-    const reason = prompt("거부 사유를 입력하세요 (최소 10자 이상):");
-    if (!reason || reason.trim().length < 10) {
-      alert("거부 사유는 최소 10자 이상이어야 합니다");
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/admin/sellers/${sellerId}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "판매자 거부에 실패했습니다");
-      }
-
-      alert("판매자가 거부되었습니다");
-      loadSellers();
-    } catch (error: any) {
-      console.error("판매자 거부 오류:", error);
-      alert(error.message || "판매자 거부에 실패했습니다");
-    }
-  };
-
-  const handleCommissionUpdate = async (
-    sellerId: string,
-    currentCommissionRateBps: number,
-  ) => {
-    const input = prompt(
-      "새 기본 수수료율을 bps로 입력하세요. 예: 1200 = 12%",
-      String(currentCommissionRateBps),
-    );
-    if (input == null) return;
-    const nextValue = Number(input);
-    if (!Number.isFinite(nextValue) || nextValue < 0 || nextValue > 10000) {
-      alert("0~10000 범위의 숫자를 입력해주세요");
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/admin/sellers/${sellerId}/commission`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commissionRateBps: nextValue }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "수수료율 변경에 실패했습니다");
-      }
-      alert("기본 수수료율을 변경했습니다");
-      loadSellers();
-    } catch (error: any) {
-      console.error("수수료율 변경 오류:", error);
-      alert(error.message || "수수료율 변경에 실패했습니다");
-    }
-  };
-
-  const handleComplianceReviewClear = async (sellerId: string) => {
-    try {
-      const res = await fetch(
-        `/api/admin/sellers/${sellerId}/compliance-review`,
-        {
-          method: "PATCH",
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "검토 상태 변경에 실패했습니다");
-      }
-      alert("운영 검토를 완료 처리했습니다");
-      loadSellers();
-    } catch (error: any) {
-      console.error("운영 검토 처리 오류:", error);
-      alert(error.message || "운영 검토 처리에 실패했습니다");
-    }
-  };
+  const filteredUserId = searchParams.get("userId");
 
   const statusLabels = {
     ALL: "전체",
@@ -178,16 +84,135 @@ export default function AdminSellersPage() {
     HYBRID: "브랜드상점",
   };
 
+  const modalTitle = useMemo(() => {
+    switch (actionType) {
+      case "approve":
+        return "판매자 승인";
+      case "reject":
+        return "판매자 반려";
+      case "commission":
+        return "수수료율 수정";
+      case "compliance":
+        return "운영 검토 완료";
+      default:
+        return "";
+    }
+  }, [actionType]);
+
+  const loadSellers = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (filteredUserId) params.set("userId", filteredUserId);
+
+      const url = `/api/admin/sellers${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("판매자 목록을 불러오는데 실패했습니다");
+      const data = await res.json();
+      setSellers(data.sellers || []);
+    } catch (error) {
+      console.error("판매자 로딩 오류:", error);
+      alert("판매자 목록을 불러오는데 실패했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openActionModal = (type: Exclude<SellerActionType, null>, seller: SellerProfile) => {
+    setSelectedSeller(seller);
+    setActionType(type);
+    setActionError("");
+    setRejectReason(seller.rejectedReason || "");
+    setCommissionInput(String(seller.commissionRateBps));
+  };
+
+  const closeActionModal = () => {
+    if (submitting) return;
+    forceCloseActionModal();
+  };
+
+  const forceCloseActionModal = () => {
+    setSelectedSeller(null);
+    setActionType(null);
+    setActionError("");
+    setRejectReason("");
+    setCommissionInput("");
+    setSubmitting(false);
+  };
+
+  const submitSellerAction = async () => {
+    if (!selectedSeller || !actionType) return;
+
+    let url = "";
+    let method = "POST";
+    let body: Record<string, unknown> | undefined;
+
+    if (actionType === "approve") {
+      url = `/api/admin/sellers/${selectedSeller.id}/approve`;
+    } else if (actionType === "reject") {
+      if (rejectReason.trim().length < 10) {
+        setActionError("거부 사유는 최소 10자 이상 입력해주세요.");
+        return;
+      }
+      url = `/api/admin/sellers/${selectedSeller.id}/reject`;
+      body = { reason: rejectReason.trim() };
+    } else if (actionType === "commission") {
+      const nextValue = Number(commissionInput);
+      if (!Number.isFinite(nextValue) || nextValue < 0 || nextValue > 10000) {
+        setActionError("수수료율은 0~10000 범위의 숫자여야 합니다.");
+        return;
+      }
+      url = `/api/admin/sellers/${selectedSeller.id}/commission`;
+      method = "PATCH";
+      body = { commissionRateBps: nextValue };
+    } else if (actionType === "compliance") {
+      url = `/api/admin/sellers/${selectedSeller.id}/compliance-review`;
+      method = "PATCH";
+    }
+
+    setSubmitting(true);
+    setActionError("");
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "관리자 작업에 실패했습니다");
+      }
+
+      forceCloseActionModal();
+      await loadSellers();
+    } catch (error) {
+      setSubmitting(false);
+      setActionError(
+        error instanceof Error ? error.message : "관리자 작업에 실패했습니다",
+      );
+    }
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">판매자 관리</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">판매자 관리</h1>
+          {filteredUserId ? (
+            <p className="mt-1 text-sm text-gray-500">
+              특정 판매자 기준으로 조회 중: {filteredUserId}
+            </p>
+          ) : null}
+        </div>
         <div className="flex gap-2">
           {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 statusFilter === status
                   ? "bg-red-900 text-white"
                   : "bg-white text-gray-700 hover:bg-gray-100"
@@ -200,9 +225,9 @@ export default function AdminSellersPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">로딩 중...</div>
+        <div className="py-12 text-center text-gray-500">로딩 중...</div>
       ) : sellers.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="py-12 text-center text-gray-500">
           {statusLabels[statusFilter]} 상태의 판매자가 없습니다
         </div>
       ) : (
@@ -210,34 +235,32 @@ export default function AdminSellersPage() {
           {sellers.map((seller) => (
             <div
               key={seller.id}
-              className="bg-white p-6 rounded-lg shadow border border-gray-200"
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow"
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {seller.shopName}
-                  </h3>
+                  <h3 className="text-lg font-bold text-gray-900">{seller.shopName}</h3>
                   <p className="text-sm text-gray-500">
                     {seller.user.email || seller.user.phone || "연락처 없음"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="mt-1 text-xs text-gray-400">
                     신청일: {new Date(seller.createdAt).toLocaleDateString("ko-KR")}
                   </p>
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
                     seller.status === "APPROVED"
                       ? "bg-green-100 text-green-800"
                       : seller.status === "REJECTED"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-yellow-100 text-yellow-800"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
                   {statusLabels[seller.status]}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+              <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">입점 유형</p>
                   <p className="font-medium text-gray-900">
@@ -246,15 +269,11 @@ export default function AdminSellersPage() {
                 </div>
                 <div>
                   <p className="text-gray-500">업종</p>
-                  <p className="font-medium text-gray-900">
-                    {seller.type || "-"}
-                  </p>
+                  <p className="font-medium text-gray-900">{seller.type || "-"}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">시장/건물</p>
-                  <p className="font-medium text-gray-900">
-                    {seller.marketBuilding || "-"}
-                  </p>
+                  <p className="font-medium text-gray-900">{seller.marketBuilding || "-"}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">위치</p>
@@ -268,14 +287,12 @@ export default function AdminSellersPage() {
                   <p className="text-gray-500">담당자</p>
                   <p className="font-medium text-gray-900">
                     {seller.managerName || "-"}
-                    {seller.managerPhone && ` (${seller.managerPhone})`}
+                    {seller.managerPhone ? ` (${seller.managerPhone})` : ""}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">크리에이터 ref</p>
-                  <p className="font-medium text-gray-900">
-                    {seller.creatorSlug || "-"}
-                  </p>
+                  <p className="font-medium text-gray-900">{seller.creatorSlug || "-"}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">기본 수수료</p>
@@ -285,9 +302,7 @@ export default function AdminSellersPage() {
                 </div>
                 <div>
                   <p className="text-gray-500">캠페인 수</p>
-                  <p className="font-medium text-gray-900">
-                    {seller.user._count.campaigns}
-                  </p>
+                  <p className="font-medium text-gray-900">{seller.user._count.campaigns}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">운영 검토</p>
@@ -295,58 +310,187 @@ export default function AdminSellersPage() {
                     {seller.complianceReviewPending ? "필요" : "없음"}
                   </p>
                 </div>
+                <div>
+                  <p className="text-gray-500">공개 상점 주소</p>
+                  <p className="font-medium text-gray-900">
+                    {seller.storeSlug ? `/` + seller.storeSlug : "-"}
+                  </p>
+                </div>
               </div>
 
-              {seller.status === "REJECTED" && seller.rejectedReason && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-                  <p className="text-xs text-red-600 font-medium mb-1">
-                    거부 사유:
-                  </p>
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Link
+                  href={`/admin/orders?sellerId=${seller.user.id}`}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  연결 주문 보기
+                </Link>
+                <Link
+                  href={`/admin/campaigns?sellerId=${seller.user.id}`}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  연결 캠페인 보기
+                </Link>
+                <Link
+                  href={seller.storeSlug ? `/${seller.storeSlug}` : `/s/${seller.user.id}`}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  공개 상점 보기
+                </Link>
+                <button
+                  onClick={() => openActionModal("commission", seller)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  수수료율 수정
+                </button>
+                {seller.complianceReviewPending ? (
+                  <button
+                    onClick={() => openActionModal("compliance", seller)}
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100"
+                  >
+                    검토 완료
+                  </button>
+                ) : null}
+              </div>
+
+              {seller.status === "REJECTED" && seller.rejectedReason ? (
+                <div className="mb-4 rounded border border-red-200 bg-red-50 p-3">
+                  <p className="mb-1 text-xs font-medium text-red-600">거부 사유</p>
                   <p className="text-sm text-red-800">{seller.rejectedReason}</p>
                 </div>
-              )}
+              ) : null}
 
-              <div className="mb-4">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      handleCommissionUpdate(seller.id, seller.commissionRateBps)
-                    }
-                    className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    수수료율 수정
-                  </button>
-                  {seller.complianceReviewPending && (
-                    <button
-                      onClick={() => handleComplianceReviewClear(seller.id)}
-                      className="px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
-                    >
-                      검토 완료
-                    </button>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">최근 관리자 액션</p>
+                  <p className="text-xs text-gray-400">최근 3건</p>
+                </div>
+                <div className="space-y-2">
+                  {seller.recentActions.length === 0 ? (
+                    <p className="text-sm text-gray-500">아직 기록된 관리자 액션이 없습니다.</p>
+                  ) : (
+                    seller.recentActions.map((action) => (
+                      <div key={action.id} className="rounded-lg bg-white p-3 text-sm text-gray-700">
+                        <p className="font-medium text-gray-900">{action.summary}</p>
+                        {action.reason ? (
+                          <p className="mt-1 text-gray-600">{action.reason}</p>
+                        ) : null}
+                        <p className="mt-2 text-xs text-gray-400">
+                          {action.admin.name || action.admin.email || action.admin.id} ·{" "}
+                          {new Date(action.createdAt).toLocaleString("ko-KR")}
+                        </p>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
 
-              {seller.status === "PENDING" && (
-                <div className="flex gap-2">
+              {seller.status === "PENDING" ? (
+                <div className="mt-4 flex gap-2">
                   <button
-                    onClick={() => handleApprove(seller.id)}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                    onClick={() => openActionModal("approve", seller)}
+                    className="flex-1 rounded-lg bg-green-600 px-4 py-2 font-medium text-white hover:bg-green-700"
                   >
-                    ✓ 승인
+                    승인
                   </button>
                   <button
-                    onClick={() => handleReject(seller.id)}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                    onClick={() => openActionModal("reject", seller)}
+                    className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
                   >
-                    ✗ 거부
+                    반려
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>
       )}
+
+      <AdminModal
+        open={Boolean(selectedSeller && actionType)}
+        title={modalTitle}
+        description={
+          selectedSeller
+            ? `${selectedSeller.shopName}에 대한 관리자 작업입니다.`
+            : undefined
+        }
+        onClose={closeActionModal}
+      >
+        {selectedSeller ? (
+          <div className="space-y-4">
+            {actionType === "approve" ? (
+              <div className="rounded-xl bg-green-50 p-4 text-sm text-green-800">
+                판매자 신청을 승인하면 해당 사용자는 즉시 판매자 기능에 접근할 수 있습니다.
+              </div>
+            ) : null}
+
+            {actionType === "reject" ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  반려 사유
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  rows={4}
+                  disabled={submitting}
+                  placeholder="반려 사유를 최소 10자 이상 입력해주세요."
+                  className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm focus:border-black focus:outline-none"
+                />
+              </div>
+            ) : null}
+
+            {actionType === "commission" ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  새 기본 수수료율 (bps)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={commissionInput}
+                  onChange={(event) => setCommissionInput(event.target.value)}
+                  disabled={submitting}
+                  className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm focus:border-black focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">예: 1200 = 12%</p>
+              </div>
+            ) : null}
+
+            {actionType === "compliance" ? (
+              <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+                현재 판매자의 운영 검토 필요 상태를 완료 처리합니다.
+              </div>
+            ) : null}
+
+            {actionError ? (
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                {actionError}
+              </p>
+            ) : null}
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+              <button
+                type="button"
+                onClick={closeActionModal}
+                disabled={submitting}
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitSellerAction}
+                disabled={submitting}
+                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+              >
+                {submitting ? "처리 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </AdminModal>
     </div>
   );
 }

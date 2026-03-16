@@ -36,6 +36,9 @@ export default async function AdminLayout({
               <Link href="/admin/orders" className="hover:underline">
                 주문 관리
               </Link>
+              <Link href="/admin/coupons" className="hover:underline">
+                쿠폰 관리
+              </Link>
               <Link href="/admin/disputes" className="hover:underline">
                 분쟁 처리
               </Link>

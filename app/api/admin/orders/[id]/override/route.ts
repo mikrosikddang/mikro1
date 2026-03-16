@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
 import { notifyOrderStatusChange } from "@/lib/notifications";
+import { requireAdmin } from "@/lib/roleGuards";
 
 export const runtime = "nodejs";
 
@@ -48,17 +49,7 @@ export async function POST(
 ) {
   try {
     // 1. Authentication and authorization
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!isAdmin(session.role)) {
-      return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
-        { status: 403 }
-      );
-    }
+    const session = requireAdmin(await getSession());
 
     const { id } = await context.params;
     const body = (await request.json()) as OverrideRequest;
@@ -66,14 +57,14 @@ export async function POST(
     // 2. Validate request
     if (!body.to) {
       return NextResponse.json(
-        { error: "Missing required field: to" },
+        { error: "변경할 주문 상태가 필요합니다" },
         { status: 400 }
       );
     }
 
     if (!body.reason || body.reason.length < 10) {
       return NextResponse.json(
-        { error: "Reason must be at least 10 characters" },
+        { error: "변경 사유는 최소 10자 이상이어야 합니다" },
         { status: 400 }
       );
     }
@@ -82,7 +73,7 @@ export async function POST(
     const validStatuses = Object.values(OrderStatus);
     if (!validStatuses.includes(body.to)) {
       return NextResponse.json(
-        { error: `Invalid status: ${body.to}` },
+        { error: `올바르지 않은 주문 상태입니다: ${body.to}` },
         { status: 400 }
       );
     }
@@ -197,8 +188,11 @@ export async function POST(
 
     return NextResponse.json(result);
   } catch (error: any) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     if (error.message.includes("ORDER_NOT_FOUND")) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return NextResponse.json({ error: "주문을 찾을 수 없습니다" }, { status: 404 });
     }
 
     if (error.message.includes("CONFLICT")) {
