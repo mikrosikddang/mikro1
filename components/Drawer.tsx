@@ -241,7 +241,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               </>
             ) : (
               <h2 className="text-[18px] font-semibold text-gray-900 leading-tight">
-                미크로
+                mikro
               </h2>
             )}
           </div>

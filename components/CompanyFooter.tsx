@@ -47,7 +47,7 @@ export default function CompanyFooter() {
 
           {/* Copyright */}
           <div className="text-[12px] text-gray-400 pt-2 border-t border-gray-200">
-            <p>© 2026 미크로. All rights reserved.</p>
+            <p>© 2026 mikro. All rights reserved.</p>
           </div>
         </div>
       </div>
