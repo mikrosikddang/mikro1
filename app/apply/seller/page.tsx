@@ -13,6 +13,7 @@ import {
   isReservedStoreSlug,
   isOfflineSellerKind,
   needsCreatorProfile,
+  normalizeVisibleSellerKind,
 } from "@/lib/sellerTypes";
 
 const SHOP_TYPES = ["남성복", "여성복", "유니섹스"];
@@ -61,7 +62,7 @@ type FormState = {
 };
 
 const INITIAL_FORM: FormState = {
-  sellerKind: SellerKind.WHOLESALE_STORE,
+  sellerKind: SellerKind.BRAND,
   shopName: "",
   storeSlug: "",
   type: "",
@@ -90,6 +91,7 @@ const INITIAL_FORM: FormState = {
 export default function SellerApplyPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -109,6 +111,15 @@ export default function SellerApplyPage() {
 
   const showOfflineFields = isOfflineSellerKind(formData.sellerKind);
   const showCreatorFields = needsCreatorProfile(formData.sellerKind);
+  const submitButtonLabel = submitting
+    ? existingProfile?.status === "PENDING"
+      ? "심사중..."
+      : "제출 완료 처리 중..."
+    : existingProfile?.status === "PENDING"
+      ? "심사중 · 수정사항 다시 제출"
+      : existingProfile?.status === "REJECTED"
+        ? "수정 후 다시 제출"
+        : "신청하기";
 
   const inlineError = (field: string) =>
     errors[field] ? (
@@ -166,7 +177,7 @@ export default function SellerApplyPage() {
         );
 
         setFormData({
-          sellerKind: p.sellerKind || SellerKind.WHOLESALE_STORE,
+          sellerKind: normalizeVisibleSellerKind(p.sellerKind),
           shopName: p.shopName || "",
           storeSlug: p.storeSlug || buildDefaultStoreSlug(p.shopName || ""),
           type: p.type || "",
@@ -383,6 +394,10 @@ export default function SellerApplyPage() {
     }
   };
 
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (loading) {
     return (
       <Container>
@@ -445,8 +460,15 @@ export default function SellerApplyPage() {
           <div className="mb-6 rounded-xl bg-blue-50 p-4">
             <p className="mb-1 text-[15px] font-bold text-blue-800">심사 중</p>
             <p className="text-[13px] text-blue-700">
-              신청 내용을 수정하려면 아래 양식을 다시 제출해주세요.
+              현재 운영팀 심사 중입니다. 아래에서 신청 정보를 수정한 뒤 다시 제출할 수 있습니다.
             </p>
+            <button
+              type="button"
+              onClick={scrollToForm}
+              className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white"
+            >
+              신청 정보 수정하기
+            </button>
           </div>
         )}
 
@@ -457,10 +479,17 @@ export default function SellerApplyPage() {
               {existingProfile.rejectedReason ||
                 "신청이 반려되었습니다. 내용을 수정 후 다시 제출해주세요."}
             </p>
+            <button
+              type="button"
+              onClick={scrollToForm}
+              className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-[13px] font-medium text-white"
+            >
+              내용 수정 후 다시 제출
+            </button>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form ref={formRef} onSubmit={handleSubmit}>
           <h2 className="mb-4 text-[16px] font-bold text-black">기본 정보</h2>
 
           <div className="mb-4">
@@ -474,7 +503,7 @@ export default function SellerApplyPage() {
                   type="button"
                   onClick={() => {
                     updateField("sellerKind", option.value);
-                    if (!formData.creatorSlug.trim() && option.value !== SellerKind.WHOLESALE_STORE) {
+                    if (!formData.creatorSlug.trim()) {
                       updateField(
                         "creatorSlug",
                         buildDefaultCreatorSlug(formData.shopName),
@@ -528,7 +557,7 @@ export default function SellerApplyPage() {
                   );
                 }
               }}
-              placeholder="예: mikro closet"
+              placeholder="예: 미크로클로젯"
               className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
               disabled={submitting}
             />
@@ -588,12 +617,12 @@ export default function SellerApplyPage() {
           {showCreatorFields && (
             <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
               <h3 className="mb-3 text-[15px] font-bold text-black">
-                크리에이터 / 캠페인 정보
+                공유 / 캠페인 정보
               </h3>
 
               <div className="mb-4">
                 <label className="mb-2 block text-[14px] font-medium text-gray-700">
-                  크리에이터 슬러그 <span className="text-red-500">*</span>
+                  공유 슬러그 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -1010,7 +1039,7 @@ export default function SellerApplyPage() {
             disabled={submitting || uploading}
             className="h-12 w-full rounded-xl bg-black text-[16px] font-bold text-white transition-colors disabled:opacity-50"
           >
-            {submitting ? "제출 중..." : "신청하기"}
+            {submitButtonLabel}
           </button>
         </form>
       </div>

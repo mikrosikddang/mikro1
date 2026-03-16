@@ -1,27 +1,37 @@
 import Link from "next/link";
 import Container from "@/components/Container";
 import { getSession } from "@/lib/auth";
-
-const MARKET_BUILDINGS = [
-  "APM",
-  "APM플레이스",
-  "APM럭스",
-  "누죤",
-  "디자이너클럽",
-  "퀸즈스퀘어",
-  "DDP패션몰",
-  "기타",
-];
+import { prisma } from "@/lib/prisma";
 
 export default async function ApplyPage() {
   const session = await getSession();
-  const ctaHref = session ? "/apply/seller" : "/login?next=/apply/seller";
+  const sellerProfile = session
+    ? await prisma.sellerProfile.findUnique({
+        where: { userId: session.userId },
+        select: { status: true },
+      })
+    : null;
+
+  const ctaHref = !session
+    ? "/login?next=/apply/seller"
+    : sellerProfile?.status === "APPROVED"
+      ? "/seller"
+      : "/apply/seller";
+  const ctaLabel = !session
+    ? "지금 신청하기"
+    : sellerProfile?.status === "PENDING"
+      ? "심사중"
+      : sellerProfile?.status === "REJECTED"
+        ? "신청 정보 수정하기"
+        : sellerProfile?.status === "APPROVED"
+          ? "판매자 센터로 이동"
+          : "지금 신청하기";
   return (
     <Container>
       <div className="pt-4 pb-20">
         <h1 className="text-[22px] font-bold text-black mb-2">입점 안내</h1>
         <p className="text-[14px] text-gray-500 mb-8">
-          mikro와 함께 동대문 패션을 온라인으로 판매하세요
+          미크로를 통해 나만의 상점을 가져보세요
         </p>
 
         {/* 입점 조건 */}
@@ -29,26 +39,16 @@ export default async function ApplyPage() {
           <h2 className="text-[16px] font-bold text-black mb-3">입점 조건</h2>
           <div className="space-y-3">
             <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="text-[14px] font-medium text-gray-900">사업자등록증 보유</p>
+              <p className="text-[14px] font-medium text-gray-900">필수 자격</p>
               <p className="text-[13px] text-gray-500 mt-1">
-                개인사업자 또는 법인사업자 모두 가능합니다
+                정식 판매를 위해 사업자등록증과 통신판매업 신고증을 필수로 보유하고 있어야 합니다.
               </p>
             </div>
             <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="text-[14px] font-medium text-gray-900">동대문 매장 운영</p>
+              <p className="text-[14px] font-medium text-gray-900">준비 서류</p>
               <p className="text-[13px] text-gray-500 mt-1">
-                동대문 상권 내 매장을 운영하는 사업자
+                사업자등록증 1부, 통신판매업 신고증 1부, 통장 사본을 준비해주세요.
               </p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {MARKET_BUILDINGS.map((name) => (
-                  <span
-                    key={name}
-                    className="px-2.5 py-1 bg-gray-100 rounded-md text-[12px] text-gray-600"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         </section>
@@ -64,7 +64,7 @@ export default async function ApplyPage() {
               <div>
                 <p className="text-[14px] font-medium text-gray-900">고객용 회원가입</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">
-                  먼저 mikro에 일반 회원으로 가입하세요
+                  먼저 미크로에 일반 회원으로 가입하세요
                 </p>
               </div>
             </div>
@@ -99,14 +99,14 @@ export default async function ApplyPage() {
             href={ctaHref}
             className="w-full h-14 bg-black text-white rounded-xl text-[16px] font-bold flex items-center justify-center active:bg-gray-800 transition-colors"
           >
-            지금 신청하기
+            {ctaLabel}
           </Link>
 
           <div className="p-5 bg-gray-50 rounded-xl text-center">
             <p className="text-[14px] font-medium text-gray-700 mb-1">
               입점 문의
             </p>
-            <p className="text-[13px] text-gray-500">partner@mikro.kr</p>
+            <p className="text-[13px] text-gray-500">mikrobrand25@gmail.com</p>
           </div>
         </section>
       </div>

@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       const trimmed = value?.trim();
       return trimmed ? trimmed : null;
     };
-    const sellerKind = body.sellerKind ?? SellerKind.WHOLESALE_STORE;
+    const sellerKind = body.sellerKind ?? SellerKind.BRAND;
     const storeSlug = normalizeStoreSlug(body.storeSlug ?? "");
     const creatorSlug =
       needsCreatorProfile(sellerKind)

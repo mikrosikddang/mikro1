@@ -10,24 +10,14 @@ export const SELLER_KIND_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    value: SellerKind.WHOLESALE_STORE,
-    label: "도매 셀러",
-    description: "동대문 상가 기반 판매자",
+    value: SellerKind.BRAND,
+    label: "브랜드상점",
+    description: "자체 브랜드 상품을 운영하는 상점",
   },
   {
     value: SellerKind.INFLUENCER,
-    label: "인플루언서",
-    description: "SNS 공동구매 중심 운영",
-  },
-  {
-    value: SellerKind.BRAND,
-    label: "브랜드",
-    description: "온라인 브랜드/레이블",
-  },
-  {
-    value: SellerKind.HYBRID,
-    label: "하이브리드",
-    description: "도매와 공동구매를 함께 운영",
+    label: "인플루언서상점",
+    description: "SNS 공동구매 중심으로 운영하는 상점",
   },
 ];
 
@@ -73,6 +63,10 @@ export function isOfflineSellerKind(kind: SellerKind) {
   return kind === SellerKind.WHOLESALE_STORE || kind === SellerKind.HYBRID;
 }
 
+export function normalizeVisibleSellerKind(kind: SellerKind | null | undefined) {
+  return kind === SellerKind.INFLUENCER ? SellerKind.INFLUENCER : SellerKind.BRAND;
+}
+
 export function needsCreatorProfile(kind: SellerKind) {
   return (
     kind === SellerKind.INFLUENCER ||
@@ -83,9 +77,9 @@ export function needsCreatorProfile(kind: SellerKind) {
 
 export function sellerKindLabel(kind: SellerKind | null | undefined) {
   if (!kind) return "-";
-  return (
-    SELLER_KIND_OPTIONS.find((option) => option.value === kind)?.label ?? kind
-  );
+  return normalizeVisibleSellerKind(kind) === SellerKind.INFLUENCER
+    ? "인플루언서상점"
+    : "브랜드상점";
 }
 
 export function socialChannelLabel(channel: SocialChannelType | null | undefined) {
@@ -166,13 +160,13 @@ export type SellerProfileLike = Pick<
 export function validateSellerKindRequirements(profile: SellerProfileLike) {
   if (isOfflineSellerKind(profile.sellerKind)) {
     if (!profile.marketBuilding || !profile.floor || !profile.roomNo) {
-      return "도매/하이브리드 유형은 상가명, 층, 호수가 필요합니다.";
+      return "오프라인 기반 유형은 상가명, 층, 호수가 필요합니다.";
     }
   }
 
   if (needsCreatorProfile(profile.sellerKind)) {
     if (!profile.creatorSlug) {
-      return "인플루언서/브랜드 유형은 크리에이터 슬러그가 필요합니다.";
+      return "브랜드상점/인플루언서상점 유형은 공유 슬러그가 필요합니다.";
     }
   }
 
@@ -181,7 +175,7 @@ export function validateSellerKindRequirements(profile: SellerProfileLike) {
     profile.sellerKind === SellerKind.HYBRID
   ) {
     if (!profile.socialChannelType || !profile.socialChannelUrl) {
-      return "인플루언서/하이브리드 유형은 대표 SNS 채널 정보를 입력해주세요.";
+      return "인플루언서 중심 유형은 대표 SNS 채널 정보를 입력해주세요.";
     }
   }
 

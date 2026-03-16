@@ -90,7 +90,7 @@ function SignupForm() {
       <div className="w-full max-w-[340px]">
         {/* Logo */}
         <h1 className="text-center text-[28px] font-extrabold tracking-tight mb-2">
-          mikro
+          미크로
         </h1>
         <p className="text-center text-[14px] text-gray-500 mb-8">
           회원가입

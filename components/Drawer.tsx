@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { isAdmin, isSellerActive } from "@/lib/roles";
+import { isAdmin, isSeller, isSellerActive } from "@/lib/roles";
 import { getAdminMode, getSellerMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 import SellerModeToggle from "@/components/SellerModeToggle";
@@ -29,6 +29,9 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [sellerApplyStatus, setSellerApplyStatus] = useState<
+    "NONE" | "PENDING" | "REJECTED" | "APPROVED" | null
+  >(null);
 
   const isAdminUser = session ? isAdmin(session.role) : false;
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
@@ -61,6 +64,44 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     window.addEventListener("adminModeChange", handler);
     return () => window.removeEventListener("adminModeChange", handler);
   }, [isAdminUser]);
+
+  useEffect(() => {
+    if (!session || isAdminUser || isSellerActiveUser) {
+      setSellerApplyStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/seller/apply")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (!data.exists || !data.profile) {
+          setSellerApplyStatus(isSeller(session.role) ? "PENDING" : "NONE");
+          return;
+        }
+        setSellerApplyStatus(data.profile.status ?? "NONE");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSellerApplyStatus(isSeller(session.role) ? "PENDING" : "NONE");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, isAdminUser, isSellerActiveUser]);
+
+  useEffect(() => {
+    if (!open || !session) {
+      setLoggingOut(false);
+      setShowLogoutConfirm(false);
+    }
+  }, [open, session]);
 
   // Close on route change (not on initial mount)
   useEffect(() => {
@@ -131,6 +172,21 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     }
   };
 
+  const sellerApplyMenuLabel = (() => {
+    if (!session || isAdminUser || isSellerActiveUser) return null;
+    switch (sellerApplyStatus) {
+      case "PENDING":
+        return "입점 심사 상태";
+      case "REJECTED":
+        return "입점 반려 확인";
+      case "APPROVED":
+        return "입점 승인 완료";
+      case "NONE":
+      default:
+        return "판매자 입점 신청";
+    }
+  })();
+
   return (
     <>
       {/* Overlay */}
@@ -185,7 +241,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               </>
             ) : (
               <h2 className="text-[18px] font-semibold text-gray-900 leading-tight">
-                mikro
+                미크로
               </h2>
             )}
           </div>
@@ -260,11 +316,23 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               </MenuSection>
             )}
 
+            {sellerApplyMenuLabel && (
+              <MenuSection title="입점">
+                <MenuItem
+                  label={sellerApplyMenuLabel}
+                  href="/apply/seller"
+                  isSubmenu
+                />
+              </MenuSection>
+            )}
+
             {/* Info Section */}
             <MenuSection title="정보">
               <MenuItem label="이용약관" href="/policy/terms" isSubmenu />
               <MenuItem label="개인정보처리방침" href="/policy/privacy" isSubmenu />
-              <MenuItem label="입점 안내" href="/apply" isSubmenu />
+              {!sellerApplyMenuLabel && (
+                <MenuItem label="입점 안내" href="/apply" isSubmenu />
+              )}
               {session && (
                 <MenuItem
                   label={loggingOut ? "로그아웃 중..." : "로그아웃"}

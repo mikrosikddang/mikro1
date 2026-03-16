@@ -10,6 +10,7 @@ import {
   isReservedStoreSlug,
   isOfflineSellerKind,
   needsCreatorProfile,
+  normalizeVisibleSellerKind,
 } from "@/lib/sellerTypes";
 
 type ContactType = "kakao" | "phone" | "other";
@@ -40,7 +41,7 @@ export default function ShopManagePage() {
   const [storeSlug, setStoreSlug] = useState("");
   const [bio, setBio] = useState("");
   const [locationText, setLocationText] = useState("");
-  const [sellerKind, setSellerKind] = useState<SellerKind>(SellerKind.WHOLESALE_STORE);
+  const [sellerKind, setSellerKind] = useState<SellerKind>(SellerKind.BRAND);
 
   // Seller apply fields (editable)
   const [shopType, setShopType] = useState("");
@@ -100,7 +101,7 @@ export default function ShopManagePage() {
         setStoreSlug(data.storeSlug ?? buildDefaultStoreSlug(data.shopName ?? ""));
         setBio(data.bio ?? "");
         setLocationText(data.locationText ?? "");
-        setSellerKind(data.sellerKind ?? SellerKind.WHOLESALE_STORE);
+        setSellerKind(normalizeVisibleSellerKind(data.sellerKind));
         setShopType(data.type ?? "");
 
         const isPreset = MARKET_BUILDINGS.slice(0, -1).includes(data.marketBuilding ?? "");
@@ -217,7 +218,7 @@ export default function ShopManagePage() {
       return;
     }
     if (
-      (sellerKind === SellerKind.INFLUENCER || sellerKind === SellerKind.HYBRID) &&
+      sellerKind === SellerKind.INFLUENCER &&
       (!socialChannelType || !socialChannelUrl.trim())
     ) {
       setError("대표 SNS 채널 정보를 입력해주세요");
@@ -368,7 +369,7 @@ export default function ShopManagePage() {
                 type="button"
                 onClick={() => {
                   setSellerKind(option.value);
-                  if (!creatorSlug.trim() && option.value !== SellerKind.WHOLESALE_STORE) {
+                  if (!creatorSlug.trim()) {
                     setCreatorSlug(buildDefaultCreatorSlug(shopName));
                   }
                 }}
@@ -451,15 +452,15 @@ export default function ShopManagePage() {
             onChange={(e) => setLocationText(e.target.value)}
             maxLength={60}
             className={inputClass}
-            placeholder="예: 동대문 · A층 · 101"
+            placeholder="예: 쇼룸 · 3층 · 101"
           />
         </div>
 
         {showCreatorFields && (
           <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-3 text-[14px] font-bold text-black">크리에이터 정보</h3>
+            <h3 className="mb-3 text-[14px] font-bold text-black">공유 / 캠페인 정보</h3>
             <div className="mb-3">
-              <label className={labelClass}>크리에이터 슬러그</label>
+              <label className={labelClass}>공유 슬러그</label>
               <input
                 type="text"
                 value={creatorSlug}

@@ -60,7 +60,7 @@ export default function TopBar() {
         <div className="mx-auto w-full max-w-[420px] flex items-center gap-2 px-4 h-[52px]">
           {/* Logo */}
           <Link href="/" className="text-[22px] font-extrabold tracking-tight shrink-0">
-            mikro
+            미크로
           </Link>
 
           {/* Search bar */}

@@ -13,7 +13,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "mikro – 미크로브랜드",
+  title: "미크로 – 미크로브랜드",
   description: "작지만 스토리가 있는 패션",
 };
 

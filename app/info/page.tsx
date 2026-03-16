@@ -114,12 +114,12 @@ export default function InfoPage() {
           <div className="space-y-2">
             <div className="flex">
               <p className="text-[13px] text-gray-600 w-24">서비스명</p>
-              <p className="text-[14px] text-black font-medium">mikro</p>
+              <p className="text-[14px] text-black font-medium">미크로</p>
             </div>
             <div className="flex">
               <p className="text-[13px] text-gray-600 w-24">서비스 형태</p>
               <p className="text-[14px] text-black">
-                동대문 패션 모바일 마켓플레이스(웹앱)
+                브랜드·인플루언서 상점 플랫폼(웹앱)
               </p>
             </div>
             <div className="flex">

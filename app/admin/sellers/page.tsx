@@ -172,10 +172,10 @@ export default function AdminSellersPage() {
   };
 
   const sellerKindLabels = {
-    WHOLESALE_STORE: "도매 셀러",
-    INFLUENCER: "인플루언서",
-    BRAND: "브랜드",
-    HYBRID: "하이브리드",
+    WHOLESALE_STORE: "브랜드상점",
+    INFLUENCER: "인플루언서상점",
+    BRAND: "브랜드상점",
+    HYBRID: "브랜드상점",
   };
 
   return (

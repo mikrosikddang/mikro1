@@ -54,7 +54,7 @@ function LoginForm() {
       <div className="w-full max-w-[340px]">
         {/* Logo */}
         <h1 className="text-center text-[28px] font-extrabold tracking-tight mb-8">
-          mikro
+          미크로
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
