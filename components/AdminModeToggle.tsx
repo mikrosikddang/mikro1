@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { isAdmin } from "@/lib/roles";
-import { getAdminMode, setAdminMode, type AdminMode } from "@/lib/uiPrefs";
+import {
+  getAdminMode,
+  getSellerMode,
+  setAdminMode,
+  setSellerMode,
+  type AdminMode,
+} from "@/lib/uiPrefs";
 
 type AdminModeToggleProps = {
   onToggle?: () => void;
@@ -31,6 +37,16 @@ export default function AdminModeToggle({ onToggle }: AdminModeToggleProps) {
     const nextMode: AdminMode = isOn ? "user" : "admin";
     setMode(nextMode);
     setAdminMode(nextMode);
+
+    // Admin navigation should clear seller view when enabled.
+    if (nextMode === "admin" && getSellerMode() === "seller") {
+      setSellerMode("buyer");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("sellerModeChange", { detail: { mode: "buyer" } }),
+        );
+      }
+    }
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(

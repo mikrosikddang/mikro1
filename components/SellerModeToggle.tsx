@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { isSellerActive } from "@/lib/roles";
-import { getSellerMode, setSellerMode, type SellerMode } from "@/lib/uiPrefs";
+import { canAccessSellerFeatures } from "@/lib/roles";
+import {
+  getAdminMode,
+  getSellerMode,
+  setAdminMode,
+  setSellerMode,
+  type SellerMode,
+} from "@/lib/uiPrefs";
 
 type SellerModeToggleProps = {
   onToggle?: () => void;
@@ -16,14 +22,14 @@ export default function SellerModeToggle({ onToggle }: SellerModeToggleProps) {
   const [mode, setMode] = useState<SellerMode>("buyer");
   const [mounted, setMounted] = useState(false);
 
-  const isActive = session ? isSellerActive(session.role) : false;
+  const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
 
   useEffect(() => {
     setMode(getSellerMode());
     setMounted(true);
   }, []);
 
-  if (!isActive) return null;
+  if (!canUseSellerView) return null;
 
   const isOn = mode === "seller";
 
@@ -31,6 +37,16 @@ export default function SellerModeToggle({ onToggle }: SellerModeToggleProps) {
     const newMode: SellerMode = isOn ? "buyer" : "seller";
     setMode(newMode);
     setSellerMode(newMode);
+
+    // Seller view should not keep admin navigation active.
+    if (getAdminMode() === "admin") {
+      setAdminMode("user");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("adminModeChange", { detail: { mode: "user" } })
+        );
+      }
+    }
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(

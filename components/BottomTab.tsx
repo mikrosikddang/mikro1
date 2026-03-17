@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
-import { isAdmin, isSellerActive } from "@/lib/roles";
+import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
 import {
   getAdminMode,
   getSellerMode,
@@ -15,8 +15,8 @@ import {
 export default function BottomTab() {
   const pathname = usePathname();
   const session = useSession();
-  const isSellerActiveUser = session ? isSellerActive(session.role) : false;
   const isAdminUser = session ? isAdmin(session.role) : false;
+  const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
 
   const [sellerMode, setSellerMode] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
@@ -43,8 +43,10 @@ export default function BottomTab() {
   }, [session]);
 
   useEffect(() => {
-    if (isSellerActiveUser) {
+    if (canUseSellerView) {
       setSellerMode(getSellerMode() === "seller");
+    } else {
+      setSellerMode(false);
     }
 
     const handler = (e: Event) => {
@@ -53,7 +55,7 @@ export default function BottomTab() {
     };
     window.addEventListener("sellerModeChange", handler);
     return () => window.removeEventListener("sellerModeChange", handler);
-  }, [isSellerActiveUser]);
+  }, [canUseSellerView]);
 
   useEffect(() => {
     if (isAdminUser) {
@@ -70,14 +72,14 @@ export default function BottomTab() {
 
   // Auto-activate seller mode when navigating to /seller paths
   useEffect(() => {
-    if (isSellerActiveUser && pathname.startsWith("/seller") && !sellerMode) {
+    if (canUseSellerView && pathname.startsWith("/seller") && !sellerMode) {
       setSellerMode(true);
       persistSellerMode("seller");
       window.dispatchEvent(
         new CustomEvent("sellerModeChange", { detail: { mode: "seller" } })
       );
     }
-  }, [pathname, isSellerActiveUser, sellerMode]);
+  }, [pathname, canUseSellerView, sellerMode]);
 
   useEffect(() => {
     if (isAdminUser && pathname.startsWith("/admin") && !adminMode) {
@@ -116,7 +118,8 @@ export default function BottomTab() {
     { label: "분쟁", href: "/admin/disputes" },
   ];
 
-  const tabs = adminMode && isAdminUser ? adminTabs : sellerMode ? sellerTabs : buyerTabs;
+  const tabs =
+    adminMode && isAdminUser ? adminTabs : sellerMode && canUseSellerView ? sellerTabs : buyerTabs;
 
   // Hide bottom tab in admin area unless admin mode is on
   if (pathname.startsWith("/admin") && !(adminMode && isAdminUser)) {
@@ -129,7 +132,7 @@ export default function BottomTab() {
   }
 
   // Hide on /seller paths only when NOT in seller mode
-  if (pathname.startsWith("/seller") && !sellerMode) {
+  if (pathname.startsWith("/seller") && !(sellerMode && canUseSellerView)) {
     return null;
   }
 

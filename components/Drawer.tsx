@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { isAdmin, isSeller, isSellerActive } from "@/lib/roles";
+import {
+  canAccessSellerFeatures,
+  isAdmin,
+  isSeller,
+  isSellerActive,
+} from "@/lib/roles";
 import { getAdminMode, getSellerMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 import SellerModeToggle from "@/components/SellerModeToggle";
@@ -35,13 +40,16 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
   const isAdminUser = session ? isAdmin(session.role) : false;
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
+  const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
 
   const [sellerMode, setSellerModeState] = useState(false);
   const [adminMode, setAdminModeState] = useState(false);
 
   useEffect(() => {
-    if (isSellerActiveUser) {
+    if (canUseSellerView) {
       setSellerModeState(getSellerMode() === "seller");
+    } else {
+      setSellerModeState(false);
     }
 
     const handler = (e: Event) => {
@@ -50,7 +58,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
     };
     window.addEventListener("sellerModeChange", handler);
     return () => window.removeEventListener("sellerModeChange", handler);
-  }, [isSellerActiveUser]);
+  }, [canUseSellerView]);
 
   useEffect(() => {
     if (isAdminUser) {
@@ -233,6 +241,8 @@ export default function Drawer({ open, onClose }: DrawerProps) {
                   {isAdminUser
                     ? adminMode
                       ? "어드민 모드 사용 중"
+                      : sellerMode
+                        ? "판매자 뷰 사용 중"
                       : "플랫폼 관리자"
                     : isSellerActiveUser
                     ? "판매자 계정"
@@ -264,7 +274,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {/* Home feed view toggle */}
-          <HomeFeedViewToggle compact={isSellerActiveUser} />
+          <HomeFeedViewToggle compact={canUseSellerView} />
           <SellerModeToggle onToggle={onClose} />
 
           {/* Navigation sections */}
@@ -278,7 +288,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             )}
 
             {/* Seller Section - shown above browse when seller mode is ON */}
-            {isSellerActiveUser && session && sellerMode && (
+            {canUseSellerView && session && sellerMode && (
               <MenuSection title="판매자">
                 <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
@@ -296,7 +306,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             </MenuSection>
 
             {/* Seller Section - shown below browse when seller mode is OFF */}
-            {isSellerActiveUser && session && !sellerMode && (
+            {canUseSellerView && session && !sellerMode && (
               <MenuSection title="판매자">
                 <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
