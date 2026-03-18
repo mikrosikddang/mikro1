@@ -84,6 +84,14 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const selectedProducts = products.filter((product) => selectedIds.has(product.id));
+  const canHideSelected = selectedProducts.some(
+    (product) => product.isActive && !product.isDeleted,
+  );
+  const canShowSelected = selectedProducts.some(
+    (product) => !product.isActive && !product.isDeleted,
+  );
+  const canDeleteSelected = selectedProducts.some((product) => !product.isDeleted);
 
   // Debounce search
   useEffect(() => {
@@ -668,39 +676,48 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && !reorderMode && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between z-40">
-          <span className="text-[14px] font-medium text-black">{selectedIds.size}개 선택됨</span>
-          <div className="flex gap-2">
-            {tab === "active" && (
-              <button
-                type="button"
-                onClick={() => handleBulkAction("hide")}
-                disabled={bulkLoading}
-                className="h-9 px-4 rounded-lg border border-gray-200 text-[13px] font-medium text-gray-700 active:bg-gray-50 disabled:opacity-50"
-              >
-                숨김
-              </button>
-            )}
-            {tab === "hidden" && (
-              <button
-                type="button"
-                onClick={() => handleBulkAction("show")}
-                disabled={bulkLoading}
-                className="h-9 px-4 rounded-lg border border-gray-200 text-[13px] font-medium text-gray-700 active:bg-gray-50 disabled:opacity-50"
-              >
-                노출
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => handleBulkAction("delete")}
-              disabled={bulkLoading}
-              className="h-9 px-4 rounded-lg bg-red-500 text-white text-[13px] font-medium active:bg-red-600 disabled:opacity-50"
-            >
-              삭제
-            </button>
+        <>
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+52px)] left-0 right-0 z-[60] border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]">
+            <div className="mx-auto flex w-full max-w-[420px] items-center justify-between gap-3">
+              <span className="text-[14px] font-medium text-black">
+                {selectedIds.size}개 선택됨
+              </span>
+              <div className="flex flex-wrap justify-end gap-2">
+                {canHideSelected && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkAction("hide")}
+                    disabled={bulkLoading}
+                    className="h-9 rounded-lg border border-gray-200 px-4 text-[13px] font-medium text-gray-700 active:bg-gray-50 disabled:opacity-50"
+                  >
+                    숨김
+                  </button>
+                )}
+                {canShowSelected && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkAction("show")}
+                    disabled={bulkLoading}
+                    className="h-9 rounded-lg border border-gray-200 px-4 text-[13px] font-medium text-gray-700 active:bg-gray-50 disabled:opacity-50"
+                  >
+                    노출
+                  </button>
+                )}
+                {canDeleteSelected && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkAction("delete")}
+                    disabled={bulkLoading}
+                    className="h-9 rounded-lg bg-red-500 px-4 text-[13px] font-medium text-white active:bg-red-600 disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+          <div className="h-[116px]" aria-hidden="true" />
+        </>
       )}
     </>
   );

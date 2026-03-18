@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest) {
         data = { isActive: true };
         break;
       case "delete":
-        data = { isDeleted: true };
+        data = { isDeleted: true, isActive: false };
         break;
     }
 

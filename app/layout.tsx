@@ -15,6 +15,11 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "mikro – 미크로브랜드",
   description: "작지만 스토리가 있는 패션",
+  verification: {
+    other: {
+      "naver-site-verification": "2abade007f7b14142ff71e1602c9ab7816886c97",
+    },
+  },
 };
 
 export const viewport: Viewport = {
