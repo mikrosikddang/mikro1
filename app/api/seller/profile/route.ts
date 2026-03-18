@@ -87,6 +87,9 @@ export async function PATCH(req: NextRequest) {
       avatarUrl,
       bizRegNo,
       bizRegImageUrl,
+      mailOrderReportImageUrl,
+      passbookImageUrl,
+      instagramHandle,
       csKakaoId,
       csAddress,
       shippingGuide,
@@ -246,6 +249,13 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    if (instagramHandle !== undefined && instagramHandle && instagramHandle.trim().length > 80) {
+      return NextResponse.json(
+        { error: "인스타그램 계정은 80자 이하여야 합니다" },
+        { status: 400 }
+      );
+    }
+
     const nextCreatorSlug =
       creatorSlug !== undefined
         ? normalizeCreatorSlug(creatorSlug ?? "")
@@ -380,6 +390,17 @@ export async function PATCH(req: NextRequest) {
     const nextBizRegNo = bizRegNo !== undefined ? normalize(bizRegNo) : normalize(current.bizRegNo);
     const nextBizRegImageUrl =
       bizRegImageUrl !== undefined ? normalize(bizRegImageUrl) : normalize(current.bizRegImageUrl);
+    const nextMailOrderReportImageUrl =
+      mailOrderReportImageUrl !== undefined
+        ? normalize(mailOrderReportImageUrl)
+        : normalize(current.mailOrderReportImageUrl);
+    const nextPassbookImageUrl =
+      passbookImageUrl !== undefined
+        ? normalize(passbookImageUrl)
+        : normalize(current.passbookImageUrl);
+    const passbookTouched =
+      passbookImageUrl !== undefined &&
+      nextPassbookImageUrl !== normalize(current.passbookImageUrl);
     const settlementTouched =
       (settlementBank !== undefined && normalize(settlementBank) !== normalize(current.settlementBank)) ||
       (settlementAccountNo !== undefined &&
@@ -388,7 +409,11 @@ export async function PATCH(req: NextRequest) {
         normalize(settlementAccountHolder) !== normalize(current.settlementAccountHolder));
     const bizTouched =
       (bizRegNo !== undefined && nextBizRegNo !== normalize(current.bizRegNo)) ||
-      (bizRegImageUrl !== undefined && nextBizRegImageUrl !== normalize(current.bizRegImageUrl));
+      (bizRegImageUrl !== undefined && nextBizRegImageUrl !== normalize(current.bizRegImageUrl)) ||
+      (mailOrderReportImageUrl !== undefined &&
+        nextMailOrderReportImageUrl !== normalize(current.mailOrderReportImageUrl)) ||
+      (passbookImageUrl !== undefined &&
+        nextPassbookImageUrl !== normalize(current.passbookImageUrl));
     const complianceTouched = settlementTouched || bizTouched;
 
     const kindValidation = validateSellerKindRequirements({
@@ -433,6 +458,15 @@ export async function PATCH(req: NextRequest) {
         ...(avatarUrl !== undefined && { avatarUrl }),
         ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
         ...(bizRegImageUrl !== undefined && { bizRegImageUrl: bizRegImageUrl?.trim() || null }),
+        ...(mailOrderReportImageUrl !== undefined && {
+          mailOrderReportImageUrl: mailOrderReportImageUrl?.trim() || null,
+        }),
+        ...(passbookImageUrl !== undefined && {
+          passbookImageUrl: passbookImageUrl?.trim() || null,
+        }),
+        ...(instagramHandle !== undefined && {
+          instagramHandle: instagramHandle?.trim().replace(/^@+/, "") || null,
+        }),
         ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
         ...(csAddress !== undefined && { csAddress: csAddress?.trim() || null }),
         ...(shippingGuide !== undefined && { shippingGuide: shippingGuide?.trim() || null }),
@@ -467,8 +501,8 @@ export async function PATCH(req: NextRequest) {
         }),
         ...(bizTouched &&
           (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),
-        ...(settlementTouched &&
-          hasAnySettlementField && { settlementSubmittedAt: new Date() }),
+        ...((settlementTouched || passbookTouched) &&
+          (hasAnySettlementField || nextPassbookImageUrl) && { settlementSubmittedAt: new Date() }),
         ...(complianceTouched && { complianceReviewPending: true }),
       },
     });

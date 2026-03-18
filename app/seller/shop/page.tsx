@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { SellerKind, SocialChannelType } from "@prisma/client";
+import SellerDocumentUploadField from "@/components/seller/SellerDocumentUploadField";
 import {
   buildDefaultStoreSlug,
   SELLER_KIND_OPTIONS,
@@ -28,10 +29,11 @@ const MARKET_BUILDINGS = [
 ];
 
 export default function ShopManagePage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingField, setUploadingField] = useState<
+    "bizRegImageUrl" | "mailOrderReportImageUrl" | "passbookImageUrl" | null
+  >(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState(false);
@@ -52,6 +54,9 @@ export default function ShopManagePage() {
   const [managerPhone, setManagerPhone] = useState("");
   const [bizRegNo, setBizRegNo] = useState("");
   const [bizRegImageUrl, setBizRegImageUrl] = useState("");
+  const [mailOrderReportImageUrl, setMailOrderReportImageUrl] = useState("");
+  const [passbookImageUrl, setPassbookImageUrl] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
   const [creatorSlug, setCreatorSlug] = useState("");
   const [socialChannelType, setSocialChannelType] = useState<SocialChannelType | "">("");
   const [socialChannelUrl, setSocialChannelUrl] = useState("");
@@ -112,6 +117,9 @@ export default function ShopManagePage() {
         setManagerPhone(data.managerPhone ?? "");
         setBizRegNo(data.bizRegNo ?? "");
         setBizRegImageUrl(data.bizRegImageUrl ?? "");
+        setMailOrderReportImageUrl(data.mailOrderReportImageUrl ?? "");
+        setPassbookImageUrl(data.passbookImageUrl ?? "");
+        setInstagramHandle(data.instagramHandle ?? "");
         setCreatorSlug(
           data.creatorSlug ?? buildDefaultCreatorSlug(data.shopName ?? "")
         );
@@ -148,28 +156,30 @@ export default function ShopManagePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleBizLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
+  const handleDocumentUpload = async (
+    field: "bizRegImageUrl" | "mailOrderReportImageUrl" | "passbookImageUrl",
+    endpoint: string,
+    file: File,
+  ) => {
+    setUploadingField(field);
     setError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/uploads/biz-license", {
+      const res = await fetch(endpoint, {
         method: "POST",
         body: fd,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "업로드에 실패했습니다");
-      setBizRegImageUrl(data.url);
+      if (field === "bizRegImageUrl") setBizRegImageUrl(data.url);
+      if (field === "mailOrderReportImageUrl") setMailOrderReportImageUrl(data.url);
+      if (field === "passbookImageUrl") setPassbookImageUrl(data.url);
       setPendingReview(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "업로드에 실패했습니다");
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setUploadingField(null);
     }
   };
 
@@ -276,6 +286,9 @@ export default function ShopManagePage() {
           managerPhone: managerPhone.trim() || null,
           bizRegNo: formatBizRegNo(bizRegNo.trim()) || null,
           bizRegImageUrl: bizRegImageUrl || null,
+          mailOrderReportImageUrl: mailOrderReportImageUrl || null,
+          passbookImageUrl: passbookImageUrl || null,
+          instagramHandle: instagramHandle.trim() || null,
           creatorSlug: showCreatorFields ? creatorSlug.trim() : null,
           socialChannelType: socialChannelType || null,
           socialChannelUrl: socialChannelUrl.trim() || null,
@@ -508,6 +521,23 @@ export default function ShopManagePage() {
                 className={inputClass}
                 placeholder="https://instagram.com/..."
               />
+              <p className="mt-1 text-[12px] text-gray-500">
+                공개 상점 프로필에 하이퍼링크로 노출됩니다.
+              </p>
+            </div>
+
+            <div className="mb-3">
+              <label className={labelClass}>인스타그램 계정 (브랜드 확인용)</label>
+              <input
+                type="text"
+                value={instagramHandle}
+                onChange={(e) => setInstagramHandle(e.target.value.replace(/^@+/, ""))}
+                className={inputClass}
+                placeholder="예: mikro_official"
+              />
+              <p className="mt-1 text-[12px] text-gray-500">
+                공개 노출용이 아닌 운영 심사 확인용 계정입니다.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -664,45 +694,42 @@ export default function ShopManagePage() {
           />
         </div>
 
-        <div>
-          <label className={labelClass}>사업자등록증 이미지</label>
-          {bizRegImageUrl ? (
-            <div className="space-y-2">
-              <a
-                href={bizRegImageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[13px] text-blue-600 underline break-all"
-              >
-                업로드된 파일 보기
-              </a>
-              <button
-                type="button"
-                onClick={() => setBizRegImageUrl("")}
-                className="text-[12px] text-gray-500 underline"
-              >
-                파일 삭제
-              </button>
-            </div>
-          ) : (
-            <p className="text-[12px] text-gray-400 mb-2">등록된 파일이 없습니다</p>
-          )}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="h-10 px-3 bg-gray-100 text-gray-700 rounded-lg text-[13px] font-medium active:bg-gray-200 disabled:opacity-50"
-          >
-            {uploading ? "업로드 중..." : "파일 업로드"}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleBizLicenseUpload}
-            className="hidden"
-          />
-        </div>
+        <SellerDocumentUploadField
+          label="사업자등록증 이미지"
+          value={bizRegImageUrl}
+          uploading={uploadingField === "bizRegImageUrl"}
+          helperText="사업자 정보 변경 시 운영 검토가 다시 진행됩니다."
+          onUpload={(file) =>
+            handleDocumentUpload("bizRegImageUrl", "/api/uploads/biz-license", file)
+          }
+          onClear={() => setBizRegImageUrl("")}
+        />
+
+        <SellerDocumentUploadField
+          label="통신판매업 신고증"
+          value={mailOrderReportImageUrl}
+          uploading={uploadingField === "mailOrderReportImageUrl"}
+          helperText="전자상거래 판매 자격 확인용 서류입니다."
+          onUpload={(file) =>
+            handleDocumentUpload(
+              "mailOrderReportImageUrl",
+              "/api/uploads/mail-order-report",
+              file,
+            )
+          }
+          onClear={() => setMailOrderReportImageUrl("")}
+        />
+
+        <SellerDocumentUploadField
+          label="정산 통장 사본"
+          value={passbookImageUrl}
+          uploading={uploadingField === "passbookImageUrl"}
+          helperText="사업자등록증상의 대표자명과 실제 정산받을 계좌의 예금주가 일치하는지 확인해야 합니다."
+          onUpload={(file) =>
+            handleDocumentUpload("passbookImageUrl", "/api/uploads/passbook", file)
+          }
+          onClear={() => setPassbookImageUrl("")}
+        />
       </div>
 
       {showCreatorFields && (

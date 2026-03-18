@@ -34,7 +34,10 @@ interface SellerApplyRequest {
   roomNo?: string;
   managerPhone: string;
   bizRegImageUrl?: string;
+  mailOrderReportImageUrl?: string;
+  passbookImageUrl?: string;
   bizRegNo?: string | null;
+  instagramHandle?: string | null;
   csKakaoId?: string | null;
   csPhone?: string | null;
   csEmail?: string | null;
@@ -136,6 +139,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!normalize(body.bizRegImageUrl)) {
+      return NextResponse.json(
+        { error: "사업자등록증을 업로드해주세요." },
+        { status: 400 }
+      );
+    }
+
+    if (!normalize(body.mailOrderReportImageUrl)) {
+      return NextResponse.json(
+        { error: "통신판매업 신고증을 업로드해주세요." },
+        { status: 400 }
+      );
+    }
+
+    if (!normalize(body.passbookImageUrl)) {
+      return NextResponse.json(
+        { error: "정산 통장 사본을 업로드해주세요." },
+        { status: 400 }
+      );
+    }
+
     // CS contact: at least one of csKakaoId, csPhone, csEmail must be provided
     const hasCs = body.csKakaoId?.trim() || body.csPhone?.trim() || body.csEmail?.trim();
     if (!hasCs) {
@@ -225,6 +249,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (normalize(body.instagramHandle) && normalize(body.instagramHandle)!.length > 80) {
+      return NextResponse.json(
+        { error: "인스타그램 계정은 80자 이하여야 합니다." },
+        { status: 400 }
+      );
+    }
+
     if (normalize(body.socialChannelUrl) && !/^https?:\/\//.test(body.socialChannelUrl!.trim())) {
       return NextResponse.json(
         { error: "SNS 채널 URL은 http 또는 https로 시작해야 합니다." },
@@ -275,6 +306,9 @@ export async function POST(request: Request) {
       managerPhone: body.managerPhone.trim(),
       bizRegNo: normalize(body.bizRegNo),
       bizRegImageUrl: normalize(body.bizRegImageUrl),
+      mailOrderReportImageUrl: normalize(body.mailOrderReportImageUrl),
+      passbookImageUrl: normalize(body.passbookImageUrl),
+      instagramHandle: normalize(body.instagramHandle)?.replace(/^@+/, "") ?? null,
       csKakaoId: normalize(body.csKakaoId),
       csPhone: normalize(body.csPhone),
       csEmail: normalize(body.csEmail),
@@ -291,8 +325,14 @@ export async function POST(request: Request) {
         body.followerCount != null ? Math.floor(body.followerCount) : null,
       isBusinessSeller: body.isBusinessSeller ?? true,
       commissionRateBps: defaultCommissionRateBps(sellerKind),
-      ...(normalize(body.bizRegNo) || normalize(body.bizRegImageUrl)
+      ...(normalize(body.bizRegNo) ||
+      normalize(body.bizRegImageUrl) ||
+      normalize(body.mailOrderReportImageUrl) ||
+      normalize(body.passbookImageUrl)
         ? { bizRegSubmittedAt: new Date(), complianceReviewPending: true }
+        : {}),
+      ...(normalize(body.passbookImageUrl)
+        ? { settlementSubmittedAt: new Date() }
         : {}),
     };
 

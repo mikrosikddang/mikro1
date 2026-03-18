@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SellerKind, SocialChannelType } from "@prisma/client";
 import Container from "@/components/Container";
+import SellerDocumentUploadField from "@/components/seller/SellerDocumentUploadField";
 import {
   buildDefaultStoreSlug,
   SELLER_KIND_OPTIONS,
@@ -41,6 +41,9 @@ type FormState = {
   type: string;
   bizRegNo: string;
   bizLicenseImage: string;
+  mailOrderReportImage: string;
+  passbookImage: string;
+  instagramHandle: string;
   marketBuilding: string;
   marketBuildingCustom: string;
   floor: string;
@@ -68,6 +71,9 @@ const INITIAL_FORM: FormState = {
   type: "",
   bizRegNo: "",
   bizLicenseImage: "",
+  mailOrderReportImage: "",
+  passbookImage: "",
+  instagramHandle: "",
   marketBuilding: "",
   marketBuildingCustom: "",
   floor: "",
@@ -90,11 +96,12 @@ const INITIAL_FORM: FormState = {
 
 export default function SellerApplyPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingField, setUploadingField] = useState<
+    "bizLicenseImage" | "mailOrderReportImage" | "passbookImage" | null
+  >(null);
   const [existingProfile, setExistingProfile] = useState<any>(null);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -183,6 +190,9 @@ export default function SellerApplyPage() {
           type: p.type || "",
           bizRegNo: p.bizRegNo || "",
           bizLicenseImage: p.bizRegImageUrl || "",
+          mailOrderReportImage: p.mailOrderReportImageUrl || "",
+          passbookImage: p.passbookImageUrl || "",
+          instagramHandle: p.instagramHandle || "",
           marketBuilding: isPreset
             ? p.marketBuilding || ""
             : p.marketBuilding
@@ -216,15 +226,19 @@ export default function SellerApplyPage() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
+  const handleDocumentUpload = async (
+    field:
+      | "bizLicenseImage"
+      | "mailOrderReportImage"
+      | "passbookImage",
+    endpoint: string,
+    file: File,
+  ) => {
+    setUploadingField(field);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/uploads/biz-license", {
+      const res = await fetch(endpoint, {
         method: "POST",
         body: fd,
       });
@@ -232,19 +246,18 @@ export default function SellerApplyPage() {
       if (!res.ok) {
         setErrors((prev) => ({
           ...prev,
-          bizLicenseImage: data.error || "업로드 실패",
+          [field]: data.error || "업로드 실패",
         }));
         return;
       }
-      updateField("bizLicenseImage", data.url);
+      updateField(field, data.url);
     } catch {
       setErrors((prev) => ({
         ...prev,
-        bizLicenseImage: "업로드 중 오류가 발생했습니다",
+        [field]: "업로드 중 오류가 발생했습니다",
       }));
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setUploadingField(null);
     }
   };
 
@@ -261,6 +274,15 @@ export default function SellerApplyPage() {
       nextErrors.storeSlug = "사용할 수 없는 상점 URL입니다.";
     }
     if (!formData.type) nextErrors.type = "상점 유형을 선택해주세요.";
+    if (!formData.bizLicenseImage) {
+      nextErrors.bizLicenseImage = "사업자등록증을 업로드해주세요.";
+    }
+    if (!formData.mailOrderReportImage) {
+      nextErrors.mailOrderReportImage = "통신판매업 신고증을 업로드해주세요.";
+    }
+    if (!formData.passbookImage) {
+      nextErrors.passbookImage = "정산 통장 사본을 업로드해주세요.";
+    }
     if (!formData.managerPhone.trim()) {
       nextErrors.managerPhone = "담당자 연락처를 입력해주세요.";
     }
@@ -360,6 +382,9 @@ export default function SellerApplyPage() {
           roomNo: formData.roomNo.trim() || null,
           managerPhone: formData.managerPhone.trim(),
           bizRegImageUrl: formData.bizLicenseImage || null,
+          mailOrderReportImageUrl: formData.mailOrderReportImage || null,
+          passbookImageUrl: formData.passbookImage || null,
+          instagramHandle: formData.instagramHandle.trim() || null,
           csKakaoId,
           csPhone,
           csEmail,
@@ -690,6 +715,25 @@ export default function SellerApplyPage() {
                 {inlineError("socialChannelUrl")}
               </div>
 
+              <div className="mb-4">
+                <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                  인스타그램 계정 <span className="text-gray-400">(브랜드 확인용)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.instagramHandle}
+                  onChange={(e) =>
+                    updateField("instagramHandle", e.target.value.replace(/^@+/, ""))
+                  }
+                  placeholder="예: mikro_official"
+                  className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                />
+                <p className="mt-1 text-[12px] text-gray-500">
+                  공개 노출용이 아닌 심사 확인용 계정입니다.
+                </p>
+                {inlineError("instagramHandle")}
+              </div>
+
               <div>
                 <label className="mb-2 block text-[14px] font-medium text-gray-700">
                   팔로워 수 <span className="text-gray-400">(선택)</span>
@@ -847,54 +891,52 @@ export default function SellerApplyPage() {
             </p>
           </div>
 
-          <div className="mb-6">
-            <label className="mb-2 block text-[14px] font-medium text-gray-700">
-              사업자등록증 <span className="text-gray-400">(선택)</span>
-            </label>
-            {formData.bizLicenseImage ? (
-              <div className="relative inline-block">
-                <Image
-                  src={formData.bizLicenseImage}
-                  alt="사업자등록증"
-                  width={200}
-                  height={280}
-                  className="rounded-xl border border-gray-200 object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => updateField("bizLicenseImage", "")}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black text-[12px] text-white"
-                >
-                  X
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || submitting}
-                className="flex h-32 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 text-gray-400 transition-colors disabled:opacity-50"
-              >
-                {uploading ? (
-                  <span className="text-[13px]">업로드 중...</span>
-                ) : (
-                  <>
-                    <span className="mb-1 text-[24px]">+</span>
-                    <span className="text-[13px]">사업자등록증 이미지 업로드</span>
-                    <span className="mt-1 text-[11px]">JPG, PNG, WEBP (5MB 이하)</span>
-                  </>
-                )}
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            {inlineError("bizLicenseImage")}
-          </div>
+          <SellerDocumentUploadField
+            label="사업자등록증"
+            value={formData.bizLicenseImage}
+            uploading={uploadingField === "bizLicenseImage"}
+            disabled={submitting}
+            helperText="입점 심사 및 정산/세무 확인 용도로 사용됩니다."
+            errorText={errors.bizLicenseImage ?? null}
+            onUpload={(file) =>
+              handleDocumentUpload(
+                "bizLicenseImage",
+                "/api/uploads/biz-license",
+                file,
+              )
+            }
+            onClear={() => updateField("bizLicenseImage", "")}
+          />
+
+          <SellerDocumentUploadField
+            label="통신판매업 신고증"
+            value={formData.mailOrderReportImage}
+            uploading={uploadingField === "mailOrderReportImage"}
+            disabled={submitting}
+            helperText="전자상거래 판매 자격 확인을 위한 필수 서류입니다."
+            errorText={errors.mailOrderReportImage ?? null}
+            onUpload={(file) =>
+              handleDocumentUpload(
+                "mailOrderReportImage",
+                "/api/uploads/mail-order-report",
+                file,
+              )
+            }
+            onClear={() => updateField("mailOrderReportImage", "")}
+          />
+
+          <SellerDocumentUploadField
+            label="정산 통장 사본"
+            value={formData.passbookImage}
+            uploading={uploadingField === "passbookImage"}
+            disabled={submitting}
+            helperText="사업자등록증상의 대표자명과 실제 정산받을 계좌의 예금주가 일치하는지 확인해야 합니다."
+            errorText={errors.passbookImage ?? null}
+            onUpload={(file) =>
+              handleDocumentUpload("passbookImage", "/api/uploads/passbook", file)
+            }
+            onClear={() => updateField("passbookImage", "")}
+          />
 
           <div className="border-t border-gray-200 pt-6">
             <h2 className="mb-4 text-[16px] font-bold text-black">CS 정보</h2>
@@ -1036,7 +1078,7 @@ export default function SellerApplyPage() {
 
           <button
             type="submit"
-            disabled={submitting || uploading}
+            disabled={submitting || uploadingField !== null}
             className="h-12 w-full rounded-xl bg-black text-[16px] font-bold text-white transition-colors disabled:opacity-50"
           >
             {submitButtonLabel}

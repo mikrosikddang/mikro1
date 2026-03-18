@@ -4,10 +4,6 @@ import { uploadSellerDocument } from "@/lib/sellerDocumentUpload";
 
 export const runtime = "nodejs";
 
-/**
- * POST /api/uploads/biz-license
- * 사업자등록증 이미지 업로드 (로그인 사용자 전용, S3 저장)
- */
 export async function POST(req: NextRequest) {
   const session = await getSession();
 
@@ -20,16 +16,17 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: "파일을 선택해주세요" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "파일을 선택해주세요" }, { status: 400 });
     }
 
-    const url = await uploadSellerDocument(session.userId, file, "biz-license");
+    const url = await uploadSellerDocument(
+      session.userId,
+      file,
+      "mail-order-report",
+    );
+
     return NextResponse.json({ url });
   } catch (error: unknown) {
-    console.error("Biz license upload error:", error);
     const message =
       error instanceof Error ? error.message : "파일 업로드 중 오류가 발생했습니다";
     const status = message.includes("설정되지 않았습니다")
@@ -37,9 +34,8 @@ export async function POST(req: NextRequest) {
       : message.includes("업로드 가능합니다") || message.includes("5MB")
         ? 400
         : 500;
-    return NextResponse.json(
-      { error: message },
-      { status }
-    );
+
+    console.error("Mail order report upload error:", error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

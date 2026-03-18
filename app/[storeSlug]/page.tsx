@@ -75,6 +75,8 @@ export default async function SellerStoreSlugPage({ params }: Props) {
           shopName={seller.sellerProfile.shopName}
           bio={seller.sellerProfile.bio}
           avatarUrl={seller.sellerProfile.avatarUrl}
+          socialChannelType={seller.sellerProfile.socialChannelType}
+          socialChannelUrl={seller.sellerProfile.socialChannelUrl}
         />
       </Container>
 

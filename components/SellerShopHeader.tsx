@@ -7,16 +7,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { type SocialChannelType } from "@prisma/client";
 import { useSession } from "@/components/SessionProvider";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
+import { socialChannelLabel } from "@/lib/sellerTypes";
 
 export interface SellerShopHeaderProps {
   sellerId: string;
   shopName: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  socialChannelType?: SocialChannelType | null;
+  socialChannelUrl?: string | null;
 }
 
 export default function SellerShopHeader({
@@ -24,6 +28,8 @@ export default function SellerShopHeader({
   shopName,
   bio,
   avatarUrl,
+  socialChannelType,
+  socialChannelUrl,
 }: SellerShopHeaderProps) {
   const session = useSession();
   const isSelf = session ? session.userId === sellerId : false;
@@ -102,6 +108,17 @@ export default function SellerShopHeader({
               <p className="text-[14px] text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">
                 {bio}
               </p>
+            )}
+            {socialChannelType && socialChannelUrl && (
+              <a
+                href={socialChannelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-blue-600 underline underline-offset-2"
+              >
+                {socialChannelLabel(socialChannelType)}
+                <span aria-hidden="true">↗</span>
+              </a>
             )}
           </div>
         </div>

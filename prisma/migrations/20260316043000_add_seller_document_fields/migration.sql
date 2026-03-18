@@ -1,0 +1,4 @@
+ALTER TABLE "SellerProfile"
+ADD COLUMN IF NOT EXISTS "instagramHandle" VARCHAR(80),
+ADD COLUMN IF NOT EXISTS "mailOrderReportImageUrl" TEXT,
+ADD COLUMN IF NOT EXISTS "passbookImageUrl" TEXT;
