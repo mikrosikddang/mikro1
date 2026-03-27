@@ -71,6 +71,11 @@ export function validateVariantTree(tree: VariantTree): ValidationError[] {
         errors.push({ field: `stock-${gi}-${si}`, message: "재고는 0 이상 정수를 입력해주세요" });
       }
 
+      // Price addon validation
+      if (typeof size.priceAddonKrw === "number" && (!Number.isInteger(size.priceAddonKrw) || size.priceAddonKrw < 0)) {
+        errors.push({ field: `addon-${gi}-${si}`, message: "추가금은 0 이상 정수를 입력해주세요" });
+      }
+
       // Duplicate check
       const combo = `${color.toUpperCase()}|${sizeLabel.toUpperCase()}`;
       if (seenCombos.has(combo)) {
@@ -124,6 +129,12 @@ export function validateFlatVariants(variants: FlatVariant[]): ValidationError[]
     // Stock validation
     if (typeof stock !== "number" || !Number.isInteger(stock) || stock < 0) {
       errors.push({ field: `variant-${i}`, message: "재고는 0 이상 정수를 입력해주세요" });
+    }
+
+    // Price addon validation
+    const addon = (v as any).priceAddonKrw;
+    if (addon !== undefined && addon !== null && (typeof addon !== "number" || !Number.isInteger(addon) || addon < 0)) {
+      errors.push({ field: `variant-${i}`, message: "추가금은 0 이상 정수를 입력해주세요" });
     }
 
     // Duplicate check

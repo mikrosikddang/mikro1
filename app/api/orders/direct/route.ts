@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Calculate pricing SERVER-SIDE (할인가 우선)
-    const unitPriceKrw = product.salePriceKrw ?? product.priceKrw;
+    // 4. Calculate pricing SERVER-SIDE (할인가 우선 + 옵션 추가금)
+    const unitPriceKrw = (product.salePriceKrw ?? product.priceKrw) + (variant.priceAddonKrw ?? 0);
     const itemsSubtotalKrw = unitPriceKrw * body.quantity;
 
     const sellerProfile = product.seller.sellerProfile;

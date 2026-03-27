@@ -16,10 +16,12 @@ interface CartItemData {
     color: string;
     sizeLabel: string;
     stock: number;
+    priceAddonKrw: number;
     product: {
       id: string;
       title: string;
       priceKrw: number;
+      salePriceKrw: number | null;
       sellerId: string;
       isActive: boolean;
       isDeleted: boolean;
@@ -164,8 +166,9 @@ export default function CartPage() {
   };
 
   const totalAmount = items.reduce((sum, item) => {
-    const price = item.variant.product.priceKrw;
-    return sum + price * item.quantity;
+    const basePrice = item.variant.product.salePriceKrw ?? item.variant.product.priceKrw;
+    const addon = item.variant.priceAddonKrw ?? 0;
+    return sum + (basePrice + addon) * item.quantity;
   }, 0);
 
   if (loading) {
@@ -214,7 +217,8 @@ export default function CartPage() {
               variant.color && variant.color !== "FREE"
                 ? `${variant.color} / ${variant.sizeLabel}`
                 : variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
-            const subtotal = product.priceKrw * item.quantity;
+            const unitPrice = (product.salePriceKrw ?? product.priceKrw) + (variant.priceAddonKrw ?? 0);
+            const subtotal = unitPrice * item.quantity;
 
             // Check if product is unavailable
             const isUnavailable = product.isDeleted || !product.isActive;

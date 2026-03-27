@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
       descriptionJson?: any;
       mainImages: { url: string; colorKey?: string | null }[];
       contentImages?: string[];
-      variants: { color?: string; sizeLabel: string; stock: number }[];
+      variants: { color?: string; sizeLabel: string; stock: number; priceAddonKrw?: number }[];
     };
 
     const salePriceKrw = body.salePriceKrw;
@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
       color: v.color || "FREE",
       sizeLabel: v.sizeLabel,
       stock: v.stock,
+      priceAddonKrw: v.priceAddonKrw || 0,
     }));
     const variantErrors = validateFlatVariants(normalizedVariants);
     if (variantErrors.length > 0) {
@@ -289,6 +290,7 @@ export async function POST(req: NextRequest) {
           color: v.color,
           sizeLabel: v.sizeLabel,
           stock: v.stock,
+          priceAddonKrw: v.priceAddonKrw,
         })),
       });
 

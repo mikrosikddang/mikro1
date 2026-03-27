@@ -11,6 +11,7 @@ interface Variant {
   color: string;
   sizeLabel: string;
   stock: number;
+  priceAddonKrw: number;
 }
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "FREE"];
@@ -26,6 +27,8 @@ interface Props {
   variants: Variant[];
   isSoldOut: boolean;
   userRole: UserRole | null;
+  priceKrw: number;
+  salePriceKrw: number | null;
 }
 
 export default function AddToCartSection({
@@ -33,6 +36,8 @@ export default function AddToCartSection({
   variants: rawVariants,
   isSoldOut,
   userRole,
+  priceKrw,
+  salePriceKrw,
 }: Props) {
   const router = useRouter();
   const optionCardRef = useRef<HTMLDivElement>(null);
@@ -337,12 +342,32 @@ export default function AddToCartSection({
                       }`}
                     >
                       {v.sizeLabel}
+                      {v.priceAddonKrw > 0 && (
+                        <span className="ml-1 text-[12px] opacity-70">
+                          (+{v.priceAddonKrw.toLocaleString()})
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Dynamic price display when variant has addon */}
+      {selectedVariant && selectedVariant.priceAddonKrw > 0 && (
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-gray-500">선택 옵션 가격</span>
+            <span className="text-[17px] font-bold text-black">
+              {((salePriceKrw ?? priceKrw) + selectedVariant.priceAddonKrw).toLocaleString()}원
+            </span>
+          </div>
+          <p className="text-[12px] text-gray-400 mt-0.5 text-right">
+            기본가 {(salePriceKrw ?? priceKrw).toLocaleString()}원 + 추가금 {selectedVariant.priceAddonKrw.toLocaleString()}원
+          </p>
         </div>
       )}
 

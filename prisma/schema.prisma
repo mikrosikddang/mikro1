@@ -268,10 +268,11 @@ model ProductVariant {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  color     String @default("FREE")
-  sizeLabel String @default("FREE")
-  stock     Int    @default(0)
-  sku       String? @unique
+  color          String @default("FREE")
+  sizeLabel      String @default("FREE")
+  stock          Int    @default(0)
+  priceAddonKrw  Int    @default(0)
+  sku            String? @unique
 
   orderItems OrderItem[] @relation("VariantOrderItems")
   cartItems  CartItem[]

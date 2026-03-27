@@ -37,10 +37,12 @@ interface CartItemData {
     color: string;
     sizeLabel: string;
     stock: number;
+    priceAddonKrw: number;
     product: {
       id: string;
       title: string;
       priceKrw: number;
+      salePriceKrw: number | null;
       sellerId: string;
       isActive: boolean;
       isDeleted: boolean;
@@ -256,7 +258,7 @@ export default function CheckoutPage() {
 
         const group = groups.get(sellerId)!;
         group.items.push(item);
-        group.subtotal += product.priceKrw * item.quantity;
+        group.subtotal += ((product.salePriceKrw ?? product.priceKrw) + (item.variant.priceAddonKrw ?? 0)) * item.quantity;
       }
 
       // Calculate shipping fees
@@ -613,7 +615,7 @@ export default function CheckoutPage() {
                       variant.color && variant.color !== "FREE"
                         ? `${variant.color} / ${variant.sizeLabel}`
                         : variant.sizeLabel === "FREE" ? "FREE" : variant.sizeLabel;
-                    const subtotal = product.priceKrw * item.quantity;
+                    const subtotal = ((product.salePriceKrw ?? product.priceKrw) + (variant.priceAddonKrw ?? 0)) * item.quantity;
 
                     return (
                       <div

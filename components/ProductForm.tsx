@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
+import type { DescriptionBlock } from "@/lib/descriptionSchema";
 import { variantsFlatToTree, variantsTreeToFlat } from "@/lib/variantTransform";
 import { validateVariantTree, formatValidationErrors } from "@/lib/variantValidation";
 import BulkPasteModal from "@/components/BulkPasteModal";
@@ -32,6 +33,7 @@ const DEFAULT_TREE: VariantTree = [
         clientId: generateId(),
         sizeLabel: "FREE",
         stock: 0,
+        priceAddonKrw: 0,
       },
     ],
   },
@@ -58,7 +60,7 @@ export type ProductFormInitialValues = {
   descriptionJson?: any;
   mainImages: { url: string; colorKey?: string | null }[];
   contentImages: string[];
-  variants: { id?: string; color?: string; sizeLabel: string; stock: number }[];
+  variants: { id?: string; color?: string; sizeLabel: string; stock: number; priceAddonKrw?: number }[];
 };
 
 function urlToSlot(url: string, colorKey?: string | null): ImageSlot {
@@ -94,6 +96,7 @@ export default function ProductForm({
           color: v.color || "FREE",
           sizeLabel: v.sizeLabel,
           stock: v.stock,
+          priceAddonKrw: v.priceAddonKrw ?? 0,
         }))
       );
     }
@@ -121,6 +124,27 @@ export default function ProductForm({
   const [specOrigin, setSpecOrigin] = useState(initialValues?.descriptionJson?.spec?.origin ?? "");
   const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
   const [detailText, setDetailText] = useState(initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "");
+
+  // V2 block editor state
+  const [descBlocks, setDescBlocks] = useState<(DescriptionBlock & { _id: string })[]>(() => {
+    if (initialValues?.descriptionJson?.v === 2 && Array.isArray(initialValues.descriptionJson.blocks)) {
+      return initialValues.descriptionJson.blocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
+    }
+    // Migrate from V1: content images + detail text → blocks
+    const blocks: (DescriptionBlock & { _id: string })[] = [];
+    if (initialValues?.descriptionJson?.detail || initialValues?.description) {
+      blocks.push({ _id: generateId(), type: "text", content: initialValues?.descriptionJson?.detail || initialValues?.description || "" });
+    }
+    if (initialValues?.contentImages?.length) {
+      for (const url of initialValues.contentImages) {
+        blocks.push({ _id: generateId(), type: "image", url });
+      }
+    }
+    return blocks;
+  });
+  const blockImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingBlockIndex, setUploadingBlockIndex] = useState<number | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isActive, setIsActive] = useState(initialIsActive ?? true);
@@ -131,6 +155,181 @@ export default function ProductForm({
 
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // ---- Auto-save (localStorage draft) ----
+  const draftKey = editProductId ? `product-draft-${editProductId}` : "product-draft-new";
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (initialValues && editProductId) return; // editing existing product — skip draft
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || !draft._ts) return;
+      // Only restore if draft is less than 24h old
+      if (Date.now() - draft._ts > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(draftKey);
+        return;
+      }
+      setDraftRestored(true);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.title) setTitle(d.title);
+      if (d.priceKrw) setPriceKrw(d.priceKrw);
+      if (d.salePriceKrw) setSalePriceKrw(d.salePriceKrw);
+      if (d.categoryMain) setCategoryMain(d.categoryMain);
+      if (d.categoryMid) setCategoryMid(d.categoryMid);
+      if (d.categorySub) setCategorySub(d.categorySub);
+      if (d.detailText) setDetailText(d.detailText);
+      if (d.specMeasurements) setSpecMeasurements(d.specMeasurements);
+      if (d.specModelInfo) setSpecModelInfo(d.specModelInfo);
+      if (d.specMaterial) setSpecMaterial(d.specMaterial);
+      if (d.specOrigin) setSpecOrigin(d.specOrigin);
+      if (d.specFit) setSpecFit(d.specFit);
+      if (d.variantTree) setVariantTree(d.variantTree);
+      if (d.descBlocks?.length) {
+        setDescBlocks(d.descBlocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() })));
+      }
+      if (d.mainImageUrls?.length) {
+        setMainImages(d.mainImageUrls.map((img: any) => urlToSlot(img.url, img.colorKey)));
+      }
+      if (d.contentImageUrls?.length) {
+        setContentImages(d.contentImageUrls.map((url: string) => urlToSlot(url)));
+      }
+    } catch { /* ignore */ }
+    setDraftRestored(false);
+  }
+
+  function dismissDraft() {
+    localStorage.removeItem(draftKey);
+    setDraftRestored(false);
+  }
+
+  // Save draft (debounced 2s)
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      try {
+        const doneMainImages = mainImages.filter((s) => s.status === "done" && s.publicUrl);
+        const doneContentImages = contentImages.filter((s) => s.status === "done" && s.publicUrl);
+        const draft = {
+          _ts: Date.now(),
+          title,
+          priceKrw,
+          salePriceKrw,
+          categoryMain,
+          categoryMid,
+          categorySub,
+          detailText,
+          specMeasurements,
+          specModelInfo,
+          specMaterial,
+          specOrigin,
+          specFit,
+          variantTree,
+          descBlocks: descBlocks.map(({ _id, ...rest }) => rest),
+          mainImageUrls: doneMainImages.map((s) => ({ url: s.publicUrl, colorKey: s.colorKey })),
+          contentImageUrls: doneContentImages.map((s) => s.publicUrl),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch { /* quota exceeded, etc. */ }
+    }, 2000);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [title, priceKrw, salePriceKrw, categoryMain, categoryMid, categorySub, detailText, specMeasurements, specModelInfo, specMaterial, specOrigin, specFit, variantTree, mainImages, contentImages, descBlocks, draftKey]);
+
+  // Clear draft on successful submit
+  function clearDraft() {
+    try { localStorage.removeItem(draftKey); } catch {}
+  }
+
+  // ---- Block editor helpers ----
+  function addTextBlock() {
+    setDescBlocks((prev) => [...prev, { _id: generateId(), type: "text", content: "" }]);
+  }
+
+  function removeBlock(index: number) {
+    setDescBlocks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function moveBlock(index: number, direction: -1 | 1) {
+    setDescBlocks((prev) => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function updateBlockText(index: number, content: string) {
+    setDescBlocks((prev) => {
+      const next = [...prev];
+      if (next[index]?.type === "text") {
+        next[index] = { ...next[index], content } as any;
+      }
+      return next;
+    });
+  }
+
+  function updateBlockCaption(index: number, caption: string) {
+    setDescBlocks((prev) => {
+      const next = [...prev];
+      if (next[index]?.type === "image") {
+        next[index] = { ...next[index], caption } as any;
+      }
+      return next;
+    });
+  }
+
+  async function handleBlockImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+    e.target.value = "";
+
+    for (const file of Array.from(files)) {
+      if (!ALLOWED_TYPES.has(file.type)) continue;
+      try {
+        const resized = await resizeImage(file);
+        // Get presigned URL
+        const presignRes = await fetch("/api/uploads/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: resized.type,
+            fileSize: resized.size,
+          }),
+        });
+        if (!presignRes.ok) continue;
+        const { uploadUrl, publicUrl } = await presignRes.json();
+
+        // Upload to S3
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": resized.type },
+          body: resized,
+        });
+        if (!uploadRes.ok) continue;
+
+        setDescBlocks((prev) => [
+          ...prev,
+          { _id: generateId(), type: "image", url: publicUrl },
+        ]);
+      } catch {
+        // skip failed uploads
+      }
+    }
+  }
 
   // Auto-extract colors from variantTree + existing image tags
   const selectedColors = useMemo(() => {
@@ -284,7 +483,7 @@ export default function ProductForm({
       {
         clientId: generateId(),
         color: "",
-        sizes: [{ clientId: generateId(), sizeLabel: "FREE", stock: 0 }],
+        sizes: [{ clientId: generateId(), sizeLabel: "FREE", stock: 0, priceAddonKrw: 0 }],
       },
     ]);
   }
@@ -312,7 +511,7 @@ export default function ProductForm({
         ...copy[groupIndex],
         sizes: [
           ...copy[groupIndex].sizes,
-          { clientId: generateId(), sizeLabel: "FREE", stock: 0 },
+          { clientId: generateId(), sizeLabel: "FREE", stock: 0, priceAddonKrw: 0 },
         ],
       };
       return copy;
@@ -392,6 +591,7 @@ export default function ProductForm({
               clientId: generateId(),
               sizeLabel: parsed.sizeLabel,
               stock: parsed.stock,
+              priceAddonKrw: 0,
             });
             sizeMap.set(key, existingSizes[existingSizes.length - 1]);
           }
@@ -496,21 +696,21 @@ export default function ProductForm({
         }
       }
 
-      // Upload content images
-      const contentUrls: string[] = [];
-      for (let i = 0; i < contentImages.length; i++) {
-        const slot = contentImages[i];
-        if (slot.publicUrl) {
-          contentUrls.push(slot.publicUrl);
-        } else {
-          const url = await uploadImage(slot, i, setContentImages);
-          contentUrls.push(url);
-        }
-      }
+      // Build V2 blocks from block editor (images already uploaded)
+      const cleanBlocks: DescriptionBlock[] = descBlocks
+        .map((b) => {
+          if (b.type === "text") return { type: "text" as const, content: b.content.trim() };
+          if (b.type === "image") return { type: "image" as const, url: b.url, ...(b.caption ? { caption: b.caption } : {}) };
+          return null;
+        })
+        .filter((b): b is DescriptionBlock => b !== null && (b.type !== "text" || b.content !== ""));
 
-      // Build structured description
+      // Build content images from blocks for backward compat
+      const contentUrls = cleanBlocks.filter((b) => b.type === "image").map((b) => (b as any).url as string);
+
+      // Build structured description (V2)
       const descriptionJson = {
-        v: 1,
+        v: 2 as const,
         spec: {
           measurements: specMeasurements.trim() || undefined,
           modelInfo: specModelInfo.trim() || undefined,
@@ -518,7 +718,7 @@ export default function ProductForm({
           origin: specOrigin.trim() || undefined,
           fit: specFit.trim() || undefined,
         },
-        detail: detailText.trim() || undefined,
+        blocks: cleanBlocks,
       };
 
       // Convert tree to flat variants
@@ -560,6 +760,7 @@ export default function ProductForm({
         throw new Error(data.error || (editProductId ? "수정 실패" : "등록 실패"));
       }
 
+      clearDraft();
       router.push("/seller");
       router.refresh();
     } catch (err) {
@@ -587,7 +788,22 @@ export default function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="py-6">
+    <form onSubmit={handleSubmit} className="py-6" style={{ overscrollBehaviorX: "none" }}>
+      {/* Draft restore banner */}
+      {draftRestored && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">작성 중이던 내용이 있습니다. 이어서 작성하시겠습니까?</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={restoreDraft} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700">
+              복구하기
+            </button>
+            <button type="button" onClick={dismissDraft} className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100">
+              무시
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-bold text-black">
           {editProductId ? "상품 수정" : initialValues ? "상품 복제 등록" : "상품 올리기"}
@@ -670,16 +886,93 @@ export default function ProductForm({
       )}
 
       {/* ===== Content Images ===== */}
-      <ImagePickerSection
-        label="상세 이미지"
-        images={contentImages}
-        max={MAX_CONTENT}
-        inputRef={contentInputRef}
-        onPick={(e) => handleFilePick(e, setContentImages, MAX_CONTENT, contentImages)}
-        onRemove={(i) => removeImage(i, setContentImages)}
-        onMove={(i, d) => moveImage(i, d, setContentImages)}
-        submitting={submitting}
-      />
+      {/* ===== Description Block Editor (V2) ===== */}
+      <section className="mb-6">
+        <label className="block text-[14px] font-medium text-gray-700 mb-2">
+          상세 설명 블록
+          <span className="text-[12px] text-gray-400 ml-2 font-normal">사진과 글을 자유롭게 배치하세요</span>
+        </label>
+
+        <div className="space-y-3">
+          {descBlocks.map((block, i) => (
+            <div key={block._id} className="relative group rounded-xl border border-gray-200 bg-white overflow-hidden">
+              {/* Block controls */}
+              <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {i > 0 && (
+                  <button type="button" onClick={() => moveBlock(i, -1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-xs" disabled={submitting}>
+                    &#8593;
+                  </button>
+                )}
+                {i < descBlocks.length - 1 && (
+                  <button type="button" onClick={() => moveBlock(i, 1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-xs" disabled={submitting}>
+                    &#8595;
+                  </button>
+                )}
+                <button type="button" onClick={() => removeBlock(i)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-red-400 hover:bg-red-50 text-xs" disabled={submitting}>
+                  &#10005;
+                </button>
+              </div>
+              <div className="absolute top-2 left-2 z-10">
+                <span className="text-[11px] text-gray-400 bg-white/80 px-1.5 py-0.5 rounded">
+                  {block.type === "text" ? "글" : "사진"} {i + 1}
+                </span>
+              </div>
+
+              {block.type === "text" ? (
+                <textarea
+                  value={block.content}
+                  onChange={(e) => updateBlockText(i, e.target.value)}
+                  placeholder="설명을 입력하세요"
+                  rows={4}
+                  className="w-full px-4 pt-8 pb-3 text-[14px] placeholder:text-gray-400 focus:outline-none resize-none border-none"
+                  disabled={submitting}
+                />
+              ) : (
+                <div className="pt-8 pb-3 px-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={block.url} alt={block.caption || `상세 이미지 ${i + 1}`} className="w-full rounded-lg object-contain max-h-[400px]" />
+                  <input
+                    type="text"
+                    value={block.caption || ""}
+                    onChange={(e) => updateBlockCaption(i, e.target.value)}
+                    placeholder="이미지 설명 (선택)"
+                    className="w-full mt-2 px-3 py-1.5 text-[13px] border border-gray-100 rounded-lg focus:outline-none focus:border-gray-300 placeholder:text-gray-300"
+                    disabled={submitting}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add block buttons */}
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            onClick={addTextBlock}
+            className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-[13px] text-gray-500 hover:bg-gray-50 transition-colors"
+            disabled={submitting || descBlocks.length >= MAX_CONTENT}
+          >
+            + 글 추가
+          </button>
+          <button
+            type="button"
+            onClick={() => blockImageInputRef.current?.click()}
+            className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-[13px] text-gray-500 hover:bg-gray-50 transition-colors"
+            disabled={submitting || descBlocks.length >= MAX_CONTENT}
+          >
+            + 사진 추가
+          </button>
+          <input
+            ref={blockImageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleBlockImagePick}
+            multiple
+          />
+        </div>
+      </section>
 
       {/* ===== Variants (Color Groups) ===== */}
       <section className="mb-6">
@@ -847,6 +1140,16 @@ export default function ProductForm({
                             min={0}
                             disabled={submitting}
                           />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={size.priceAddonKrw || ""}
+                            onChange={(e) => { updateSize(groupIndex, sizeIndex, "priceAddonKrw", Math.max(0, parseInt(e.target.value) || 0)); setFieldErrors(prev => { const next = {...prev}; delete next[`addon-${groupIndex}-${sizeIndex}`]; return next; }); }}
+                            placeholder="추가금"
+                            className={`w-24 h-10 px-3 rounded-lg border text-[14px] text-center focus:outline-none focus:border-black bg-white ${fieldErrors[`addon-${groupIndex}-${sizeIndex}`] ? "border-red-400" : "border-gray-200"}`}
+                            min={0}
+                            disabled={submitting}
+                          />
                           {colorGroup.sizes.length > 1 && (
                             <button
                               type="button"
@@ -868,6 +1171,9 @@ export default function ProductForm({
                         )}
                         {fieldErrors[`stock-${groupIndex}-${sizeIndex}`] && (
                           <p className="text-[12px] text-red-500 mt-0.5 ml-1">{fieldErrors[`stock-${groupIndex}-${sizeIndex}`]}</p>
+                        )}
+                        {fieldErrors[`addon-${groupIndex}-${sizeIndex}`] && (
+                          <p className="text-[12px] text-red-500 mt-0.5 ml-1">{fieldErrors[`addon-${groupIndex}-${sizeIndex}`]}</p>
                         )}
                       </div>
                     );
@@ -1079,18 +1385,7 @@ export default function ProductForm({
           </div>
         </div>
 
-        {/* Section 2: Detail */}
-        <div className="space-y-2">
-          <label className="block text-[14px] font-medium text-gray-700">상세 설명</label>
-          <textarea
-            value={detailText}
-            onChange={(e) => setDetailText(e.target.value)}
-            placeholder="색상, 스타일, 코디 팁 등을 자유롭게 적어주세요"
-            rows={5}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] placeholder:text-gray-400 focus:outline-none focus:border-black transition-colors resize-none"
-            disabled={submitting}
-          />
-        </div>
+        {/* Section 2: Detail — now handled by block editor above */}
 
       </section>
 
@@ -1331,7 +1626,7 @@ function ImagePickerSection({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
 
-      <div ref={listRef} className="flex gap-2 overflow-x-auto pb-2">
+      <div ref={listRef} className="flex gap-2 overflow-x-auto pb-2" style={{ touchAction: "pan-y", overscrollBehaviorX: "none", WebkitOverflowScrolling: "touch" }}>
         {/* Add button */}
         {images.length < max && (
           <button

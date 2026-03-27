@@ -116,6 +116,15 @@ export default async function AdminDashboardPage() {
         <h2 className="text-lg font-bold text-gray-900 mb-4">바로가기</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <Link
+            href="/admin/users"
+            className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <p className="font-medium text-gray-900">👤 사용자 관리</p>
+            <p className="text-sm text-gray-600">
+              고객, 셀러, 어드민 전체 사용자 조회
+            </p>
+          </Link>
+          <Link
             href="/admin/sellers"
             className="p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >

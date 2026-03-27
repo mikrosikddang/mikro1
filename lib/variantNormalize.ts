@@ -8,6 +8,7 @@ export type NormalizedVariant = {
   color: string;
   sizeLabel: string;
   stock: number;
+  priceAddonKrw: number;
 };
 
 /**
@@ -22,6 +23,7 @@ export function normalizeVariantInput(variant: {
   color?: string;
   sizeLabel: string;
   stock: number;
+  priceAddonKrw?: number;
 }): NormalizedVariant {
   const color = (variant.color || "FREE")
     .trim()
@@ -46,6 +48,7 @@ export function normalizeVariantInput(variant: {
     color,
     sizeLabel,
     stock: Math.max(0, Math.floor(variant.stock || 0)),
+    priceAddonKrw: Math.max(0, Math.floor(variant.priceAddonKrw || 0)),
   };
 }
 

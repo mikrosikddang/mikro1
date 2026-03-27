@@ -138,6 +138,8 @@ export default async function ProductDetailPage({ params }: Props) {
           variants={product.variants}
           isSoldOut={isSoldOut}
           userRole={session?.role ?? null}
+          priceKrw={product.priceKrw}
+          salePriceKrw={product.salePriceKrw}
         />
 
         {/* Divider */}
@@ -148,7 +150,7 @@ export default async function ProductDetailPage({ params }: Props) {
           // Render structured description if available
           if (product.descriptionJson && typeof product.descriptionJson === "object") {
             const rendered = renderDescriptionForCustomer(product.descriptionJson as any);
-            const hasContent = rendered.spec.length > 0 || rendered.detail;
+            const hasContent = rendered.spec.length > 0 || rendered.detail || rendered.blocks.length > 0;
 
             if (!hasContent) return null;
 
@@ -169,8 +171,35 @@ export default async function ProductDetailPage({ params }: Props) {
                   </div>
                 )}
 
-                {/* Detail Section */}
-                {rendered.detail && (
+                {/* V2 Block-based description */}
+                {rendered.isV2 && rendered.blocks.length > 0 && (
+                  <div className="space-y-4">
+                    {rendered.blocks.map((block, idx) => (
+                      <div key={idx}>
+                        {block.type === "text" ? (
+                          <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
+                            {block.content}
+                          </p>
+                        ) : (
+                          <div className="w-full rounded-lg overflow-hidden">
+                            <img
+                              src={block.url}
+                              alt={block.caption || ""}
+                              className="w-full h-auto"
+                              loading="lazy"
+                            />
+                            {block.caption && (
+                              <p className="text-[12px] text-gray-400 mt-1 px-1">{block.caption}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* V1 Detail Section (legacy) */}
+                {!rendered.isV2 && rendered.detail && (
                   <div>
                     <h3 className="text-[14px] font-bold text-gray-900 mb-2">상세 설명</h3>
                     <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
@@ -196,8 +225,8 @@ export default async function ProductDetailPage({ params }: Props) {
           return null;
         })()}
 
-        {/* Content images – stacked vertically */}
-        {contentImages.length > 0 && (
+        {/* Content images – stacked vertically (V1 only, V2 uses blocks) */}
+        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as any).v !== 2) && (
           <div className="mt-6 pt-5 border-t border-gray-100 space-y-2">
             {contentImages.map((img) => (
               <div key={img.id} className="w-full rounded-lg overflow-hidden">

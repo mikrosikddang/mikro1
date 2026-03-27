@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       isActive?: boolean;
       mainImages?: { url: string; colorKey?: string | null }[];
       contentImages?: string[];
-      variants?: { id?: string; color?: string; sizeLabel: string; stock: number }[];
+      variants?: { id?: string; color?: string; sizeLabel: string; stock: number; priceAddonKrw?: number }[];
     };
 
     const existing = await prisma.product.findUnique({ where: { id } });
@@ -178,6 +178,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         color: v.color || "FREE",
         sizeLabel: v.sizeLabel,
         stock: v.stock,
+        priceAddonKrw: v.priceAddonKrw ?? 0,
       }));
       const variantErrors = validateFlatVariants(normalizedVariants);
       if (variantErrors.length > 0) {
@@ -234,7 +235,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       // Diff-based variant update (FK-safe with normalization)
       if (variants !== undefined) {
         // Normalize incoming variants
-        const normalizedIncoming = variants.map((v) => normalizeVariantInput(v));
+        const normalizedIncoming = variants.map((v) => normalizeVariantInput({
+        ...v,
+        priceAddonKrw: v.priceAddonKrw ?? 0,
+      }));
 
         // Fetch existing variants
         const existingVariants = await tx.productVariant.findMany({
@@ -309,7 +313,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           }
         }
 
-        // 1. Update variants (stock-only changes)
+        // 1. Update variants (stock/addon changes)
         for (const v of toUpdate) {
           await tx.productVariant.update({
             where: { id: v.id },
@@ -317,6 +321,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               color: v.color,
               sizeLabel: v.sizeLabel,
               stock: v.stock,
+              priceAddonKrw: v.priceAddonKrw,
             },
           });
         }
@@ -347,6 +352,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               color: v.color,
               sizeLabel: v.sizeLabel,
               stock: v.stock,
+              priceAddonKrw: v.priceAddonKrw,
             })),
           });
         }

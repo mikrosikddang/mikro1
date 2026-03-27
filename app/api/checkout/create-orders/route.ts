@@ -195,11 +195,12 @@ export async function POST(request: NextRequest) {
         const firstItem = items[0];
         const sellerProfile = firstItem.variant.product.seller.sellerProfile;
 
-        // Calculate items subtotal (할인가 우선 적용)
+        // Calculate items subtotal (할인가 우선 적용 + 옵션 추가금)
         let itemsSubtotalKrw = 0;
         for (const item of items) {
           const effectivePrice = item.variant.product.salePriceKrw ?? item.variant.product.priceKrw;
-          itemsSubtotalKrw += effectivePrice * item.quantity;
+          const addon = item.variant.priceAddonKrw ?? 0;
+          itemsSubtotalKrw += (effectivePrice + addon) * item.quantity;
         }
 
         // Calculate shipping fee based on seller's rules
@@ -255,7 +256,7 @@ export async function POST(request: NextRequest) {
               productId: cartItem.variant.product.id,
               variantId: cartItem.variantId,
               quantity: cartItem.quantity,
-              unitPriceKrw: cartItem.variant.product.salePriceKrw ?? cartItem.variant.product.priceKrw, // Snapshot (할인가 우선)
+              unitPriceKrw: (cartItem.variant.product.salePriceKrw ?? cartItem.variant.product.priceKrw) + (cartItem.variant.priceAddonKrw ?? 0), // Snapshot (할인가 우선 + 옵션 추가금)
             },
           });
         }

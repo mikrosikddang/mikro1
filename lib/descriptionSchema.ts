@@ -27,14 +27,31 @@ export interface ProductDescriptionV1 {
   };
 }
 
+// ---- V2: Block-based description (사진+글 자유 배치) ----
+
+export type DescriptionBlock =
+  | { type: "text"; content: string }
+  | { type: "image"; url: string; caption?: string };
+
+export interface ProductDescriptionV2 {
+  v: 2;
+  spec?: ProductDescriptionV1["spec"];
+  blocks: DescriptionBlock[];
+  csShipping?: ProductDescriptionV1["csShipping"];
+}
+
+export type ProductDescription = ProductDescriptionV1 | ProductDescriptionV2;
+
 const MAX_FIELD_LENGTH = 2000;
 const MAX_DETAIL_LENGTH = 10000;
+const MAX_BLOCKS = 50;
+const MAX_BLOCK_TEXT_LENGTH = 5000;
 
 /**
  * Sanitize and validate description JSON input
  * Ensures safe structure, trims strings, enforces length limits
  */
-export function sanitizeDescriptionJson(input: any): ProductDescriptionV1 {
+export function sanitizeDescriptionJson(input: any): ProductDescription {
   if (!input || typeof input !== "object") {
     return { v: 1 };
   }
@@ -46,29 +63,59 @@ export function sanitizeDescriptionJson(input: any): ProductDescriptionV1 {
     return trimmed.slice(0, maxLen);
   };
 
-  const spec: ProductDescriptionV1["spec"] = {};
-  if (input.spec && typeof input.spec === "object") {
-    const allowedSpecKeys = ["measurements", "modelInfo", "material", "origin", "fit"] as const;
-    for (const key of allowedSpecKeys) {
-      const value = trimAndCap((input.spec as any)[key], MAX_FIELD_LENGTH);
-      if (value) (spec as any)[key] = value;
+  const sanitizeSpec = (specInput: any): ProductDescriptionV1["spec"] | undefined => {
+    const spec: ProductDescriptionV1["spec"] = {};
+    if (specInput && typeof specInput === "object") {
+      const allowedSpecKeys = ["measurements", "modelInfo", "material", "origin", "fit"] as const;
+      for (const key of allowedSpecKeys) {
+        const value = trimAndCap((specInput as any)[key], MAX_FIELD_LENGTH);
+        if (value) (spec as any)[key] = value;
+      }
     }
+    return Object.keys(spec).length > 0 ? spec : undefined;
+  };
+
+  const sanitizeCsShipping = (csInput: any): ProductDescriptionV1["csShipping"] | undefined => {
+    const csShipping: ProductDescriptionV1["csShipping"] = {};
+    if (csInput && typeof csInput === "object") {
+      const allowedCsKeys = ["courier", "csPhone", "csEmail", "returnAddress", "note"] as const;
+      for (const key of allowedCsKeys) {
+        const value = trimAndCap((csInput as any)[key], MAX_FIELD_LENGTH);
+        if (value) (csShipping as any)[key] = value;
+      }
+    }
+    return Object.keys(csShipping).length > 0 ? csShipping : undefined;
+  };
+
+  // V2 format
+  if (input.v === 2 && Array.isArray(input.blocks)) {
+    const blocks: DescriptionBlock[] = [];
+    for (const block of input.blocks.slice(0, MAX_BLOCKS)) {
+      if (block?.type === "text" && typeof block.content === "string") {
+        const content = block.content.trim().slice(0, MAX_BLOCK_TEXT_LENGTH);
+        if (content) blocks.push({ type: "text", content });
+      } else if (block?.type === "image" && typeof block.url === "string") {
+        const url = block.url.trim();
+        if (url) {
+          const caption = trimAndCap(block.caption, MAX_FIELD_LENGTH);
+          blocks.push({ type: "image", url, ...(caption ? { caption } : {}) });
+        }
+      }
+    }
+    return {
+      v: 2,
+      spec: sanitizeSpec(input.spec),
+      blocks,
+      csShipping: sanitizeCsShipping(input.csShipping),
+    };
   }
 
-  const csShipping: ProductDescriptionV1["csShipping"] = {};
-  if (input.csShipping && typeof input.csShipping === "object") {
-    const allowedCsKeys = ["courier", "csPhone", "csEmail", "returnAddress", "note"] as const;
-    for (const key of allowedCsKeys) {
-      const value = trimAndCap((input.csShipping as any)[key], MAX_FIELD_LENGTH);
-      if (value) (csShipping as any)[key] = value;
-    }
-  }
-
+  // V1 format (default)
   return {
     v: 1,
-    spec: Object.keys(spec).length > 0 ? spec : undefined,
+    spec: sanitizeSpec(input.spec),
     detail: trimAndCap(input.detail, MAX_DETAIL_LENGTH),
-    csShipping: Object.keys(csShipping).length > 0 ? csShipping : undefined,
+    csShipping: sanitizeCsShipping(input.csShipping),
   };
 }
 
@@ -87,11 +134,11 @@ export function buildDescriptionInitialValues(options: {
     csAddress?: string | null;
     shippingGuide?: string | null;
   } | null;
-}): ProductDescriptionV1 {
+}): ProductDescription {
   const { descriptionJson, descriptionLegacy, sellerProfile } = options;
 
   // If structured data exists, use it (기존 상품 수정 시 기존 값 유지)
-  if (descriptionJson && typeof descriptionJson === "object" && descriptionJson.v === 1) {
+  if (descriptionJson && typeof descriptionJson === "object" && (descriptionJson.v === 1 || descriptionJson.v === 2)) {
     return sanitizeDescriptionJson(descriptionJson);
   }
 
@@ -113,9 +160,9 @@ export function buildDescriptionInitialValues(options: {
  * Render structured description for customer view
  * Returns normalized arrays for UI rendering
  */
-export function renderDescriptionForCustomer(desc: ProductDescriptionV1 | null) {
-  if (!desc || desc.v !== 1) {
-    return { spec: [], detail: "", csShipping: [] };
+export function renderDescriptionForCustomer(desc: ProductDescription | null) {
+  if (!desc) {
+    return { spec: [], detail: "", blocks: [], csShipping: [], isV2: false };
   }
 
   const specLabels: Record<string, string> = {
@@ -148,9 +195,21 @@ export function renderDescriptionForCustomer(desc: ProductDescriptionV1 | null) 
       value: value!,
     }));
 
+  if (desc.v === 2) {
+    return {
+      spec,
+      detail: "",
+      blocks: desc.blocks || [],
+      csShipping,
+      isV2: true,
+    };
+  }
+
   return {
     spec,
-    detail: desc.detail || "",
+    detail: (desc as ProductDescriptionV1).detail || "",
+    blocks: [] as DescriptionBlock[],
     csShipping,
+    isV2: false,
   };
 }

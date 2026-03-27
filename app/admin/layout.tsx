@@ -27,6 +27,9 @@ export default async function AdminLayout({
               <Link href="/admin" className="hover:underline">
                 대시보드
               </Link>
+              <Link href="/admin/users" className="hover:underline">
+                사용자 관리
+              </Link>
               <Link href="/admin/sellers" className="hover:underline">
                 판매자 관리
               </Link>

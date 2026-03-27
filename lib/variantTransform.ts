@@ -19,12 +19,14 @@ export type FlatVariant = {
   color: string;
   sizeLabel: string;
   stock: number;
+  priceAddonKrw?: number;
 };
 
 export type SizeRow = {
   clientId: string;
   sizeLabel: string;
   stock: number;
+  priceAddonKrw: number;
   existingVariantId?: string; // DB variant ID (for update)
 };
 
@@ -51,6 +53,7 @@ export function variantsFlatToTree(flatVariants: FlatVariant[]): VariantTree {
             clientId: generateId(),
             sizeLabel: "FREE",
             stock: 0,
+            priceAddonKrw: 0,
           },
         ],
       },
@@ -77,6 +80,7 @@ export function variantsFlatToTree(flatVariants: FlatVariant[]): VariantTree {
       clientId: generateId(),
       sizeLabel,
       stock,
+      priceAddonKrw: v.priceAddonKrw || 0,
       existingVariantId: v.id,
     });
   }
@@ -128,6 +132,7 @@ export function variantsTreeToFlat(tree: VariantTree): FlatVariant[] {
         color,
         sizeLabel,
         stock: Math.max(0, Math.floor(size.stock || 0)),
+        priceAddonKrw: Math.max(0, Math.floor(size.priceAddonKrw || 0)),
       });
     }
   }
