@@ -12,6 +12,7 @@ import ColorPickerSheet from "@/components/ColorPickerSheet";
 import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
 import { getColorByKey, isLightColor } from "@/lib/colors";
 import { resizeImage } from "@/lib/imageResize";
+import { resolveClientImageContentType } from "@/lib/clientImageContentType";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -300,28 +301,37 @@ export default function ProductForm({
       if (!ALLOWED_TYPES.has(file.type)) continue;
       try {
         const resized = await resizeImage(file);
-        const uploadContentType = resized instanceof File ? resized.type : "image/jpeg";
+        const uploadContentType = resolveClientImageContentType(file, resized);
         const uploadSize = resized.size;
-        // Get presigned URL (API expects fileName, not filename)
         const presignRes = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileName: file.name,
+            fileName: file.name || "upload.jpg",
             contentType: uploadContentType,
             fileSize: uploadSize,
           }),
         });
-        if (!presignRes.ok) continue;
+        if (!presignRes.ok) {
+          const data = await presignRes.json().catch(() => ({}));
+          setError(
+            typeof data.error === "string"
+              ? data.error
+              : "상세 이미지 업로드 준비에 실패했습니다",
+          );
+          continue;
+        }
         const { uploadUrl, publicUrl } = await presignRes.json();
 
-        // Upload to S3
         const uploadRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": uploadContentType },
           body: resized,
         });
-        if (!uploadRes.ok) continue;
+        if (!uploadRes.ok) {
+          setError("상세 이미지를 저장하지 못했습니다. 다시 시도해주세요.");
+          continue;
+        }
 
         setDescBlocks((prev) => [
           ...prev,
@@ -438,14 +448,14 @@ export default function ProductForm({
 
     // Resize image before upload (max 1080×1350, JPEG 80%)
     const resized = await resizeImage(file);
-    const uploadContentType = resized instanceof File ? file.type : "image/jpeg";
+    const uploadContentType = resolveClientImageContentType(file, resized);
     const uploadSize = resized.size;
 
     const presignRes = await fetch("/api/uploads/presign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fileName: file.name,
+        fileName: file.name || "upload.jpg",
         contentType: uploadContentType,
         fileSize: uploadSize,
       }),

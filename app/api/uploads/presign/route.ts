@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPresignedPut, validateUpload, MAX_FILE_SIZE } from "@/lib/s3";
+import {
+  createPresignedPut,
+  validateUpload,
+  resolveUploadExtension,
+  MAX_FILE_SIZE,
+} from "@/lib/s3";
 import { getSession } from "@/lib/auth";
 import { requireSeller } from "@/lib/roleGuards";
 import { randomUUID } from "crypto";
@@ -46,16 +51,19 @@ export async function POST(req: NextRequest) {
     const sellerId = session.userId;
 
     // Key: products/{sellerId}/{uuid}.{ext} — path-locked to seller
-    const ext = fileName.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = resolveUploadExtension(fileName, contentType);
     const key = `products/${sellerId}/${randomUUID()}.${ext}`;
 
     const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType);
 
     return NextResponse.json({ uploadUrl, publicUrl });
   } catch (err) {
+    if (err instanceof Response) {
+      return err;
+    }
     console.error("presign error:", err);
     return NextResponse.json(
-      { error: "Failed to create presigned URL" },
+      { error: "이미지 업로드 준비에 실패했습니다. 잠시 후 다시 시도해주세요." },
       { status: 500 },
     );
   }

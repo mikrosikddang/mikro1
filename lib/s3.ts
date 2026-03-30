@@ -24,17 +24,30 @@ const ALLOWED_CONTENT_TYPES = new Set([
 const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * S3 키용 확장자. 파일명에 확장자가 없거나(iOS 등) 알 수 없을 때는 MIME으로 결정한다.
+ */
+export function resolveUploadExtension(fileName: string, contentType: string): string {
+  const fromName = fileName.split(".").pop()?.toLowerCase() || "";
+  if (ALLOWED_EXTENSIONS.has(fromName)) {
+    return fromName === "jpeg" ? "jpg" : fromName;
+  }
+  const fromMime: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  return fromMime[contentType] || "jpg";
+}
+
+/** fileName은 로깅·힌트용. 검증의 기준은 contentType이다. */
 export function validateUpload(fileName: string, contentType: string) {
-  // Content type whitelist
+  void fileName;
   if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
     return "허용되지 않는 파일 형식입니다 (jpg, png, webp, gif만 가능)";
   }
-  // Extension whitelist
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  if (!ALLOWED_EXTENSIONS.has(ext)) {
-    return "허용되지 않는 파일 확장자입니다";
-  }
-  return null; // valid
+  return null;
 }
 
 export { MAX_FILE_SIZE };

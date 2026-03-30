@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { resizeImage } from "@/lib/imageResize";
+import { resolveClientImageContentType } from "@/lib/clientImageContentType";
 
 type ChatInputProps = {
   roomId: string;
@@ -54,13 +55,13 @@ export default function ChatInput({ roomId, onSent, disabled }: ChatInputProps) 
       // Upload image if attached
       if (imageFile) {
         const resized = await resizeImage(imageFile, 1080, 1350, 0.8);
-        const contentType = resized instanceof File ? imageFile.type : "image/jpeg";
+        const contentType = resolveClientImageContentType(imageFile, resized);
 
         const presignRes = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileName: imageFile.name,
+            fileName: imageFile.name || "upload.jpg",
             contentType,
             fileSize: resized.size,
           }),
