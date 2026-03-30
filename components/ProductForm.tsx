@@ -300,14 +300,16 @@ export default function ProductForm({
       if (!ALLOWED_TYPES.has(file.type)) continue;
       try {
         const resized = await resizeImage(file);
-        // Get presigned URL
+        const uploadContentType = resized instanceof File ? resized.type : "image/jpeg";
+        const uploadSize = resized.size;
+        // Get presigned URL (API expects fileName, not filename)
         const presignRes = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            filename: file.name,
-            contentType: resized.type,
-            fileSize: resized.size,
+            fileName: file.name,
+            contentType: uploadContentType,
+            fileSize: uploadSize,
           }),
         });
         if (!presignRes.ok) continue;
@@ -316,7 +318,7 @@ export default function ProductForm({
         // Upload to S3
         const uploadRes = await fetch(uploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": resized.type },
+          headers: { "Content-Type": uploadContentType },
           body: resized,
         });
         if (!uploadRes.ok) continue;

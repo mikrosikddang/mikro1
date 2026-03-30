@@ -80,7 +80,10 @@ export default async function HomePage({ searchParams }: Props) {
     orderBy: { createdAt: "desc" },
     take: 20,
     include: {
-      images: { where: { kind: "MAIN" }, orderBy: { sortOrder: "asc" } },
+      // MAIN(대표) 먼저, 이어서 CONTENT(상세설명 블록) — 피드 캐러셀에 모두 표시
+      images: {
+        orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
+      },
       seller: { include: { sellerProfile: true } },
     },
   });
