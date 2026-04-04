@@ -42,7 +42,7 @@ export default async function NewArchivePostPage() {
       descriptionJson: latestProduct?.descriptionJson
         ? {
             v: 1,
-            csShipping: (latestProduct.descriptionJson as ProductDescription | null)?.csShipping,
+            csShipping: (latestProduct.descriptionJson as unknown as ProductDescription | null)?.csShipping,
           }
         : undefined,
       sellerProfile: seller?.sellerProfile,

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { requireBuyerFeatures, requireSeller } from "@/lib/roleGuards";
-import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
+import { sanitizeDescriptionJson, type ProductDescription } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput, variantsEqual } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
@@ -383,8 +383,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
 
       // Sync CS/shipping info back to SellerProfile for future prefill
-      if (descriptionJson?.csShipping) {
-        const cs = descriptionJson.csShipping;
+      const nextDescription =
+        descriptionJson && typeof descriptionJson === "object"
+          ? (descriptionJson as ProductDescription)
+          : null;
+
+      if (nextDescription?.csShipping) {
+        const cs = nextDescription.csShipping;
         const profileUpdate: Record<string, string | null> = {};
         if (cs.csPhone) profileUpdate.csPhone = cs.csPhone;
         if (cs.csEmail) profileUpdate.csEmail = cs.csEmail;

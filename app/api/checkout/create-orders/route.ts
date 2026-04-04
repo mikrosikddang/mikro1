@@ -302,32 +302,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error: unknown) {
     console.error("POST /api/checkout/create-orders error:", error);
+    const message = error instanceof Error ? error.message : "";
 
-    if (error instanceof Error && error.message.includes("OUT_OF_STOCK")) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (message.includes("OUT_OF_STOCK")) {
+      return NextResponse.json({ error: message }, { status: 409 });
     }
 
-    if (error instanceof Error && error.message.includes("SELF_PURCHASE_NOT_ALLOWED")) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (message.includes("SELF_PURCHASE_NOT_ALLOWED")) {
+      return NextResponse.json({ error: message }, { status: 409 });
     }
 
-    if (error instanceof Error && error.message.includes("CART_ITEM_INVALID_REMOVED")) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (message.includes("CART_ITEM_INVALID_REMOVED")) {
+      return NextResponse.json({ error: message }, { status: 409 });
     }
 
-    if (error instanceof Error && error.message.includes("CART_EMPTY")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (message.includes("CART_EMPTY")) {
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    if (error instanceof Error && error.message.includes("ADDRESS_INVALID")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (message.includes("ADDRESS_INVALID")) {
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
     if (
-      error.message.includes("not found") ||
-      error.message.includes("required")
+      message.includes("not found") ||
+      message.includes("required")
     ) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
     return NextResponse.json(

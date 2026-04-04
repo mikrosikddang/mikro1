@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { requireBuyerFeatures, requireSeller } from "@/lib/roleGuards";
-import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
+import { sanitizeDescriptionJson, type ProductDescription } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
@@ -231,15 +231,18 @@ export async function POST(req: NextRequest) {
     if (!title || typeof title !== "string" || title.trim().length === 0) {
       return NextResponse.json({ error: "상품명을 입력해주세요" }, { status: 400 });
     }
-    const safePriceKrw = requestedPostType === "ARCHIVE" ? 0 : priceKrw;
-    if (requestedPostType === "SALE" && (typeof safePriceKrw !== "number" || safePriceKrw < 0)) {
-      return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
+    let validatedPriceKrw = 0;
+    if (requestedPostType === "SALE") {
+      if (typeof priceKrw !== "number" || priceKrw < 0) {
+        return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
+      }
+      validatedPriceKrw = priceKrw;
     }
     if (requestedPostType === "SALE" && salePriceKrw != null) {
       if (typeof salePriceKrw !== "number" || salePriceKrw < 0) {
         return NextResponse.json({ error: "할인가를 올바르게 입력해주세요" }, { status: 400 });
       }
-      if (salePriceKrw >= safePriceKrw) {
+      if (salePriceKrw >= validatedPriceKrw) {
         return NextResponse.json({ error: "할인가는 정가보다 낮아야 합니다" }, { status: 400 });
       }
     }
@@ -286,7 +289,7 @@ export async function POST(req: NextRequest) {
           sellerId,
           title: title.trim(),
           postType: requestedPostType,
-          priceKrw: safePriceKrw,
+          priceKrw: validatedPriceKrw,
           salePriceKrw: requestedPostType === "ARCHIVE" ? null : salePriceKrw ?? null,
           category: category?.trim() || null, // DEPRECATED
           categoryMain: categoryMain || null,
@@ -333,8 +336,13 @@ export async function POST(req: NextRequest) {
       });
 
       // Sync CS/shipping info back to SellerProfile for future prefill
-      if (descriptionJson?.csShipping) {
-        const cs = descriptionJson.csShipping;
+      const nextDescription =
+        descriptionJson && typeof descriptionJson === "object"
+          ? (descriptionJson as ProductDescription)
+          : null;
+
+      if (nextDescription?.csShipping) {
+        const cs = nextDescription.csShipping;
         const profileUpdate: Record<string, string | null> = {};
         if (cs.csPhone) profileUpdate.csPhone = cs.csPhone;
         if (cs.csEmail) profileUpdate.csEmail = cs.csEmail;

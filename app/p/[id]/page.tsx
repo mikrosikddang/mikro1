@@ -167,7 +167,7 @@ export default async function ProductDetailPage({ params }: Props) {
           // Render structured description if available
           if (product.descriptionJson && typeof product.descriptionJson === "object") {
             const rendered = renderDescriptionForCustomer(
-              product.descriptionJson as ProductDescription,
+              product.descriptionJson as unknown as ProductDescription,
             );
             const hasContent = rendered.spec.length > 0 || rendered.detail || rendered.blocks.length > 0;
 
@@ -245,7 +245,7 @@ export default async function ProductDetailPage({ params }: Props) {
         })()}
 
         {/* Content images – stacked vertically (V1 only, V2 uses blocks) */}
-        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as ProductDescription).v !== 2) && (
+        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as unknown as ProductDescription).v !== 2) && (
           <div className="mt-6 pt-5 border-t border-gray-100 space-y-2">
             {contentImages.map((img) => (
               <div key={img.id} className="w-full rounded-lg overflow-hidden">
