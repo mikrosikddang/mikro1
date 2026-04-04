@@ -94,6 +94,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (product.postType === "ARCHIVE") {
+      return NextResponse.json(
+        { error: "아카이브 게시물은 주문할 수 없습니다" },
+        { status: 400 }
+      );
+    }
+
     // Validate stock (pre-check, actual deduction happens during payment)
     if (variant.stock < body.quantity) {
       return NextResponse.json(
@@ -190,7 +197,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       orderId: result.orderId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[orders/direct] Error:", error);
     return NextResponse.json(
       { error: "주문 생성 중 오류가 발생했습니다" },

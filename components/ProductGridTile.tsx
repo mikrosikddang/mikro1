@@ -6,15 +6,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { isArchivePost } from "@/lib/productPostType";
 
 export interface ProductGridTileProps {
   id: string;
   title: string;
   priceKrw: number;
   salePriceKrw?: number | null;
+  postType?: "SALE" | "ARCHIVE";
   imageUrl?: string;
-  shopName?: string;
-  sellerId?: string;
   viewMode?: "list" | "feed";
 }
 
@@ -23,14 +23,14 @@ export default function ProductGridTile({
   title,
   priceKrw,
   salePriceKrw,
+  postType,
   imageUrl,
-  shopName,
-  sellerId,
   viewMode = "list",
 }: ProductGridTileProps) {
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
   const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
+  const archive = isArchivePost(postType);
   // Feed mode: Instagram-style, image only, square
   if (viewMode === "feed") {
     return (
@@ -80,7 +80,9 @@ export default function ProductGridTile({
       </h3>
 
       {/* Price */}
-      {hasDiscount ? (
+      {archive ? (
+        <p className="mt-1 text-[12px] font-medium text-gray-500">아카이브 게시물</p>
+      ) : hasDiscount ? (
         <div className="mt-1">
           <div className="flex items-baseline gap-1">
             <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>

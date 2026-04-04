@@ -7,6 +7,7 @@ import {
   readAttributionFromRequest,
   upsertUserAttribution,
 } from "@/lib/attribution";
+import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 export const runtime = "nodejs";
 
@@ -112,17 +113,30 @@ export async function GET(req: NextRequest) {
     }
 
     // 없으면 신규 가입
+    let isNewUser = false;
+    let welcomeStoreSlug: string | null = null;
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: naverEmail,
-          name: naverName || null,
-          phone: naverPhone?.replace(/-/g, "") || null,
-          provider: "naver",
-          naverId: naverId || null,
-          role: "CUSTOMER",
-        },
+      const createdResult = await prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            email: naverEmail,
+            name: naverName || null,
+            phone: naverPhone?.replace(/-/g, "") || null,
+            provider: "naver",
+            naverId: naverId || null,
+            role: "CUSTOMER",
+          },
+        });
+        const space = await ensureUserSpaceProfile(tx, {
+          id: created.id,
+          name: created.name,
+          email: created.email,
+        });
+        return { created, welcomeStoreSlug: space.storeSlug };
       });
+      user = createdResult.created;
+      welcomeStoreSlug = createdResult.welcomeStoreSlug;
+      isNewUser = true;
     }
 
     await upsertUserAttribution(prisma, user.id, attribution);
@@ -138,7 +152,11 @@ export async function GET(req: NextRequest) {
     const token = signSession(session);
     const cookie = buildCookieOptions(token);
 
-    const res = NextResponse.redirect(`${baseUrl}/`);
+    const targetPath =
+      isNewUser && welcomeStoreSlug
+        ? `${baseUrl}/${welcomeStoreSlug}?welcome=1`
+        : `${baseUrl}/`;
+    const res = NextResponse.redirect(targetPath);
     res.cookies.set(cookie.name, cookie.value, {
       httpOnly: cookie.httpOnly,
       sameSite: cookie.sameSite,

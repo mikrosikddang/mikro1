@@ -747,6 +747,10 @@ export default function CheckoutPage() {
             <Link href="/policy/returns" className="text-blue-600 underline">
               환불·교환·반품 정책
             </Link>
+            ,{" "}
+            <Link href="/policy/seller" className="text-blue-600 underline">
+              판매자 전환 및 운영정책
+            </Link>
             에 동의한 것으로 간주됩니다.
           </p>
         </div>

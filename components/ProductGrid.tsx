@@ -16,6 +16,8 @@ interface Product {
   id: string;
   title: string;
   priceKrw: number;
+  salePriceKrw?: number | null;
+  postType?: "SALE" | "ARCHIVE";
   imageUrl: string | null;
 }
 
@@ -63,10 +65,16 @@ export default function ProductGrid({
       setViewMode(event.detail.mode === "feed" ? "feed" : "list");
     };
 
-    window.addEventListener("homeFeedViewModeChange" as any, handleViewModeChange);
+    window.addEventListener(
+      "homeFeedViewModeChange",
+      handleViewModeChange as EventListener,
+    );
 
     return () => {
-      window.removeEventListener("homeFeedViewModeChange" as any, handleViewModeChange);
+      window.removeEventListener(
+        "homeFeedViewModeChange",
+        handleViewModeChange as EventListener,
+      );
     };
   }, [reorderMode]);
 
@@ -394,6 +402,8 @@ export default function ProductGrid({
                 id={product.id}
                 title={product.title}
                 priceKrw={product.priceKrw}
+                salePriceKrw={product.salePriceKrw}
+                postType={product.postType}
                 imageUrl={product.imageUrl || undefined}
                 viewMode={viewMode}
               />

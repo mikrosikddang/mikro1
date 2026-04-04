@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
           OR: [
             { variant: { product: { isDeleted: true } } },
             { variant: { product: { isActive: false } } },
+            { variant: { product: { postType: "ARCHIVE" } } },
           ],
         },
       });
@@ -167,6 +168,12 @@ export async function POST(request: NextRequest) {
         if (item.variant.product.sellerId === session.userId) {
           throw new Error(
             `SELF_PURCHASE_NOT_ALLOWED: 본인 상점의 상품은 구매할 수 없습니다. (${item.variant.product.title})`
+          );
+        }
+
+        if (item.variant.product.postType === "ARCHIVE") {
+          throw new Error(
+            `CART_ITEM_INVALID_REMOVED: 아카이브 게시물은 결제할 수 없습니다. (${item.variant.product.title})`
           );
         }
 
@@ -293,26 +300,26 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/checkout/create-orders error:", error);
 
-    if (error.message.includes("OUT_OF_STOCK")) {
+    if (error instanceof Error && error.message.includes("OUT_OF_STOCK")) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
-    if (error.message.includes("SELF_PURCHASE_NOT_ALLOWED")) {
+    if (error instanceof Error && error.message.includes("SELF_PURCHASE_NOT_ALLOWED")) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
-    if (error.message.includes("CART_ITEM_INVALID_REMOVED")) {
+    if (error instanceof Error && error.message.includes("CART_ITEM_INVALID_REMOVED")) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
-    if (error.message.includes("CART_EMPTY")) {
+    if (error instanceof Error && error.message.includes("CART_EMPTY")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    if (error.message.includes("ADDRESS_INVALID")) {
+    if (error instanceof Error && error.message.includes("ADDRESS_INVALID")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

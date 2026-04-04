@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import HomeClientView from "@/components/HomeClientView";
-import { getPublicProductWhere } from "@/lib/publicVisibility";
+import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
 import {
   MAIN_CATEGORIES,
   getMidCategories,
@@ -50,7 +50,7 @@ export default async function HomePage({ searchParams }: Props) {
   // 상품이 존재하는 categoryMain 목록 조회
   const activeCats = await prisma.product.groupBy({
     by: ['categoryMain'],
-    where: getPublicProductWhere(),
+    where: getCustomerVisibleProductWhere({ postType: "SALE" }),
     _count: true,
   });
   const activeMainCategories = activeCats
@@ -58,7 +58,7 @@ export default async function HomePage({ searchParams }: Props) {
     .map(r => r.categoryMain!);
 
   const products = await prisma.product.findMany({
-    where: getPublicProductWhere({
+    where: getCustomerVisibleProductWhere({
       ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
       // Search query
       ...(q ? {
@@ -109,7 +109,7 @@ export default async function HomePage({ searchParams }: Props) {
       {isSearching && (
         <div className="pt-3 pb-1">
           <p className="text-[14px] text-gray-700">
-            <span className="font-semibold">'{q}'</span> 검색 결과 <span className="font-semibold">{products.length}</span>건
+            <span className="font-semibold">&apos;{q}&apos;</span> 검색 결과 <span className="font-semibold">{products.length}</span>건
           </p>
         </div>
       )}

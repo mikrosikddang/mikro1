@@ -23,6 +23,7 @@ export function getPublicProductWhere(
   extra: Prisma.ProductWhereInput = {},
 ): Prisma.ProductWhereInput {
   return {
+    postType: "SALE",
     isActive: true,
     isDeleted: false,
     seller: {
@@ -36,6 +37,38 @@ export function getPublicProductWhere(
       },
     },
     ...extra,
+  };
+}
+
+export function getPublicSpaceUserWhere(
+  extra: Prisma.UserWhereInput = {},
+): Prisma.UserWhereInput {
+  return {
+    sellerProfile: {
+      is: {
+        storeSlug: { not: null },
+      },
+    },
+    ...extra,
+  };
+}
+
+export function getCustomerVisibleProductWhere(
+  extra: Prisma.ProductWhereInput = {},
+): Prisma.ProductWhereInput {
+  return {
+    OR: [
+      getPublicProductWhere(extra),
+      {
+        postType: "ARCHIVE",
+        isActive: true,
+        isDeleted: false,
+        seller: {
+          is: getPublicSpaceUserWhere(),
+        },
+        ...extra,
+      },
+    ],
   };
 }
 

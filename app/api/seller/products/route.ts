@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth";
-import { requireSeller } from "@/lib/roleGuards";
+import { requireBuyerFeatures, requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
 import { revalidatePath } from "next/cache";
+import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 export const runtime = "nodejs";
 
 function buildVariantSummary(variants: { color: string; sizeLabel: string; stock: number }[]): string {
+  if (variants.length === 0) return "";
   if (variants.length <= 1 && variants[0]?.sizeLabel === "FREE") return "";
   return variants.map((v) => {
     const prefix = v.color && v.color !== "FREE" ? `${v.color}/` : "";
@@ -25,7 +27,7 @@ function buildVariantSummary(variants: { color: string; sizeLabel: string; stock
  *
  * Query params:
  * - search: 상품명 검색 (optional)
- * - tab: active | hidden | sold-out (optional, default: all)
+ * - tab: active | hidden | sold-out | archive (optional, default: all)
  * - sort: newest | price-asc | price-desc | stock-asc (optional, default: newest)
  * - cursor: createdAt ISO string (optional)
  * - limit: number (optional, default: 20, max: 100)
@@ -55,13 +57,17 @@ export async function GET(req: NextRequest) {
     let tabWhere: Prisma.ProductWhereInput = {};
     if (tab === "hidden") {
       tabWhere = { isActive: false };
+    } else if (tab === "archive") {
+      tabWhere = { postType: "ARCHIVE" };
     } else if (tab === "sold-out") {
       tabWhere = {
+        postType: "SALE",
         isActive: true,
         variants: { every: { stock: 0 } },
       };
     } else if (tab === "active") {
       tabWhere = {
+        postType: "SALE",
         isActive: true,
         variants: { some: { stock: { gt: 0 } } },
       };
@@ -91,10 +97,11 @@ export async function GET(req: NextRequest) {
       : {};
 
     // Counts for all tabs
-    const [activeCount, hiddenCount, soldOutCount] = await Promise.all([
+    const [activeCount, hiddenCount, soldOutCount, archiveCount] = await Promise.all([
       prisma.product.count({
         where: {
           ...baseWhere,
+          postType: "SALE",
           isActive: true,
           variants: { some: { stock: { gt: 0 } } },
         },
@@ -105,8 +112,15 @@ export async function GET(req: NextRequest) {
       prisma.product.count({
         where: {
           ...baseWhere,
+          postType: "SALE",
           isActive: true,
           variants: { every: { stock: 0 } },
+        },
+      }),
+      prisma.product.count({
+        where: {
+          ...baseWhere,
+          postType: "ARCHIVE",
         },
       }),
     ]);
@@ -144,7 +158,12 @@ export async function GET(req: NextRequest) {
         variantSummary: buildVariantSummary(p.variants),
       })),
       nextCursor,
-      counts: { active: activeCount, hidden: hiddenCount, soldOut: soldOutCount },
+      counts: {
+        active: activeCount,
+        hidden: hiddenCount,
+        soldOut: soldOutCount,
+        archive: archiveCount,
+      },
     });
   } catch (error) {
     console.error("GET /api/seller/products error:", error);
@@ -163,10 +182,21 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const _session = await getSession();
-    const session = await requireSeller(_session);
+    const body = await req.json();
+    const requestedPostType = body.postType === "ARCHIVE" ? "ARCHIVE" : "SALE";
+    const session =
+      requestedPostType === "ARCHIVE"
+        ? requireBuyerFeatures(_session)
+        : await requireSeller(_session);
 
     const sellerId = session.userId;
-    const body = await req.json();
+    if (requestedPostType === "ARCHIVE") {
+      await ensureUserSpaceProfile(prisma, {
+        id: session.userId,
+        name: session.name,
+        email: session.email,
+      });
+    }
     const {
       title,
       priceKrw,
@@ -181,14 +211,15 @@ export async function POST(req: NextRequest) {
       variants,
     } = body as {
       title: string;
-      priceKrw: number;
+      priceKrw?: number;
       salePriceKrw?: number | null;
+      postType?: "SALE" | "ARCHIVE";
       category?: string; // DEPRECATED
       categoryMain?: string;
       categoryMid?: string;
       categorySub?: string;
       description?: string;
-      descriptionJson?: any;
+      descriptionJson?: unknown;
       mainImages: { url: string; colorKey?: string | null }[];
       contentImages?: string[];
       variants: { color?: string; sizeLabel: string; stock: number; priceAddonKrw?: number }[];
@@ -200,14 +231,15 @@ export async function POST(req: NextRequest) {
     if (!title || typeof title !== "string" || title.trim().length === 0) {
       return NextResponse.json({ error: "상품명을 입력해주세요" }, { status: 400 });
     }
-    if (typeof priceKrw !== "number" || priceKrw < 0) {
+    const safePriceKrw = requestedPostType === "ARCHIVE" ? 0 : priceKrw;
+    if (requestedPostType === "SALE" && (typeof safePriceKrw !== "number" || safePriceKrw < 0)) {
       return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
     }
-    if (salePriceKrw != null) {
+    if (requestedPostType === "SALE" && salePriceKrw != null) {
       if (typeof salePriceKrw !== "number" || salePriceKrw < 0) {
         return NextResponse.json({ error: "할인가를 올바르게 입력해주세요" }, { status: 400 });
       }
-      if (salePriceKrw >= priceKrw) {
+      if (salePriceKrw >= safePriceKrw) {
         return NextResponse.json({ error: "할인가는 정가보다 낮아야 합니다" }, { status: 400 });
       }
     }
@@ -228,18 +260,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "상세 이미지는 최대 20장입니다" }, { status: 400 });
     }
     // Validate variants using shared validation
-    const normalizedVariants = variants.map((v) => ({
-      color: v.color || "FREE",
-      sizeLabel: v.sizeLabel,
-      stock: v.stock,
-      priceAddonKrw: v.priceAddonKrw || 0,
-    }));
-    const variantErrors = validateFlatVariants(normalizedVariants);
-    if (variantErrors.length > 0) {
-      return NextResponse.json(
-        { error: formatValidationErrors(variantErrors) },
-        { status: 400 }
-      );
+    const validatedVariants =
+      requestedPostType === "ARCHIVE"
+        ? [{ color: "FREE", sizeLabel: "FREE", stock: 0, priceAddonKrw: 0 }]
+        : variants.map((v) => ({
+            color: v.color || "FREE",
+            sizeLabel: v.sizeLabel,
+            stock: v.stock,
+            priceAddonKrw: v.priceAddonKrw || 0,
+          }));
+    if (requestedPostType === "SALE") {
+      const variantErrors = validateFlatVariants(validatedVariants);
+      if (variantErrors.length > 0) {
+        return NextResponse.json(
+          { error: formatValidationErrors(variantErrors) },
+          { status: 400 }
+        );
+      }
     }
 
     // ---- Transaction ----
@@ -248,8 +285,9 @@ export async function POST(req: NextRequest) {
         data: {
           sellerId,
           title: title.trim(),
-          priceKrw,
-          salePriceKrw: salePriceKrw ?? null,
+          postType: requestedPostType,
+          priceKrw: safePriceKrw,
+          salePriceKrw: requestedPostType === "ARCHIVE" ? null : salePriceKrw ?? null,
           category: category?.trim() || null, // DEPRECATED
           categoryMain: categoryMain || null,
           categoryMid: categoryMid || null,
@@ -283,7 +321,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Create variants (normalized)
-      const normalizedVariants = variants.map((v) => normalizeVariantInput(v));
+      const normalizedVariants = validatedVariants.map((v) => normalizeVariantInput(v));
       await tx.productVariant.createMany({
         data: normalizedVariants.map((v) => ({
           productId: p.id,
@@ -316,7 +354,7 @@ export async function POST(req: NextRequest) {
 
     revalidatePath("/");
     return NextResponse.json({ id: product.id });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("product creation error:", err);
     return NextResponse.json(
       { error: "상품 등록에 실패했습니다" },

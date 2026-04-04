@@ -13,6 +13,7 @@ import { getCategoryBreadcrumb, validateCategory } from "@/lib/categories";
 import { getColorByKey, isLightColor } from "@/lib/colors";
 import { resizeImage } from "@/lib/imageResize";
 import { resolveClientImageContentType } from "@/lib/clientImageContentType";
+import { getPostTypeLabel } from "@/lib/productPostType";
 
 // Browser-compatible UUID generation
 function generateId() {
@@ -53,12 +54,24 @@ export type ProductFormInitialValues = {
   title: string;
   priceKrw: number;
   salePriceKrw?: number | null;
+  postType?: "SALE" | "ARCHIVE";
   category: string; // DEPRECATED
   categoryMain?: string | null;
   categoryMid?: string | null;
   categorySub?: string | null;
   description: string;
-  descriptionJson?: any;
+  descriptionJson?: {
+    v?: number;
+    detail?: string;
+    spec?: {
+      measurements?: string;
+      modelInfo?: string;
+      material?: string;
+      origin?: string;
+      fit?: string;
+    };
+    blocks?: DescriptionBlock[];
+  } | null;
   mainImages: { url: string; colorKey?: string | null }[];
   contentImages: string[];
   variants: { id?: string; color?: string; sizeLabel: string; stock: number; priceAddonKrw?: number }[];
@@ -68,14 +81,25 @@ function urlToSlot(url: string, colorKey?: string | null): ImageSlot {
   return { preview: url, status: "done", progress: 100, publicUrl: url, colorKey: colorKey ?? null };
 }
 
+type DraftMainImage = {
+  url: string;
+  colorKey?: string | null;
+};
+
 export default function ProductForm({
   initialValues,
   editProductId,
   isActive: initialIsActive,
+  allowArchiveToggle = true,
+  forcedPostType,
+  redirectTo = "/seller",
 }: {
   initialValues?: ProductFormInitialValues;
   editProductId?: string;
   isActive?: boolean;
+  allowArchiveToggle?: boolean;
+  forcedPostType?: "SALE" | "ARCHIVE";
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const mainInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +129,9 @@ export default function ProductForm({
   });
 
   const [title, setTitle] = useState(initialValues?.title ?? "");
+  const [postType, setPostType] = useState<"SALE" | "ARCHIVE">(
+    forcedPostType ?? initialValues?.postType ?? "SALE",
+  );
   const [priceKrw, setPriceKrw] = useState(
     initialValues?.priceKrw ? initialValues.priceKrw.toLocaleString("ko-KR") : "",
   );
@@ -157,6 +184,7 @@ export default function ProductForm({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
+  const isArchiveMode = postType === "ARCHIVE";
 
   // ---- Auto-save (localStorage draft) ----
   const draftKey = editProductId ? `product-draft-${editProductId}` : "product-draft-new";
@@ -185,6 +213,9 @@ export default function ProductForm({
       if (!raw) return;
       const d = JSON.parse(raw);
       if (d.title) setTitle(d.title);
+      if ((d.postType === "SALE" || d.postType === "ARCHIVE") && !forcedPostType) {
+        setPostType(d.postType);
+      }
       if (d.priceKrw) setPriceKrw(d.priceKrw);
       if (d.salePriceKrw) setSalePriceKrw(d.salePriceKrw);
       if (d.categoryMain) setCategoryMain(d.categoryMain);
@@ -201,7 +232,7 @@ export default function ProductForm({
         setDescBlocks(d.descBlocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() })));
       }
       if (d.mainImageUrls?.length) {
-        setMainImages(d.mainImageUrls.map((img: any) => urlToSlot(img.url, img.colorKey)));
+        setMainImages(d.mainImageUrls.map((img: DraftMainImage) => urlToSlot(img.url, img.colorKey)));
       }
       if (d.contentImageUrls?.length) {
         setContentImages(d.contentImageUrls.map((url: string) => urlToSlot(url)));
@@ -226,6 +257,7 @@ export default function ProductForm({
         const draft = {
           _ts: Date.now(),
           title,
+          postType,
           priceKrw,
           salePriceKrw,
           categoryMain,
@@ -246,7 +278,7 @@ export default function ProductForm({
       } catch { /* quota exceeded, etc. */ }
     }, 2000);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
-  }, [title, priceKrw, salePriceKrw, categoryMain, categoryMid, categorySub, detailText, specMeasurements, specModelInfo, specMaterial, specOrigin, specFit, variantTree, mainImages, contentImages, descBlocks, draftKey]);
+  }, [title, postType, priceKrw, salePriceKrw, categoryMain, categoryMid, categorySub, detailText, specMeasurements, specModelInfo, specMaterial, specOrigin, specFit, variantTree, mainImages, contentImages, descBlocks, draftKey, forcedPostType]);
 
   // Clear draft on successful submit
   function clearDraft() {
@@ -276,7 +308,7 @@ export default function ProductForm({
     setDescBlocks((prev) => {
       const next = [...prev];
       if (next[index]?.type === "text") {
-        next[index] = { ...next[index], content } as any;
+        next[index] = { ...next[index], content };
       }
       return next;
     });
@@ -286,7 +318,7 @@ export default function ProductForm({
     setDescBlocks((prev) => {
       const next = [...prev];
       if (next[index]?.type === "image") {
-        next[index] = { ...next[index], caption } as any;
+        next[index] = { ...next[index], caption };
       }
       return next;
     });
@@ -663,11 +695,11 @@ export default function ProductForm({
     if (!title.trim()) errs.title = "상품명을 입력해주세요";
 
     const price = parseInt(priceKrw.replace(/,/g, ""), 10);
-    if (isNaN(price) || price < 0) errs.price = "가격을 올바르게 입력해주세요";
+    if (!isArchiveMode && (isNaN(price) || price < 0)) errs.price = "가격을 올바르게 입력해주세요";
 
     // Validate sale price
     let salePrice: number | null = null;
-    if (salePriceKrw.trim()) {
+    if (!isArchiveMode && salePriceKrw.trim()) {
       salePrice = parseInt(salePriceKrw.replace(/,/g, ""), 10);
       if (isNaN(salePrice) || salePrice < 0) {
         errs.salePrice = "할인가를 올바르게 입력해주세요";
@@ -682,9 +714,11 @@ export default function ProductForm({
     }
 
     // Validate variant tree
-    const validationErrors = validateVariantTree(variantTree);
-    for (const ve of validationErrors) {
-      errs[ve.field] = ve.message;
+    if (!isArchiveMode) {
+      const validationErrors = validateVariantTree(variantTree);
+      for (const ve of validationErrors) {
+        errs[ve.field] = ve.message;
+      }
     }
 
     if (Object.keys(errs).length > 0) {
@@ -718,7 +752,9 @@ export default function ProductForm({
         .filter((b): b is DescriptionBlock => b !== null && (b.type !== "text" || b.content !== ""));
 
       // Build content images from blocks for backward compat
-      const contentUrls = cleanBlocks.filter((b) => b.type === "image").map((b) => (b as any).url as string);
+      const contentUrls = cleanBlocks
+        .filter((b): b is Extract<DescriptionBlock, { type: "image" }> => b.type === "image")
+        .map((b) => b.url);
 
       // Build structured description (V2)
       const descriptionJson = {
@@ -734,13 +770,14 @@ export default function ProductForm({
       };
 
       // Convert tree to flat variants
-      const flatVariants = variantsTreeToFlat(variantTree);
+      const flatVariants = isArchiveMode ? [] : variantsTreeToFlat(variantTree);
 
       // Create or update product
       const payload = {
         title: title.trim(),
-        priceKrw: price,
-        salePriceKrw: salePrice,
+        postType,
+        priceKrw: isArchiveMode ? 0 : price,
+        salePriceKrw: isArchiveMode ? null : salePrice,
         category: category || undefined, // DEPRECATED
         categoryMain: categoryMain,
         categoryMid: categoryMid,
@@ -773,7 +810,7 @@ export default function ProductForm({
       }
 
       clearDraft();
-      router.push("/seller");
+      router.push(redirectTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : (editProductId ? "상품 수정에 실패했습니다" : "상품 등록에 실패했습니다"));
@@ -818,7 +855,13 @@ export default function ProductForm({
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-bold text-black">
-          {editProductId ? "상품 수정" : initialValues ? "상품 복제 등록" : "상품 올리기"}
+          {editProductId
+            ? `${getPostTypeLabel(postType)} ${postType === "ARCHIVE" ? "게시물" : "상품"} 수정`
+            : initialValues
+              ? "복제 등록"
+              : isArchiveMode
+                ? "아카이브 올리기"
+                : "상품 올리기"}
         </h1>
         {editProductId && (
           <button
@@ -840,6 +883,45 @@ export default function ProductForm({
           </button>
         )}
       </div>
+
+      {(allowArchiveToggle || forcedPostType) && (
+        <section className="mb-5">
+          <label className="block text-[14px] font-medium text-gray-700 mb-2">
+            게시물 유형
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => !forcedPostType && setPostType("SALE")}
+              disabled={submitting || forcedPostType === "ARCHIVE"}
+              className={`h-11 rounded-xl border text-[14px] font-medium transition-colors ${
+                postType === "SALE"
+                  ? "border-black bg-black text-white"
+                  : "border-gray-200 text-gray-600 bg-white"
+              } ${forcedPostType === "ARCHIVE" ? "opacity-50" : ""}`}
+            >
+              판매 게시물
+            </button>
+            <button
+              type="button"
+              onClick={() => !forcedPostType && setPostType("ARCHIVE")}
+              disabled={submitting || forcedPostType === "SALE"}
+              className={`h-11 rounded-xl border text-[14px] font-medium transition-colors ${
+                postType === "ARCHIVE"
+                  ? "border-black bg-black text-white"
+                  : "border-gray-200 text-gray-600 bg-white"
+              } ${forcedPostType === "SALE" ? "opacity-50" : ""}`}
+            >
+              아카이브 게시물
+            </button>
+          </div>
+          <p className="mt-2 text-[12px] text-gray-500 leading-relaxed">
+            {isArchiveMode
+              ? "아카이브 게시물은 가격과 옵션 없이 공개되며 장바구니/주문 대상이 아닙니다."
+              : "판매 게시물은 가격과 옵션을 입력하고 기존 판매자 기능으로 운영합니다."}
+          </p>
+        </section>
+      )}
 
       {/* ===== Main Images ===== */}
       <ImagePickerSection
@@ -987,6 +1069,7 @@ export default function ProductForm({
       </section>
 
       {/* ===== Variants (Color Groups) ===== */}
+      {!isArchiveMode && (
       <section className="mb-6">
         <label className="block text-[14px] font-medium text-gray-700 mb-2">
           옵션 (컬러/사이즈/재고) <span className="text-red-500">*</span>
@@ -1221,6 +1304,7 @@ export default function ProductForm({
           </button>
         </div>
       </section>
+      )}
 
       {/* Bulk Paste Modal */}
       {bulkPasteModal && (
@@ -1250,6 +1334,7 @@ export default function ProductForm({
       </section>
 
       {/* ===== Price ===== */}
+      {!isArchiveMode && (
       <section className="mb-5">
         <label htmlFor="price" className="block text-[14px] font-medium text-gray-700 mb-1.5">
           가격 (원) <span className="text-red-500">*</span>
@@ -1269,8 +1354,10 @@ export default function ProductForm({
         </div>
         {fieldErrors.price && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.price}</p>}
       </section>
+      )}
 
       {/* ===== Sale Price ===== */}
+      {!isArchiveMode && (
       <section className="mb-5">
         <label htmlFor="salePrice" className="block text-[14px] font-medium text-gray-700 mb-1.5">
           할인가 (원) <span className="text-gray-400">(선택)</span>
@@ -1309,6 +1396,16 @@ export default function ProductForm({
         })()}
         {fieldErrors.salePrice && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.salePrice}</p>}
       </section>
+      )}
+
+      {isArchiveMode && (
+        <section className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <p className="text-[13px] font-medium text-gray-800">아카이브 게시물</p>
+          <p className="mt-1 text-[12px] text-gray-500 leading-relaxed">
+            가격과 옵션은 노출되지 않습니다. 사진과 설명 중심으로 내 공간에 공개됩니다.
+          </p>
+        </section>
+      )}
 
       {/* ===== Category (3-Depth) ===== */}
       <section className="mb-5">

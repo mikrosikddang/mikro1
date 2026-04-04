@@ -51,6 +51,10 @@ export async function PATCH(request: Request, { params }: Props) {
         throw new Error("Forbidden");
       }
 
+      if (existing.variant.product.postType === "ARCHIVE") {
+        throw new Error("Product is not available");
+      }
+
       // Check stock
       if (body.quantity > existing.variant.stock) {
         throw new Error(
@@ -79,18 +83,18 @@ export async function PATCH(request: Request, { params }: Props) {
     });
 
     return NextResponse.json({ ok: true, item });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/cart/[id] error:", error);
 
-    if (error.message.includes("OUT_OF_STOCK")) {
+    if (error instanceof Error && error.message.includes("OUT_OF_STOCK")) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
-    if (error.message.includes("Forbidden")) {
+    if (error instanceof Error && error.message.includes("Forbidden")) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    if (error.message.includes("not found")) {
+    if (error instanceof Error && error.message.includes("not found")) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 

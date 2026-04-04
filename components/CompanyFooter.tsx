@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function CompanyFooter() {
   return (
     <footer className="bg-gray-50 border-t border-gray-200 pt-8 pb-14 px-5 mt-12">
@@ -31,18 +33,21 @@ export default function CompanyFooter() {
 
           {/* Links */}
           <div className="flex gap-3 flex-wrap text-[13px]">
-            <a href="/info" className="text-gray-700 hover:text-black underline">
+            <Link href="/info" className="text-gray-700 hover:text-black underline">
               사업자 정보
-            </a>
-            <a href="/policy/terms" className="text-gray-700 hover:text-black underline">
+            </Link>
+            <Link href="/policy/terms" className="text-gray-700 hover:text-black underline">
               이용약관
-            </a>
-            <a href="/policy/privacy" className="text-gray-700 hover:text-black underline">
+            </Link>
+            <Link href="/policy/privacy" className="text-gray-700 hover:text-black underline">
               개인정보처리방침
-            </a>
-            <a href="/policy/returns" className="text-gray-700 hover:text-black underline">
+            </Link>
+            <Link href="/policy/returns" className="text-gray-700 hover:text-black underline">
               환불·교환·반품
-            </a>
+            </Link>
+            <Link href="/policy/seller" className="text-gray-700 hover:text-black underline">
+              판매자 전환 및 운영정책
+            </Link>
           </div>
 
           {/* Copyright */}

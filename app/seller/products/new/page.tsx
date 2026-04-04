@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { buildDescriptionInitialValues } from "@/lib/descriptionSchema";
+import {
+  buildDescriptionInitialValues,
+  type ProductDescription,
+} from "@/lib/descriptionSchema";
 import ProductForm, { type ProductFormInitialValues } from "@/components/ProductForm";
 import { hasSellerPortalAccess } from "@/lib/sellerPortal";
 
@@ -30,6 +33,7 @@ export default async function NewProductPage({ searchParams }: Props) {
 
     initialValues = {
       title: product.title,
+      postType: product.postType,
       priceKrw: product.priceKrw,
       category: product.category ?? "",
       description: product.description ?? "",
@@ -60,12 +64,16 @@ export default async function NewProductPage({ searchParams }: Props) {
 
     initialValues = {
       title: "",
+      postType: "SALE",
       priceKrw: 0,
       category: "",
       description: "",
       descriptionJson: buildDescriptionInitialValues({
         descriptionJson: latestProduct?.descriptionJson
-          ? { v: 1, csShipping: (latestProduct.descriptionJson as any).csShipping }
+          ? {
+              v: 1,
+              csShipping: (latestProduct.descriptionJson as ProductDescription | null)?.csShipping,
+            }
           : undefined,
         sellerProfile: seller?.sellerProfile,
       }),
@@ -75,5 +83,5 @@ export default async function NewProductPage({ searchParams }: Props) {
     };
   }
 
-  return <ProductForm initialValues={initialValues} />;
+  return <ProductForm initialValues={initialValues} allowArchiveToggle />;
 }

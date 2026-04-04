@@ -5,7 +5,10 @@ import Container from "@/components/Container";
 import SellerShopHeader from "@/components/SellerShopHeader";
 import ProductGrid from "@/components/ProductGrid";
 import ScrollToTop from "@/components/ScrollToTop";
-import { getPublicProductWhere } from "@/lib/publicVisibility";
+import {
+  getCustomerVisibleProductWhere,
+  getPublicSpaceUserWhere,
+} from "@/lib/publicVisibility";
 
 export const revalidate = 60; // ISR: 60초
 
@@ -18,12 +21,7 @@ export default async function SellerShopPage({ params }: Props) {
   const seller = await prisma.user.findFirst({
     where: {
       id: sellerId,
-      role: "SELLER_ACTIVE",
-      sellerProfile: {
-        is: {
-          status: "APPROVED",
-        },
-      },
+      ...getPublicSpaceUserWhere(),
     },
     include: { sellerProfile: true },
   });
@@ -48,7 +46,7 @@ export default async function SellerShopPage({ params }: Props) {
   // Fetch initial products for SSR (first page)
   const limit = 30;
   const products = await prisma.product.findMany({
-    where: getPublicProductWhere({ sellerId }),
+    where: getCustomerVisibleProductWhere({ sellerId }),
     orderBy: [
       { sortOrder: "asc" },
       { createdAt: "desc" },
@@ -75,6 +73,8 @@ export default async function SellerShopPage({ params }: Props) {
     id: p.id,
     title: p.title,
     priceKrw: p.priceKrw,
+    salePriceKrw: p.salePriceKrw,
+    postType: p.postType,
     imageUrl: p.images[0]?.url || null,
   }));
 

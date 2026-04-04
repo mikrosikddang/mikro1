@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { formatKrw } from "@/lib/format";
 import ImageCarousel from "@/components/ImageCarousel";
 import {
   isWishlisted,
@@ -15,6 +14,7 @@ import FeedActionSheet from "@/components/FeedActionSheet";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { useSession } from "@/components/SessionProvider";
+import { isArchivePost } from "@/lib/productPostType";
 
 type ProductCardProps = {
   id: string;
@@ -22,6 +22,7 @@ type ProductCardProps = {
   priceKrw: number;
   /** Sale price (discount) - shown when lower than priceKrw */
   salePriceKrw?: number | null;
+  postType?: "SALE" | "ARCHIVE";
   /** Multiple MAIN images for swipe carousel */
   images: { url: string }[];
   shopName: string;
@@ -37,6 +38,7 @@ export default function ProductCard({
   title,
   priceKrw,
   salePriceKrw,
+  postType,
   images,
   shopName,
   sellerId,
@@ -46,6 +48,7 @@ export default function ProductCard({
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
   const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
+  const archive = isArchivePost(postType);
 
   const session = useSession();
   // Wishlist state (customer mode only)
@@ -234,7 +237,9 @@ export default function ProductCard({
               {title}
             </h3>
             <div className="mt-1">
-              {hasDiscount ? (
+              {archive ? (
+                <p className="text-[13px] font-medium text-gray-500">아카이브 게시물</p>
+              ) : hasDiscount ? (
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
                   <span className="text-[16px] font-semibold text-black tabular-nums">

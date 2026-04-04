@@ -16,7 +16,7 @@ import AdminModeToggle from "@/components/AdminModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
-import { MAIN_CATEGORIES, pushRecentCategory } from "@/lib/categories";
+import { MAIN_CATEGORIES } from "@/lib/categories";
 
 type DrawerProps = {
   open: boolean;
@@ -305,6 +305,13 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuItem label="브랜드 보기" href="/brands" showChevron isSubmenu />
             </MenuSection>
 
+            {session && (
+              <MenuSection title="내 공간">
+                <MenuItem label="내 공간 보기" href="/space" isSubmenu />
+                <MenuItem label="아카이브 올리기" href="/space/posts/new" isSubmenu />
+              </MenuSection>
+            )}
+
             {/* Seller Section - shown below browse when seller mode is OFF */}
             {canUseSellerView && session && !sellerMode && (
               <MenuSection title="판매자">
@@ -340,6 +347,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             <MenuSection title="정보">
               <MenuItem label="이용약관" href="/policy/terms" isSubmenu />
               <MenuItem label="개인정보처리방침" href="/policy/privacy" isSubmenu />
+              <MenuItem label="판매자 전환 및 운영정책" href="/policy/seller" isSubmenu />
               {!sellerApplyMenuLabel && (
                 <MenuItem label="입점 안내" href="/apply" isSubmenu />
               )}

@@ -75,6 +75,11 @@ enum ProductImageKind {
   CONTENT
 }
 
+enum ProductPostType {
+  SALE
+  ARCHIVE
+}
+
 enum DiscountType {
   PERCENT
   FIXED
@@ -220,6 +225,7 @@ model Product {
   description String?       // Legacy plain text description (kept for backward compatibility)
   descriptionJson Json?     // Structured description (v1: spec, detail, csShipping)
   category    String?       // DEPRECATED: 기존 카테고리 (유지, 사용 안 함)
+  postType    ProductPostType @default(SALE)
 
   // 3-Depth Category Structure (여성의류/남성의류)
   categoryMain String?      // 여성의류 / 남성의류
@@ -246,6 +252,7 @@ model Product {
 
   @@index([categoryMain, categoryMid, categorySub])
   @@index([sellerId])
+  @@index([postType, isActive, isDeleted])
   @@index([isActive, isDeleted])
   @@index([createdAt])
 }

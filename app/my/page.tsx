@@ -93,6 +93,25 @@ export default async function MyPage() {
             {chevronSvg}
           </Link>
 
+          {session && (
+            <>
+              <Link
+                href="/space"
+                className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+              >
+                내 공간
+                {chevronSvg}
+              </Link>
+              <Link
+                href="/space/posts/new"
+                className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+              >
+                아카이브 올리기
+                {chevronSvg}
+              </Link>
+            </>
+          )}
+
           {session && canAccessSellerFeatures(session.role) ? (
             <Link
               href="/seller"
@@ -140,6 +159,14 @@ export default async function MyPage() {
             className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
           >
             환불·교환·반품·배송 정책
+            {chevronSvg}
+          </Link>
+
+          <Link
+            href="/policy/seller"
+            className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+          >
+            판매자 전환 및 운영정책
             {chevronSvg}
           </Link>
         </div>

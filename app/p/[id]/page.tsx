@@ -1,21 +1,22 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Container from "@/components/Container";
 import ImageCarousel from "@/components/ImageCarousel";
 import ColorImageCarousel from "./ColorImageCarousel";
-import { formatKrw } from "@/lib/format";
 import WishlistButton from "@/components/WishlistButton";
 import AddToCartSection from "./AddToCartSection";
-import { renderDescriptionForCustomer } from "@/lib/descriptionSchema";
+import {
+  renderDescriptionForCustomer,
+  type ProductDescription,
+} from "@/lib/descriptionSchema";
 import { getSession } from "@/lib/auth";
 import SellerNameText from "@/components/typography/SellerNameText";
-import ProductTitleText from "@/components/typography/ProductTitleText";
 import ProductSellerActions from "./ProductSellerActions";
 import ReviewSection, { ReviewSummary } from "./ReviewSection";
 import InquirySection from "./InquirySection";
 import ScrollToTop from "@/components/ScrollToTop";
-import { getPublicProductWhere } from "@/lib/publicVisibility";
+import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
+import { isArchivePost } from "@/lib/productPostType";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -26,7 +27,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const [product, session] = await Promise.all([
     prisma.product.findFirst({
-      where: getPublicProductWhere({ id }),
+      where: getCustomerVisibleProductWhere({ id }),
       include: {
         images: { orderBy: { sortOrder: "asc" } },
         seller: { include: { sellerProfile: true } },
@@ -41,6 +42,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const shopName = product.seller.sellerProfile?.shopName ?? "알수없음";
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
   const isSoldOut = totalStock <= 0;
+  const isArchive = isArchivePost(product.postType);
   const isSelf = session ? session.userId === product.sellerId : false;
 
   // Split images by kind
@@ -101,7 +103,11 @@ export default async function ProductDetailPage({ params }: Props) {
             {product.title}
           </h1>
           <div className="shrink-0 text-right">
-            {product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
+            {isArchive ? (
+              <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-600">
+                아카이브 게시물
+              </span>
+            ) : product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
               <>
                 <div className="flex items-baseline gap-1.5">
                   <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">
@@ -126,6 +132,15 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Review Summary */}
         <ReviewSummary productId={product.id} />
 
+        {isArchive && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-[13px] font-medium text-amber-800">아카이브 게시물</p>
+            <p className="mt-1 text-[12px] text-amber-700 leading-relaxed">
+              가격과 옵션이 없는 기록형 게시물입니다. 판매 운영은 판매자 승인 완료 후 가능한 상품에서만 진행됩니다.
+            </p>
+          </div>
+        )}
+
         {/* Seller Actions (self only) */}
         {isSelf && <ProductSellerActions productId={product.id} />}
 
@@ -133,14 +148,16 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="border-t border-gray-100 my-6" />
 
         {/* Size selection and CTA */}
-        <AddToCartSection
-          productId={product.id}
-          variants={product.variants}
-          isSoldOut={isSoldOut}
-          userRole={session?.role ?? null}
-          priceKrw={product.priceKrw}
-          salePriceKrw={product.salePriceKrw}
-        />
+        {!isArchive && (
+          <AddToCartSection
+            productId={product.id}
+            variants={product.variants}
+            isSoldOut={isSoldOut}
+            userRole={session?.role ?? null}
+            priceKrw={product.priceKrw}
+            salePriceKrw={product.salePriceKrw}
+          />
+        )}
 
         {/* Divider */}
         <div className="border-t border-gray-100 my-6" />
@@ -149,7 +166,9 @@ export default async function ProductDetailPage({ params }: Props) {
         {(() => {
           // Render structured description if available
           if (product.descriptionJson && typeof product.descriptionJson === "object") {
-            const rendered = renderDescriptionForCustomer(product.descriptionJson as any);
+            const rendered = renderDescriptionForCustomer(
+              product.descriptionJson as ProductDescription,
+            );
             const hasContent = rendered.spec.length > 0 || rendered.detail || rendered.blocks.length > 0;
 
             if (!hasContent) return null;
@@ -226,7 +245,7 @@ export default async function ProductDetailPage({ params }: Props) {
         })()}
 
         {/* Content images – stacked vertically (V1 only, V2 uses blocks) */}
-        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as any).v !== 2) && (
+        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as ProductDescription).v !== 2) && (
           <div className="mt-6 pt-5 border-t border-gray-100 space-y-2">
             {contentImages.map((img) => (
               <div key={img.id} className="w-full rounded-lg overflow-hidden">

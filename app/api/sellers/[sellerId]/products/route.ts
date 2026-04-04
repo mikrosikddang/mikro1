@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPublicProductWhere } from "@/lib/publicVisibility";
+import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: Props) {
     );
 
     // Build query conditions
-    const where = getPublicProductWhere({
+    const where = getCustomerVisibleProductWhere({
       sellerId,
       ...(cursor && {
         createdAt: {
@@ -69,6 +69,8 @@ export async function GET(request: Request, { params }: Props) {
       id: p.id,
       title: p.title,
       priceKrw: p.priceKrw,
+      salePriceKrw: p.salePriceKrw,
+      postType: p.postType,
       imageUrl: p.images[0]?.url || null,
       createdAt: p.createdAt.toISOString(),
     }));

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth";
-import { requireSeller } from "@/lib/roleGuards";
+import { requireBuyerFeatures, requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
 import { normalizeVariantInput, variantsEqual } from "@/lib/variantNormalize";
 import { validateCategory } from "@/lib/categories";
 import { revalidatePath } from "next/cache";
+import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,10 @@ type Params = { params: Promise<{ id: string }> };
 /* ------------------------------------------------------------------ */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    const _session = await getSession();
-    const session = await requireSeller(_session);
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
+    }
 
     const sellerId = session.userId;
     const { id } = await params;
@@ -63,10 +66,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
 /* ------------------------------------------------------------------ */
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const _session = await getSession();
-    const session = await requireSeller(_session);
-
-    const sellerId = session.userId;
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
+    }
     const { id } = await params;
     const body = await req.json();
     const {
@@ -78,6 +81,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       categorySub,
       description,
       descriptionJson,
+      postType,
       isActive,
       mainImages,
       contentImages,
@@ -91,7 +95,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       categoryMid?: string | null;
       categorySub?: string | null;
       description?: string;
-      descriptionJson?: any;
+      descriptionJson?: unknown;
+      postType?: "SALE" | "ARCHIVE";
       isActive?: boolean;
       mainImages?: { url: string; colorKey?: string | null }[];
       contentImages?: string[];
@@ -99,8 +104,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     };
 
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing || existing.sellerId !== sellerId) {
+    if (!existing || existing.sellerId !== session.userId) {
       return NextResponse.json({ error: "상품을 찾을 수 없습니다" }, { status: 404 });
+    }
+    const nextPostType = postType === "ARCHIVE" ? "ARCHIVE" : postType === "SALE" ? "SALE" : existing.postType;
+
+    if (nextPostType === "SALE") {
+      await requireSeller(session);
+    } else {
+      requireBuyerFeatures(session);
+      await ensureUserSpaceProfile(prisma, {
+        id: session.userId,
+        name: session.name,
+        email: session.email,
+      });
     }
 
     // ---- Validate scalars ----
@@ -113,13 +130,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       productData.title = title.trim();
     }
     if (priceKrw !== undefined) {
-      if (typeof priceKrw !== "number" || priceKrw < 0) {
+      if (nextPostType === "SALE" && (typeof priceKrw !== "number" || priceKrw < 0)) {
         return NextResponse.json({ error: "가격을 올바르게 입력해주세요" }, { status: 400 });
       }
-      productData.priceKrw = priceKrw;
+      productData.priceKrw = nextPostType === "ARCHIVE" ? 0 : priceKrw;
     }
     if (body.salePriceKrw !== undefined) {
-      if (body.salePriceKrw === null) {
+      if (nextPostType === "ARCHIVE" || body.salePriceKrw === null) {
         productData.salePriceKrw = null;
       } else {
         if (typeof body.salePriceKrw !== "number" || body.salePriceKrw < 0) {
@@ -130,6 +147,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           return NextResponse.json({ error: "할인가는 정가보다 낮아야 합니다" }, { status: 400 });
         }
         productData.salePriceKrw = body.salePriceKrw;
+      }
+    }
+    if (postType !== undefined) {
+      productData.postType = nextPostType;
+      if (nextPostType === "ARCHIVE") {
+        productData.priceKrw = 0;
+        productData.salePriceKrw = null;
       }
     }
     if (category !== undefined) {
@@ -171,7 +195,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     // ---- Validate variants ----
-    if (variants !== undefined) {
+    if (variants !== undefined && nextPostType === "SALE") {
       // Normalize variants for validation
       const normalizedVariants = variants.map((v) => ({
         id: v.id,
@@ -233,7 +257,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
 
       // Diff-based variant update (FK-safe with normalization)
-      if (variants !== undefined) {
+      if (variants !== undefined && nextPostType === "SALE") {
         // Normalize incoming variants
         const normalizedIncoming = variants.map((v) => normalizeVariantInput({
         ...v,
@@ -369,7 +393,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
         if (Object.keys(profileUpdate).length > 0) {
           await tx.sellerProfile.updateMany({
-            where: { userId: sellerId },
+            where: { userId: session.userId },
             data: profileUpdate,
           });
         }
@@ -384,7 +408,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       id: updated.id,
       isActive: updated.isActive,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("product update error:", err);
 
     // Handle FK violation errors

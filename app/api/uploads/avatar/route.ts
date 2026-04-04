@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadToS3 } from "@/lib/s3";
-import { hasSellerPortalAccess } from "@/lib/sellerPortal";
+import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 /**
  * POST /api/uploads/avatar
- * 프로필 이미지 업로드 (판매자 전용, self만)
+ * 프로필 이미지 업로드 (로그인 사용자 본인)
  * S3에 직접 업로드 후 이미지 프록시 URL 반환
  */
 export async function POST(req: NextRequest) {
@@ -26,16 +26,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
   }
 
-  if (!(await hasSellerPortalAccess(session))) {
-    return NextResponse.json(
-      { error: "판매자 권한이 필요합니다" },
-      { status: 403 },
-    );
-  }
-
   try {
-    const sellerProfile = await prisma.sellerProfile.findUnique({
-      where: { userId: session.userId },
+    const sellerProfile = await ensureUserSpaceProfile(prisma, {
+      id: session.userId,
+      name: session.name,
+      email: session.email,
     });
 
     if (!sellerProfile) {

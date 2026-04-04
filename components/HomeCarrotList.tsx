@@ -4,12 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import ProductActionMenu from "@/components/ProductActionMenu";
+import { isArchivePost } from "@/lib/productPostType";
 
 type Product = {
   id: string;
   title: string;
   priceKrw: number;
   salePriceKrw?: number | null;
+  postType?: "SALE" | "ARCHIVE";
   sellerId: string;
   images: { url: string }[];
   seller: {
@@ -38,6 +40,7 @@ function CarrotListItem({ product }: { product: Product }) {
   const shopName = product.seller.sellerProfile?.shopName || "알수없음";
   const hasDiscount =
     product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
+  const archive = isArchivePost(product.postType);
   const discountRate = hasDiscount
     ? Math.round((1 - product.salePriceKrw! / product.priceKrw) * 100)
     : 0;
@@ -85,7 +88,13 @@ function CarrotListItem({ product }: { product: Product }) {
 
             {/* Bottom row: price */}
             <div className="flex items-end justify-between mt-auto pt-1">
-              {hasDiscount ? (
+              {archive ? (
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-[13px] font-medium text-gray-500">
+                    아카이브 게시물
+                  </span>
+                </div>
+              ) : hasDiscount ? (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-[13px] font-bold text-red-500">

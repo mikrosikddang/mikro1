@@ -1,18 +1,18 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { buildDescriptionInitialValues } from "@/lib/descriptionSchema";
 import ProductForm, { type ProductFormInitialValues } from "@/components/ProductForm";
-import { hasSellerPortalAccess } from "@/lib/sellerPortal";
 
 type Props = { params: Promise<{ id: string }> };
 
-export default async function EditProductPage({ params }: Props) {
-  const { id } = await params;
-
+export default async function EditArchivePostPage({ params }: Props) {
   const session = await getSession();
-  if (!session || !(await hasSellerPortalAccess(session))) notFound();
+  if (!session) {
+    redirect("/login?next=/space");
+  }
 
+  const { id } = await params;
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
@@ -21,9 +21,14 @@ export default async function EditProductPage({ params }: Props) {
     },
   });
 
-  if (!product || product.sellerId !== session.userId) notFound();
+  if (
+    !product ||
+    product.sellerId !== session.userId ||
+    product.postType !== "ARCHIVE"
+  ) {
+    notFound();
+  }
 
-  // Build initial values for ProductForm
   const initialValues: ProductFormInitialValues = {
     title: product.title,
     postType: product.postType,
@@ -49,6 +54,7 @@ export default async function EditProductPage({ params }: Props) {
       color: v.color || "FREE",
       sizeLabel: v.sizeLabel,
       stock: v.stock,
+      priceAddonKrw: v.priceAddonKrw,
     })),
   };
 
@@ -57,7 +63,9 @@ export default async function EditProductPage({ params }: Props) {
       initialValues={initialValues}
       editProductId={id}
       isActive={product.isActive}
-      allowArchiveToggle
+      forcedPostType="ARCHIVE"
+      allowArchiveToggle={false}
+      redirectTo="/space"
     />
   );
 }

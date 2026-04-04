@@ -33,6 +33,26 @@ export default async function ApplyPage() {
         <p className="text-[14px] text-gray-500 mb-8">
           미크로를 통해 나만의 상점을 가져보세요
         </p>
+        <div className="mb-8 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+          <p className="text-[14px] font-semibold text-gray-900">가입 즉시 내 공간이 생성됩니다.</p>
+          <p className="mt-1 text-[13px] text-gray-600 leading-relaxed">
+            판매자 승인 전에도 공간에서 아카이브 게시물을 올릴 수 있으며, 실제 판매는 입점 승인 후부터 가능합니다.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Link
+              href="/space"
+              className="inline-flex h-10 items-center rounded-xl border border-gray-300 px-4 text-[13px] font-medium text-gray-800"
+            >
+              내 공간 보기
+            </Link>
+            <Link
+              href="/policy/seller"
+              className="inline-flex h-10 items-center rounded-xl border border-gray-300 px-4 text-[13px] font-medium text-gray-800"
+            >
+              운영정책 보기
+            </Link>
+          </div>
+        </div>
 
         {/* 입점 조건 */}
         <section className="mb-8">
@@ -64,7 +84,7 @@ export default async function ApplyPage() {
               <div>
                 <p className="text-[14px] font-medium text-gray-900">고객용 회원가입</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">
-                  먼저 미크로에 일반 회원으로 가입하세요
+                  가입 즉시 내 공간이 만들어지고 아카이브 운영을 시작할 수 있습니다
                 </p>
               </div>
             </div>
@@ -75,7 +95,7 @@ export default async function ApplyPage() {
               <div>
                 <p className="text-[14px] font-medium text-gray-900">입점 신청</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">
-                  회원가입 후 입점 신청서를 작성해 주세요
+                  판매가 필요해지면 입점 신청서를 작성해 주세요
                 </p>
               </div>
             </div>

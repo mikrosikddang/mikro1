@@ -7,6 +7,7 @@ import {
   upsertUserAttribution,
 } from "@/lib/attribution";
 import bcrypt from "bcryptjs";
+import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 export const runtime = "nodejs";
 
@@ -93,14 +94,25 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 사용자 생성
-    const user = await prisma.user.create({
-      data: {
-        email,
-        phone,
-        password: hashedPassword,
-        role: "CUSTOMER",
-        name: name?.trim() || undefined,
-      },
+    const { user, nextPath } = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          phone,
+          password: hashedPassword,
+          role: "CUSTOMER",
+          name: name?.trim() || undefined,
+        },
+      });
+      const profile = await ensureUserSpaceProfile(tx, {
+        id: created.id,
+        name: created.name,
+        email: created.email,
+      });
+      return {
+        user: created,
+        nextPath: profile.storeSlug ? `/${profile.storeSlug}?welcome=1` : "/",
+      };
     });
 
     await upsertUserAttribution(prisma, user.id, attribution);
@@ -115,7 +127,7 @@ export async function POST(req: NextRequest) {
     };
     const token = signSession(session);
 
-    const res = NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true, nextPath });
     const cookie = buildCookieOptions(token);
     res.cookies.set(cookie.name, cookie.value, {
       httpOnly: cookie.httpOnly,
@@ -126,7 +138,7 @@ export async function POST(req: NextRequest) {
     });
 
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Signup error:", error);
     return NextResponse.json(
       { error: "회원가입 중 오류가 발생했습니다" },

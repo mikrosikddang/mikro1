@@ -76,8 +76,15 @@ function SignupForm() {
         return;
       }
 
+      const nextPath =
+        next !== "/"
+          ? next
+          : typeof data.nextPath === "string" && data.nextPath
+            ? data.nextPath
+            : "/";
+
       // 자동 로그인 완료, 리다이렉트
-      router.push(next);
+      router.push(nextPath);
       router.refresh();
     } catch {
       setError("네트워크 오류가 발생했습니다");
@@ -94,6 +101,10 @@ function SignupForm() {
         </h1>
         <p className="text-center text-[14px] text-gray-500 mb-8">
           회원가입
+        </p>
+        <p className="text-center text-[13px] text-gray-500 mb-6 leading-relaxed">
+          가입 즉시 내 공간이 만들어지며, 이미지와 기록을 아카이브로 올릴 수 있습니다.
+          판매 운영은 별도 판매자 승인 후 가능합니다.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,6 +182,17 @@ function SignupForm() {
           >
             {loading ? "가입 중..." : "회원가입"}
           </button>
+          <p className="text-[12px] text-center text-gray-500 leading-relaxed">
+            가입 시{" "}
+            <Link href="/policy/terms" className="underline text-gray-700">
+              이용약관
+            </Link>
+            ,{" "}
+            <Link href="/policy/privacy" className="underline text-gray-700">
+              개인정보처리방침
+            </Link>
+            에 동의한 것으로 처리됩니다.
+          </p>
         </form>
 
         {/* Divider */}

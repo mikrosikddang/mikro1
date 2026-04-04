@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { formatKrw } from "@/lib/format";
@@ -12,6 +11,7 @@ interface ProductData {
   title: string;
   priceKrw: number;
   salePriceKrw: number | null;
+  postType: "SALE" | "ARCHIVE";
   isActive: boolean;
   isDeleted: boolean;
   totalStock: number;
@@ -25,11 +25,12 @@ interface Props {
   sellerId: string;
 }
 
-type TabValue = "active" | "hidden" | "sold-out";
+type TabValue = "active" | "hidden" | "sold-out" | "archive";
 type SortValue = "newest" | "price-asc" | "price-desc" | "stock-asc";
 
 const TABS: { label: string; value: TabValue }[] = [
   { label: "판매중", value: "active" },
+  { label: "아카이브", value: "archive" },
   { label: "숨김", value: "hidden" },
   { label: "품절", value: "sold-out" },
 ];
@@ -46,17 +47,16 @@ const BADGE_MAP: Record<string, { label: string; cls: string }> = {
   HIDDEN: { label: "숨김", cls: "bg-gray-100 text-gray-700" },
   SOLD_OUT: { label: "품절", cls: "bg-orange-100 text-orange-700" },
   ACTIVE: { label: "판매중", cls: "bg-green-100 text-green-700" },
+  ARCHIVE: { label: "아카이브", cls: "bg-blue-100 text-blue-700" },
 };
 
-export default function SellerProductReorderList({ shopName, sellerId }: Props) {
-  const router = useRouter();
-
+export default function SellerProductReorderList({ shopName }: Props) {
   // Data state
   const [products, setProducts] = useState<ProductData[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [counts, setCounts] = useState({ active: 0, hidden: 0, soldOut: 0 });
+  const [counts, setCounts] = useState({ active: 0, hidden: 0, soldOut: 0, archive: 0 });
 
   // Filter/search state
   const [tab, setTab] = useState<TabValue>("active");
@@ -135,8 +135,8 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
       if (data.counts) {
         setCounts(data.counts);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "상품을 불러오는데 실패했습니다");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -216,8 +216,8 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
       }
       setSelectedIds(new Set());
       fetchProducts();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "처리에 실패했습니다");
     } finally {
       setBulkLoading(false);
     }
@@ -234,8 +234,8 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
       });
       if (!res.ok) throw new Error("상태 변경에 실패했습니다");
       fetchProducts();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "상태 변경에 실패했습니다");
     }
   };
 
@@ -248,8 +248,8 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
       setReorderProducts(data.products);
       setReorderMode(true);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "상품을 불러오는데 실패했습니다");
     }
   };
 
@@ -268,8 +268,8 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
       }
       setReorderMode(false);
       fetchProducts();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "순서 변경에 실패했습니다");
     } finally {
       setSaving(false);
     }
@@ -326,12 +326,13 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
 
   const getCount = (value: TabValue): number => {
     if (value === "active") return counts.active;
+    if (value === "archive") return counts.archive;
     if (value === "hidden") return counts.hidden;
     if (value === "sold-out") return counts.soldOut;
     return 0;
   };
 
-  const totalCount = counts.active + counts.hidden + counts.soldOut;
+  const totalCount = counts.active + counts.hidden + counts.soldOut + counts.archive;
 
   // Render a product row (shared between normal + reorder)
   const renderProductRow = (product: ProductData, options?: {
@@ -341,16 +342,22 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
     isDragging?: boolean;
   }) => {
     const badge = getProductBadge({
+      postType: product.postType,
       isActive: product.isActive,
       isDeleted: product.isDeleted,
       totalStock: product.totalStock,
     });
     const { label: badgeLabel, cls: badgeClass } = BADGE_MAP[badge];
     const imageUrl = product.images[0]?.url || "/placeholder.png";
-    const dimmed = product.isDeleted || !product.isActive || product.totalStock <= 0;
-    const hasDiscount = product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
+    const isArchive = product.postType === "ARCHIVE";
+    const dimmed = product.isDeleted || !product.isActive || (!isArchive && product.totalStock <= 0);
+    const hasDiscount = !isArchive && product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
     const displayPrice = hasDiscount ? product.salePriceKrw! : product.priceKrw;
-    const stockText = product.totalStock > 0 ? `재고 ${product.totalStock}` : "품절";
+    const stockText = isArchive
+      ? "가격/옵션 없음"
+      : product.totalStock > 0
+        ? `재고 ${product.totalStock}`
+        : "품절";
 
     return (
       <div
@@ -418,12 +425,16 @@ export default function SellerProductReorderList({ shopName, sellerId }: Props) 
         <Link href={`/seller/products/${product.id}/edit`} className="flex-1 min-w-0">
           <h3 className="text-[14px] font-medium text-black truncate">{product.title}</h3>
           <div className="flex items-baseline gap-2 mt-0.5">
-            <span className="text-[14px] font-bold text-black">{formatKrw(displayPrice)}</span>
+            {isArchive ? (
+              <span className="text-[13px] font-medium text-gray-500">아카이브 게시물</span>
+            ) : (
+              <span className="text-[14px] font-bold text-black">{formatKrw(displayPrice)}</span>
+            )}
             {hasDiscount && (
               <span className="text-[12px] text-gray-400 line-through">{formatKrw(product.priceKrw)}</span>
             )}
           </div>
-          <p className={`text-[12px] mt-0.5 ${product.totalStock <= 0 ? "text-orange-600 font-medium" : "text-gray-500"}`}>
+          <p className={`text-[12px] mt-0.5 ${!isArchive && product.totalStock <= 0 ? "text-orange-600 font-medium" : "text-gray-500"}`}>
             {stockText}
           </p>
         </Link>

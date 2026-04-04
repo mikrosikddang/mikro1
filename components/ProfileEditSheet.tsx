@@ -43,7 +43,7 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/seller/profile");
+        const res = await fetch("/api/space/profile");
         if (res.ok) {
           const data = await res.json();
           setFormData({
@@ -138,7 +138,7 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
 
     setSaving(true);
     try {
-      const res = await fetch("/api/seller/profile", {
+      const res = await fetch("/api/space/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

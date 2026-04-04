@@ -68,6 +68,13 @@ export async function GET() {
                 },
               },
             },
+            {
+              variant: {
+                product: {
+                  postType: "ARCHIVE",
+                },
+              },
+            },
           ],
         },
       });
@@ -144,7 +151,11 @@ export async function POST(request: Request) {
         throw new Error("Variant not found");
       }
 
-      if (variant.product.isDeleted || !variant.product.isActive) {
+      if (
+        variant.product.isDeleted ||
+        !variant.product.isActive ||
+        variant.product.postType === "ARCHIVE"
+      ) {
         throw new Error("Product is not available");
       }
 
@@ -217,16 +228,17 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true, item });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/cart error:", error);
 
-    if (error.message.includes("OUT_OF_STOCK")) {
+    if (error instanceof Error && error.message.includes("OUT_OF_STOCK")) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
     if (
-      error.message.includes("not found") ||
-      error.message.includes("not available")
+      error instanceof Error &&
+      (error.message.includes("not found") ||
+      error.message.includes("not available"))
     ) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
