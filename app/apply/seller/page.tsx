@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SellerKind, SocialChannelType } from "@prisma/client";
 import Container from "@/components/Container";
@@ -216,7 +217,7 @@ export default function SellerApplyPage() {
           socialChannelUrl: p.socialChannelUrl || "",
           followerCount:
             p.followerCount != null ? String(p.followerCount) : "",
-          isBusinessSeller: p.isBusinessSeller ?? true,
+          isBusinessSeller: true,
         });
       }
     } catch (error) {
@@ -480,6 +481,22 @@ export default function SellerApplyPage() {
         <p className="mb-6 text-[14px] text-gray-500">
           입점 유형에 따라 필요한 정보만 입력하시면 심사 후 승인 여부를 안내드립니다.
         </p>
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[13px] leading-relaxed text-amber-900">
+          <p className="font-semibold">판매 운영 전 확인</p>
+          <p className="mt-1">
+            판매 운영을 위해서는 판매자 확인자료 제출과 승인 절차가 필요합니다.
+            승인 전 게시물은 아카이브·쇼룸 게시물로 취급되며, 승인 없이 판매행위를
+            하여 발생한 책임은 해당 회원에게 있습니다.
+          </p>
+          <p className="mt-2">
+            판매 수수료는 판매대금의 15%이며, 정산은 원칙적으로 매월 15일 진행됩니다.
+            세부 기준은{" "}
+            <Link href="/policy/seller" className="underline font-medium">
+              판매자 전환 및 운영정책
+            </Link>
+            에 따릅니다.
+          </p>
+        </div>
 
         {existingProfile && existingProfile.status === "PENDING" && (
           <div className="mb-6 rounded-xl bg-blue-50 p-4">
@@ -849,30 +866,12 @@ export default function SellerApplyPage() {
             <label className="mb-2 block text-[14px] font-medium text-gray-700">
               정산 구분 <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => updateField("isBusinessSeller", true)}
-                className={`rounded-xl border px-4 py-3 text-[14px] font-medium ${
-                  formData.isBusinessSeller
-                    ? "border-black bg-black text-white"
-                    : "border-gray-200 bg-white text-gray-700"
-                }`}
-              >
-                사업자 정산
-              </button>
-              <button
-                type="button"
-                onClick={() => updateField("isBusinessSeller", false)}
-                className={`rounded-xl border px-4 py-3 text-[14px] font-medium ${
-                  !formData.isBusinessSeller
-                    ? "border-black bg-black text-white"
-                    : "border-gray-200 bg-white text-gray-700"
-                }`}
-              >
-                개인 정산
-              </button>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[14px] font-medium text-gray-900">
+              사업자 정산
             </div>
+            <p className="mt-1 text-[12px] text-gray-500">
+              판매자 정산은 사업자 정산 기준으로만 진행됩니다.
+            </p>
           </div>
 
           <div className="mb-4">

@@ -494,7 +494,7 @@ export async function PATCH(req: NextRequest) {
               : Math.floor(Number(followerCount)),
         }),
         ...(isBusinessSeller !== undefined && {
-          isBusinessSeller: Boolean(isBusinessSeller),
+          isBusinessSeller: true,
         }),
         ...(commissionRateBps !== undefined && {
           commissionRateBps: Math.floor(Number(commissionRateBps)),

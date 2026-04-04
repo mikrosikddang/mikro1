@@ -96,7 +96,7 @@ export default function BottomTab() {
   const buyerTabs = [
     { label: "홈", href: "/" },
     { label: "관심", href: "/wishlist" },
-    { label: "채팅", href: "/chat" },
+    { label: "내 공간", href: "/space" },
     { label: "MY", href: "/my" },
   ];
 

@@ -9,28 +9,23 @@ export default function ReturnsPage() {
           배송·교환·반품·환불 정책
         </h1>
         <p className="text-[13px] text-gray-500 mb-6">
-          최종 업데이트: 2026-02-12
+          시행일: 2026.04.04
         </p>
 
-        {/* Shipping */}
         <section className="mb-6">
-          <h2 className="text-[18px] font-bold text-black mb-3">1. 배송</h2>
+          <h2 className="text-[18px] font-bold text-black mb-3">1. 기본 원칙</h2>
           <div className="space-y-2 text-[14px] text-gray-700 leading-relaxed">
             <p>
-              • 주문 완료 후 영업일 기준 1~3일 이내 출고되며, 출고 후 1~2일
-              내 배송됩니다.
+              미크로는 통신판매중개자로서 플랫폼을 제공하며, 개별 상품의 실제 판매자는
+              각 상품 상세 또는 주문 화면에 표시된 판매회원입니다.
             </p>
             <p>
-              • 주말 및 공휴일은 배송이 진행되지 않으며, 영업일 기준으로
-              배송됩니다.
-            </p>
-            <p>
-              • 배송 지연이 발생할 경우 판매자가 별도로 안내할 수 있습니다.
+              가격이 없는 아카이브 게시물은 주문·결제·배송 대상이 아니며,
+              실제 판매 운영은 회사의 판매자 승인을 완료한 브랜드회원만 할 수 있습니다.
             </p>
           </div>
         </section>
 
-        {/* Shipping Fee */}
         <section className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
           <h2 className="text-[18px] font-bold text-black mb-3">
             2. 배송비 정책
@@ -40,8 +35,8 @@ export default function ReturnsPage() {
               • 배송비는 <strong>판매자별로 다르게 적용</strong>됩니다.
             </p>
             <p>
-              • 판매자마다 무료배송 기준 금액과 배송비가 다를 수 있으니, 주문
-              전 확인해 주세요.
+              • 판매자마다 무료배송 기준 금액, 배송비, 출고지, 묶음배송 기준이
+              다를 수 있으므로 주문 전 상품 상세 또는 주문 화면에서 확인해 주세요.
             </p>
             <p>
               • 여러 판매자의 상품을 함께 구매할 경우, 판매자별로 주문이
@@ -50,7 +45,6 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        {/* Exchange & Return Period */}
         <section className="mb-6">
           <h2 className="text-[18px] font-bold text-black mb-3">
             3. 교환·반품 가능 기간
@@ -60,13 +54,14 @@ export default function ReturnsPage() {
               • 상품 수령일로부터 7일 이내에 교환·반품을 신청할 수 있습니다.
             </p>
             <p>
-              • 교환·반품 신청 시 고객센터 이메일로 연락 주시면 안내해
-              드립니다.
+              • 다만 전자상거래 등 관련 법령 또는 개별 상품에 별도 고지된 기준이 있는 경우 해당 기준이 우선 적용될 수 있습니다.
+            </p>
+            <p>
+              • 판매회원은 상품별 배송·반품 조건, 고객응대 연락처, 반품지 정보를 정확하게 제공해야 하며, 이용자는 주문 전 이를 확인해야 합니다.
             </p>
           </div>
         </section>
 
-        {/* Cannot Exchange/Return */}
         <section className="mb-6">
           <h2 className="text-[18px] font-bold text-black mb-3">
             4. 교환·반품 불가 사유
@@ -85,47 +80,43 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        {/* Refund */}
         <section className="mb-6">
           <h2 className="text-[18px] font-bold text-black mb-3">5. 환불 처리</h2>
           <div className="space-y-2 text-[14px] text-gray-700 leading-relaxed">
             <p>
-              • 주문 취소 및 반품 승인 후, 결제 수단에 따라 환불이
-              진행됩니다.
+              • 주문 취소 또는 반품 승인 후 환불은 원결제 수단을 기준으로 처리됩니다.
             </p>
             <p>
-              • 현재 서비스는 테스트 결제 단계로, 실제 결제 모듈 연동 시
-              결제사별 환불 정책이 적용됩니다.
+              • 환불 일정은 결제사, PG사, 카드사, 은행 및 판매회원의 확인 절차에 따라 달라질 수 있습니다.
             </p>
             <p>
-              • 환불 처리는 영업일 기준 3~7일 이내에 완료되며, 결제사 사정에
-              따라 지연될 수 있습니다.
+              • 반품 배송비는 구매자 부담이 원칙이나, 상품 하자 또는 오배송의 경우 판매회원이 부담합니다.
             </p>
-            <p>• 반품 배송비는 고객 부담이 원칙입니다.</p>
             <p>
-              • 단, 상품 하자 또는 오배송의 경우 판매자가 배송비를
-              부담합니다.
+              • 회사는 통신판매중개자로서 환불·분쟁 해결을 지원할 수 있으나, 개별 판매계약의 직접 당사자는 해당 판매회원입니다.
             </p>
           </div>
         </section>
 
-        {/* Contact */}
         <section className="mb-6">
           <h2 className="text-[18px] font-bold text-black mb-3">
             6. 문의 채널
           </h2>
           <div className="space-y-2 text-[14px] text-gray-700 leading-relaxed">
             <p>
-              • 교환·반품·환불 관련 문의는 고객센터 이메일로 연락해 주세요.
+              • 교환·반품·환불 관련 1차 문의는 상품 상세 또는 주문 화면에 고지된 판매회원 고객응대 채널을 우선 이용해 주세요.
             </p>
             <p>
-              • 공식 이메일:{" "}
+              • 플랫폼 고객센터:{" "}
               <a
                 href="mailto:mikrobrand25@gmail.com"
                 className="text-blue-600 font-medium"
               >
                 mikrobrand25@gmail.com
               </a>
+            </p>
+            <p>
+              • 전화: 82-10-9186-5859
             </p>
             <p>
               • 사업자 정보 및 연락처는{" "}
@@ -137,27 +128,23 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        {/* Policy Application Notice */}
         <section className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
           <h2 className="text-[18px] font-bold text-black mb-3">
-            7. 정책 적용 기준
+            7. 판매자 정보 및 중개자 고지
           </h2>
           <div className="space-y-2 text-[14px] text-gray-700 leading-relaxed">
             <p>
-              • 본 정책은 최종 업데이트 시행일 이후 주문 건부터 적용됩니다.
+              • 주문 화면에는 판매자 정보와 함께 미크로가 통신판매중개자라는 점이 고지됩니다.
             </p>
             <p>
-              • 시행일 이전에 발생한 주문 건은 주문 당시 유효했던 정책이
-              적용됩니다.
+              • 판매회원은 판매자 정보, 배송 조건, 고객응대 정보, 반품지, 환불 조건 등을 최신 상태로 유지해야 합니다.
             </p>
             <p>
-              • 정책 변경 시 사전 공지를 원칙으로 하며, 고객에게 불리한 내용은
-              소급 적용되지 않습니다.
+              • 회사는 분쟁 예방 또는 소비자 보호를 위해 필요한 범위에서 사실 확인, 자료 요청, 노출 제한, 분쟁 대응 협조를 요구할 수 있습니다.
             </p>
           </div>
         </section>
 
-        {/* Bottom Link */}
         <div className="mt-8">
           <Link
             href="/info"

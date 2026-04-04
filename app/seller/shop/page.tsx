@@ -61,7 +61,7 @@ export default function ShopManagePage() {
   const [socialChannelType, setSocialChannelType] = useState<SocialChannelType | "">("");
   const [socialChannelUrl, setSocialChannelUrl] = useState("");
   const [followerCount, setFollowerCount] = useState("");
-  const [isBusinessSeller, setIsBusinessSeller] = useState(true);
+  const isBusinessSeller = true;
   const [commissionRateBps, setCommissionRateBps] = useState("1200");
 
   // CS fields
@@ -128,7 +128,6 @@ export default function ShopManagePage() {
         setFollowerCount(
           data.followerCount != null ? String(data.followerCount) : ""
         );
-        setIsBusinessSeller(data.isBusinessSeller ?? true);
         setCommissionRateBps(
           data.commissionRateBps != null ? String(data.commissionRateBps) : "1200"
         );
@@ -656,29 +655,8 @@ export default function ShopManagePage() {
 
         <div className="mb-3">
           <label className={labelClass}>정산 구분</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setIsBusinessSeller(true)}
-              className={`rounded-lg px-3 py-2 text-[13px] font-medium ${
-                isBusinessSeller
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              사업자 정산
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsBusinessSeller(false)}
-              className={`rounded-lg px-3 py-2 text-[13px] font-medium ${
-                !isBusinessSeller
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              개인 정산
-            </button>
+          <div className="rounded-lg bg-gray-100 px-3 py-2 text-[13px] font-medium text-gray-900">
+            사업자 정산
           </div>
         </div>
 

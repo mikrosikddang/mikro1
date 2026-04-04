@@ -9,14 +9,46 @@ function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
+  const signupError = searchParams.get("error");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [error, setError] = useState(searchParams.get("error") ? "소셜 로그인에 실패했습니다. 다시 시도해주세요." : "");
+  const [agreements, setAgreements] = useState({
+    terms: false,
+    privacy: false,
+    age: false,
+  });
+  const [error, setError] = useState(
+    signupError === "consent_required"
+      ? "간편가입 전에 필수 약관에 동의해주세요."
+      : signupError
+        ? "소셜 로그인에 실패했습니다. 다시 시도해주세요."
+        : "",
+  );
   const [loading, setLoading] = useState(false);
+
+  function hasRequiredAgreements() {
+    return agreements.terms && agreements.privacy && agreements.age;
+  }
+
+  function toggleAgreement(key: keyof typeof agreements) {
+    setAgreements((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function validateRequiredAgreements() {
+    if (hasRequiredAgreements()) return true;
+    setError("이용약관, 개인정보 수집·이용, 만 14세 이상 항목에 모두 동의해주세요");
+    return false;
+  }
+
+  function handleSocialSignup(provider: "kakao" | "naver") {
+    setError("");
+    if (!validateRequiredAgreements()) return;
+    window.location.href = `/api/auth/${provider}?intent=signup`;
+  }
 
   function formatPhone(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -31,6 +63,10 @@ function SignupForm() {
 
     if (!email.trim() || !phone.trim() || !password.trim() || !passwordConfirm.trim()) {
       setError("모든 필드를 입력해주세요");
+      return;
+    }
+
+    if (!validateRequiredAgreements()) {
       return;
     }
 
@@ -65,6 +101,7 @@ function SignupForm() {
           email: email.trim(),
           phone: normalizedPhone,
           password: password.trim(),
+          agreements,
         }),
       });
 
@@ -103,8 +140,8 @@ function SignupForm() {
           회원가입
         </p>
         <p className="text-center text-[13px] text-gray-500 mb-6 leading-relaxed">
-          가입 즉시 내 공간이 만들어지며, 이미지와 기록을 아카이브로 올릴 수 있습니다.
-          판매 운영은 별도 판매자 승인 후 가능합니다.
+          최초 가입 시 아카이빙회원(일반회원)으로 등록되며 개인 공간이 개설됩니다.
+          판매 운영은 별도 판매자 승인 절차 완료 후 가능합니다.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,6 +208,54 @@ function SignupForm() {
             />
           </div>
 
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-[13px] font-semibold text-gray-900 mb-3">필수 약관 동의</p>
+            <div className="space-y-2 text-[13px] text-gray-700">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreements.terms}
+                  onChange={() => toggleAgreement("terms")}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  disabled={loading}
+                />
+                <span>
+                  [필수]{" "}
+                  <Link href="/policy/terms" className="underline text-gray-900">
+                    서비스 이용약관
+                  </Link>
+                  에 동의합니다.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreements.privacy}
+                  onChange={() => toggleAgreement("privacy")}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  disabled={loading}
+                />
+                <span>
+                  [필수]{" "}
+                  <Link href="/policy/privacy" className="underline text-gray-900">
+                    개인정보 수집·이용
+                  </Link>
+                  에 동의합니다.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreements.age}
+                  onChange={() => toggleAgreement("age")}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  disabled={loading}
+                />
+                <span>[필수] 만 14세 이상입니다.</span>
+              </label>
+            </div>
+          </div>
+
           {error && (
             <p className="text-[13px] text-red-500 text-center">{error}</p>
           )}
@@ -182,17 +267,6 @@ function SignupForm() {
           >
             {loading ? "가입 중..." : "회원가입"}
           </button>
-          <p className="text-[12px] text-center text-gray-500 leading-relaxed">
-            가입 시{" "}
-            <Link href="/policy/terms" className="underline text-gray-700">
-              이용약관
-            </Link>
-            ,{" "}
-            <Link href="/policy/privacy" className="underline text-gray-700">
-              개인정보처리방침
-            </Link>
-            에 동의한 것으로 처리됩니다.
-          </p>
         </form>
 
         {/* Divider */}
@@ -206,8 +280,9 @@ function SignupForm() {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => { window.location.href = "/api/auth/kakao"; }}
+            onClick={() => handleSocialSignup("kakao")}
             className="w-full h-12 rounded-xl font-medium text-[15px] bg-[#FEE500] text-[#191919] flex items-center justify-center gap-2 active:brightness-95 transition-all"
+            disabled={loading}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#191919">
               <path d="M12 3C6.48 3 2 6.36 2 10.44c0 2.62 1.75 4.93 4.38 6.24l-1.12 4.16c-.1.36.3.65.6.44l4.96-3.27c.38.04.77.07 1.18.07 5.52 0 10-3.36 10-7.64C22 6.36 17.52 3 12 3z" />
@@ -217,8 +292,9 @@ function SignupForm() {
 
           <button
             type="button"
-            onClick={() => { window.location.href = "/api/auth/naver"; }}
+            onClick={() => handleSocialSignup("naver")}
             className="w-full h-12 rounded-xl font-medium text-[15px] bg-[#03C75A] text-white flex items-center justify-center gap-2 active:brightness-95 transition-all"
+            disabled={loading}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
               <path d="M16.27 3H7.73L7 3.73V12l5.27 8.27h1.46L14 20.27V12l3-4.27V3.73L16.27 3zM13 11h-2V5h2v6z" />
@@ -226,6 +302,9 @@ function SignupForm() {
             네이버로 시작하기
           </button>
         </div>
+        <p className="mt-3 text-center text-[12px] text-gray-500 leading-relaxed">
+          간편가입도 위 필수 약관 동의 후 진행됩니다.
+        </p>
 
         {/* Login link */}
         <div className="mt-6 text-center">

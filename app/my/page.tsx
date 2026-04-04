@@ -96,6 +96,13 @@ export default async function MyPage() {
           {session && (
             <>
               <Link
+                href="/chat"
+                className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
+              >
+                채팅
+                {chevronSvg}
+              </Link>
+              <Link
                 href="/space"
                 className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
               >

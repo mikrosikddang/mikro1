@@ -323,7 +323,7 @@ export async function POST(request: Request) {
       socialChannelUrl: normalize(body.socialChannelUrl),
       followerCount:
         body.followerCount != null ? Math.floor(body.followerCount) : null,
-      isBusinessSeller: body.isBusinessSeller ?? true,
+      isBusinessSeller: true,
       commissionRateBps: defaultCommissionRateBps(sellerKind),
       ...(normalize(body.bizRegNo) ||
       normalize(body.bizRegImageUrl) ||

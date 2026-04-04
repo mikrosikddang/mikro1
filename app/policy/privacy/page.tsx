@@ -4,194 +4,114 @@ export default function PrivacyPage() {
   return (
     <Container>
       <div className="pt-4 pb-20">
-        <h1 className="text-[22px] font-bold text-black mb-6">개인정보처리방침</h1>
+        <h1 className="text-[22px] font-bold text-black mb-2">개인정보처리방침</h1>
+        <p className="text-[13px] text-gray-500 mb-6">시행일: 2026.04.04 / 버전: v1.0</p>
 
         <div className="space-y-6 text-[14px] text-gray-700 leading-relaxed">
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              1. 수집하는 개인정보 항목
-            </h2>
-            <p>회사는 서비스 제공을 위해 다음의 개인정보를 수집합니다:</p>
-            <div className="mt-2 space-y-2">
-              <div>
-                <p className="font-medium">회원가입 시 (필수):</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>사용자 ID (이메일 형식)</li>
-                  <li>비밀번호 (암호화 저장)</li>
-                  <li>사용자 유형 (CUSTOMER/SELLER)</li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium">주문 및 배송 시 (필수):</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>수령인 이름</li>
-                  <li>수령인 연락처</li>
-                  <li>배송지 주소</li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium">판매자 입점 시 (필수):</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>상호명</li>
-                  <li>사업자등록번호</li>
-                  <li>연락처</li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium">자동 수집:</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>접속 IP, 쿠키, 서비스 이용 기록</li>
-                </ul>
-              </div>
-            </div>
+            <h2 className="text-[16px] font-bold text-black mb-2">제1조 (총칙)</h2>
+            <p>
+              미크로브랜드(이하 &quot;회사&quot;)은 회원의 개인정보를 중요하게 여기며, 관련
+              법령 및 본 방침에 따라 개인정보를 처리합니다.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              2. 개인정보의 수집·이용 목적
-            </h2>
-            <ul className="list-disc list-inside space-y-1">
-              <li>회원 가입 및 본인 확인</li>
-              <li>상품 주문, 결제, 배송</li>
-              <li>판매자 입점 심사 및 관리</li>
-              <li>고객 문의 및 민원 처리</li>
+            <h2 className="text-[16px] font-bold text-black mb-2">제2조 (처리하는 개인정보 항목)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회원가입 시: 이메일, 휴대전화번호, 소셜로그인 식별값, 닉네임, 접속기록</li>
+              <li>프로필 및 공간 운영 시: 프로필 이미지, 소개글, 링크, 게시물 이미지, 캡션, 태그, 활동기록</li>
+              <li>판매자 승인 신청 시: 사업자등록 관련 정보, 통신판매 관련 정보, 대표자 또는 담당자 정보, 고객응대 연락처, 반품지, 정산계좌 정보, 세무처리에 필요한 정보</li>
+              <li>구매 및 주문 처리 시: 수령인 정보, 배송지, 연락처, 주문내역, 결제정보, 환불정보</li>
+              <li>고객센터 이용 시: 문의내용, 첨부자료, 상담기록</li>
+            </ol>
+          </section>
+
+          <section>
+            <h2 className="text-[16px] font-bold text-black mb-2">제3조 (개인정보의 처리 목적)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회원가입 및 본인 식별</li>
+              <li>공간 개설, 게시물 등록, 저장, 검색 등 서비스 제공</li>
+              <li>판매자 승인 심사 및 판매 운영 관리</li>
+              <li>주문, 결제, 배송, 환불, 정산 처리</li>
+              <li>민원 대응, 분쟁 처리, 부정이용 방지</li>
               <li>서비스 개선 및 통계 분석</li>
-              <li>부정 이용 방지 및 서비스 안정성 확보</li>
-            </ul>
+              <li>법령상 의무 이행</li>
+            </ol>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              3. 개인정보의 보유·이용 기간
-            </h2>
-            <p>
-              회원 탈퇴 시 즉시 파기합니다. 단, 관련 법령에 따라 보존이 필요한
-              경우에는 해당 기간 동안 보관합니다:
-            </p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>
-                계약 또는 청약철회 등에 관한 기록: 5년 (전자상거래법)
-              </li>
-              <li>
-                대금결제 및 재화 등의 공급에 관한 기록: 5년 (전자상거래법)
-              </li>
-              <li>
-                소비자의 불만 또는 분쟁처리에 관한 기록: 3년 (전자상거래법)
-              </li>
-              <li>표시·광고에 관한 기록: 6개월 (전자상거래법)</li>
-            </ul>
+            <h2 className="text-[16px] font-bold text-black mb-2">제4조 (개인정보의 보유 및 이용기간)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회사는 개인정보의 처리 목적이 달성되면 지체 없이 파기합니다.</li>
+              <li>다만 회원 탈퇴 후에도 거래, 정산, 환불, 분쟁 대응 또는 관련 법령상 보존 의무가 있는 경우 해당 기간 동안 보관할 수 있습니다.</li>
+              <li>판매자 승인 관련 자료와 정산 자료는 승인 유지 및 세무·정산 처리에 필요한 범위에서 보관할 수 있습니다.</li>
+            </ol>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              4. 개인정보의 제3자 제공
-            </h2>
-            <p>
-              회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다.
-              다만, 다음의 경우에는 예외로 합니다:
-            </p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>이용자가 사전에 동의한 경우</li>
-              <li>법령의 규정에 의하거나 수사 목적으로 법령에 정해진 절차와 방법에 따라 수사기관의 요구가 있는 경우</li>
-            </ul>
-            <p className="mt-2">
-              주문 처리를 위해 판매자에게 배송지 정보(수령인명, 연락처, 주소)가 제공됩니다.
-            </p>
+            <h2 className="text-[16px] font-bold text-black mb-2">제5조 (개인정보의 제3자 제공)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회사는 회원의 동의가 있거나 서비스 제공에 필요한 경우에 한하여 개인정보를 제3자에게 제공할 수 있습니다.</li>
+              <li>브랜드회원의 판매자 정보는 소비자 보호를 위해 상품 페이지 또는 주문 단계에 노출될 수 있습니다.</li>
+              <li>구매 및 배송 처리에 필요한 범위에서 판매회원 또는 관련 수탁사에 정보가 제공될 수 있습니다.</li>
+            </ol>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              5. 개인정보 처리의 위탁
-            </h2>
-            <p>
-              회사는 서비스 제공을 위해 아래와 같이 개인정보 처리 업무를
-              위탁하고 있습니다:
-            </p>
-            <div className="mt-2 space-y-2">
-              <div>
-                <p className="font-medium">AWS (Amazon Web Services)</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>위탁 업무: 데이터 보관 및 서버 운영</li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium">Neon Database</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
-                  <li>위탁 업무: 데이터베이스 호스팅</li>
-                </ul>
-              </div>
-            </div>
-            <p className="mt-2">
-              위탁 계약 시 개인정보보호법에 따라 위탁업무 수행목적 외
-              개인정보 처리 금지, 기술적·관리적 보호조치, 재위탁 제한, 수탁자에 대한
-              관리·감독, 손해배상 등 책임에 관한 사항을 문서에 명시하고
-              관리합니다.
-            </p>
+            <h2 className="text-[16px] font-bold text-black mb-2">제6조 (개인정보 처리의 위탁)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회사는 서비스 운영을 위하여 결제사, 클라우드 인프라 사업자, 문자·이메일 발송 서비스, 고객상담 시스템 운영사 등에 개인정보 처리 업무를 위탁할 수 있습니다.</li>
+              <li>회사는 위탁계약 시 수탁자가 개인정보를 안전하게 처리하도록 관리·감독합니다.</li>
+            </ol>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              6. 정보주체의 권리·의무 및 행사 방법
-            </h2>
-            <p>이용자는 다음과 같은 권리를 행사할 수 있습니다:</p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>개인정보 열람 요구</li>
-              <li>개인정보 정정·삭제 요구</li>
-              <li>개인정보 처리 정지 요구</li>
-              <li>회원 탈퇴를 통한 개인정보 삭제</li>
-            </ul>
-            <p className="mt-2">
-              권리 행사는 고객센터 (카카오채널: <a href="http://pf.kakao.com/_CXAmn/chat" className="text-blue-600 underline">미크로브랜드</a>,
-              이메일: mikrobrand25@gmail.com, 전화: 82-10-9186-5859) 또는
-              개인정보보호 담당 이메일(mikrodataprotection@gmail.com)로
-              서면, 이메일 등을 통해 가능합니다.
-            </p>
+            <h2 className="text-[16px] font-bold text-black mb-2">제7조 (정보주체의 권리)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회원은 언제든지 자신의 개인정보에 대한 열람, 정정, 삭제, 처리정지, 동의 철회를 요청할 수 있습니다.</li>
+              <li>권리 행사는 고객센터 또는 회사가 정한 절차를 통하여 할 수 있습니다.</li>
+            </ol>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              7. 개인정보 보호책임자 및 고충처리
-            </h2>
-            <div className="space-y-2">
-              <div>
-                <p className="font-medium">개인정보 보호책임자:</p>
-                <p className="mt-1">이메일: mikrodataprotection@gmail.com</p>
-              </div>
-              <div>
-                <p className="font-medium">고객센터 민원접수:</p>
-                <p className="mt-1">카카오채널: <a href="http://pf.kakao.com/_CXAmn/chat" className="text-blue-600 underline">미크로브랜드</a></p>
-                <p>전화: 82-10-9186-5859</p>
-                <p>이메일: mikrobrand25@gmail.com</p>
-              </div>
-            </div>
-            <p className="mt-2">
-              기타 개인정보침해에 대한 신고나 상담이 필요한 경우 아래 기관에
-              문의 가능합니다:
-            </p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>개인정보침해신고센터 (privacy.kisa.or.kr / 118)</li>
-              <li>개인정보분쟁조정위원원회 (www.kopico.go.kr / 1833-6972)</li>
-              <li>대검찰청 사이버수사과 (www.spo.go.kr / 1301)</li>
-              <li>경찰청 사이버안전국 (cyberbureau.police.go.kr / 182)</li>
-            </ul>
+            <h2 className="text-[16px] font-bold text-black mb-2">제8조 (개인정보의 파기)</h2>
+            <p>전자적 파일은 복구 또는 재생이 불가능한 방법으로 삭제하며, 종이 문서는 분쇄 또는 소각합니다.</p>
           </section>
 
           <section>
-            <h2 className="text-[16px] font-bold text-black mb-2">
-              8. 개인정보처리방침 변경
-            </h2>
-            <p>
-              본 개인정보처리방침은 법령·정책 또는 보안기술의 변경에 따라
-              내용의 추가·삭제 및 수정이 있을 경우 변경 최소 7일 전에
-              서비스 내 공지사항을 통해 고지합니다.
-            </p>
+            <h2 className="text-[16px] font-bold text-black mb-2">제9조 (안전성 확보조치)</h2>
+            <p>회사는 접근권한 관리, 비밀번호 암호화, 접속기록 보관, 내부 관리계획 수립 등 필요한 보호조치를 시행합니다.</p>
           </section>
 
-          <p className="text-[12px] text-gray-400 mt-8">
-            최종 업데이트: 2026-02-12
-            <br />
-            시행일: 2026-02-12
-          </p>
+          <section>
+            <h2 className="text-[16px] font-bold text-black mb-2">제10조 (쿠키 및 접속기록)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>회사는 서비스 편의성과 운영 분석을 위하여 쿠키, 접속기록, 기기정보 등을 수집할 수 있습니다.</li>
+              <li>회원은 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나 일부 기능 이용이 제한될 수 있습니다.</li>
+            </ol>
+          </section>
+
+          <section>
+            <h2 className="text-[16px] font-bold text-black mb-2">제11조 (개인정보 보호책임자)</h2>
+            <p>성명: 정땅</p>
+            <p className="mt-1">연락처: 82-10-9186-5859</p>
+            <p className="mt-1">이메일: mikrodataprotection@gmail.com</p>
+          </section>
+
+          <section>
+            <h2 className="text-[16px] font-bold text-black mb-2">제12조 (고지 및 개정)</h2>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>본 방침은 서비스 화면 또는 하단 푸터를 통하여 상시 열람 가능하도록 게시합니다.</li>
+              <li>중요한 변경이 있는 경우 사전에 공지합니다.</li>
+            </ol>
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <h2 className="text-[15px] font-bold text-black mb-2">문의 및 권리행사 접수</h2>
+            <p>고객센터: 카카오채널 미크로브랜드 / 82-10-9186-5859 / mikrobrand25@gmail.com</p>
+            <p className="mt-1">개인정보보호 담당: mikrodataprotection@gmail.com</p>
+          </section>
         </div>
       </div>
     </Container>

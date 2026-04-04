@@ -40,7 +40,9 @@ export async function GET(req: NextRequest) {
     // CSRF 검증
     const store = await cookies();
     const savedState = store.get("oauth_state")?.value;
+    const hasSignupConsent = store.get("oauth_signup_consent")?.value === "1";
     store.delete("oauth_state");
+    store.delete("oauth_signup_consent");
 
     if (!savedState || savedState !== state) {
       return NextResponse.redirect(`${baseUrl}/login?error=naver_failed`);
@@ -116,6 +118,9 @@ export async function GET(req: NextRequest) {
     let isNewUser = false;
     let welcomeStoreSlug: string | null = null;
     if (!user) {
+      if (!hasSignupConsent) {
+        return NextResponse.redirect(`${baseUrl}/signup?error=consent_required`);
+      }
       const createdResult = await prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {

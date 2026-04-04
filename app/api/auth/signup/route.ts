@@ -11,6 +11,12 @@ import { ensureUserSpaceProfile } from "@/lib/userSpace";
 
 export const runtime = "nodejs";
 
+type SignupAgreements = {
+  terms?: boolean;
+  privacy?: boolean;
+  age?: boolean;
+};
+
 /**
  * POST /api/auth/signup
  * Body: { email: string, phone: string, password: string }
@@ -21,9 +27,21 @@ export const runtime = "nodejs";
  * - 자동 로그인 (쿠키 발급)
  */
 export async function POST(req: NextRequest) {
-  let body: { email?: string; phone?: string; password?: string; name?: string };
+  let body: {
+    email?: string;
+    phone?: string;
+    password?: string;
+    name?: string;
+    agreements?: SignupAgreements;
+  };
   try {
-    body = (await req.json()) as { email?: string; phone?: string; password?: string; name?: string };
+    body = (await req.json()) as {
+      email?: string;
+      phone?: string;
+      password?: string;
+      name?: string;
+      agreements?: SignupAgreements;
+    };
   } catch {
     return NextResponse.json(
       { error: "잘못된 요청입니다" },
@@ -31,7 +49,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { email, phone, password, name } = body;
+  const { email, phone, password, name, agreements } = body;
 
   // 입력 검증
   if (!email || !phone || !password) {
@@ -54,6 +72,13 @@ export async function POST(req: NextRequest) {
   if (!phoneRegex.test(phone)) {
     return NextResponse.json(
       { error: "전화번호는 010-0000-0000 형식으로 입력해주세요" },
+      { status: 400 },
+    );
+  }
+
+  if (!agreements?.terms || !agreements.privacy || !agreements.age) {
+    return NextResponse.json(
+      { error: "필수 약관 동의가 필요합니다" },
       { status: 400 },
     );
   }
