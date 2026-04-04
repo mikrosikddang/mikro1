@@ -7,9 +7,7 @@ import { useSession } from "@/components/SessionProvider";
 import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
 import {
   getAdminMode,
-  getSellerMode,
   setAdminMode as persistAdminMode,
-  setSellerMode as persistSellerMode,
 } from "@/lib/uiPrefs";
 
 export default function BottomTab() {
@@ -17,45 +15,36 @@ export default function BottomTab() {
   const session = useSession();
   const isAdminUser = session ? isAdmin(session.role) : false;
   const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
+  const spaceTabLabel = canUseSellerView ? "스토어" : "내 공간";
 
-  const [sellerMode, setSellerMode] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
-  const [chatUnread, setChatUnread] = useState(0);
-
-  // Poll chat unread count
-  useEffect(() => {
-    if (!session) return;
-
-    const loadUnread = async () => {
-      try {
-        const res = await fetch("/api/chat/unread-count");
-        if (!res.ok) return;
-        const data = await res.json();
-        setChatUnread(data.count ?? 0);
-      } catch {
-        // silently fail
-      }
-    };
-
-    loadUnread();
-    const interval = setInterval(loadUnread, 5000);
-    return () => clearInterval(interval);
-  }, [session]);
+  const [spaceSlug, setSpaceSlug] = useState<string | null>(null);
 
   useEffect(() => {
-    if (canUseSellerView) {
-      setSellerMode(getSellerMode() === "seller");
-    } else {
-      setSellerMode(false);
+    if (!session) {
+      setSpaceSlug(null);
+      return;
     }
 
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setSellerMode(detail.mode === "seller");
+    let cancelled = false;
+
+    fetch("/api/space/profile")
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setSpaceSlug(typeof data?.storeSlug === "string" ? data.storeSlug : null);
+      })
+      .catch(() => {
+        if (!cancelled) setSpaceSlug(null);
+      });
+
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener("sellerModeChange", handler);
-    return () => window.removeEventListener("sellerModeChange", handler);
-  }, [canUseSellerView]);
+  }, [session]);
 
   useEffect(() => {
     if (isAdminUser) {
@@ -69,17 +58,6 @@ export default function BottomTab() {
     window.addEventListener("adminModeChange", handler);
     return () => window.removeEventListener("adminModeChange", handler);
   }, [isAdminUser]);
-
-  // Auto-activate seller mode when navigating to /seller paths
-  useEffect(() => {
-    if (canUseSellerView && pathname.startsWith("/seller") && !sellerMode) {
-      setSellerMode(true);
-      persistSellerMode("seller");
-      window.dispatchEvent(
-        new CustomEvent("sellerModeChange", { detail: { mode: "seller" } })
-      );
-    }
-  }, [pathname, canUseSellerView, sellerMode]);
 
   useEffect(() => {
     if (isAdminUser && pathname.startsWith("/admin") && !adminMode) {
@@ -96,7 +74,7 @@ export default function BottomTab() {
   const buyerTabs = [
     { label: "홈", href: "/" },
     { label: "관심", href: "/wishlist" },
-    { label: "내 공간", href: "/space" },
+    { label: spaceTabLabel, href: "/space" },
     { label: "MY", href: "/my" },
   ];
 
@@ -106,7 +84,7 @@ export default function BottomTab() {
         { label: "상품관리", href: "/seller/products" },
         { label: "상품올리기", href: "/seller/products/new" },
         { label: "주문관리", href: "/seller/orders" },
-        { label: "내 상점", href: `/s/${session.userId}` },
+        { label: "스토어", href: "/space" },
       ]
     : buyerTabs;
 
@@ -118,8 +96,9 @@ export default function BottomTab() {
     { label: "분쟁", href: "/admin/disputes" },
   ];
 
+  const inSellerCenter = pathname.startsWith("/seller");
   const tabs =
-    adminMode && isAdminUser ? adminTabs : sellerMode && canUseSellerView ? sellerTabs : buyerTabs;
+    adminMode && isAdminUser ? adminTabs : inSellerCenter && canUseSellerView ? sellerTabs : buyerTabs;
 
   // Hide bottom tab in admin area unless admin mode is on
   if (pathname.startsWith("/admin") && !(adminMode && isAdminUser)) {
@@ -131,13 +110,20 @@ export default function BottomTab() {
     return null;
   }
 
-  // Hide on /seller paths only when NOT in seller mode
-  if (pathname.startsWith("/seller") && !(sellerMode && canUseSellerView)) {
+  // Hide on /seller paths when the user cannot access seller center
+  if (pathname.startsWith("/seller") && !canUseSellerView) {
     return null;
   }
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
+    if (href === "/space") {
+      return (
+        pathname === "/space" ||
+        pathname.startsWith("/space/") ||
+        (spaceSlug ? pathname === `/${spaceSlug}` : false)
+      );
+    }
     // For /seller exact match (dashboard)
     if (href === "/seller") return pathname === "/seller";
     return pathname.startsWith(href);
@@ -161,11 +147,6 @@ export default function BottomTab() {
             >
               {tab.label}
             </span>
-            {tab.href === "/chat" && chatUnread > 0 && (
-              <span className="absolute -top-0.5 right-0 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {chatUnread > 99 ? "99+" : chatUnread}
-              </span>
-            )}
           </Link>
         ))}
       </div>

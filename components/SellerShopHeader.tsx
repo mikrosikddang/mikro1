@@ -12,6 +12,7 @@ import { useSession } from "@/components/SessionProvider";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
+import { canAccessSellerFeatures, isCustomer } from "@/lib/roles";
 import { socialChannelLabel } from "@/lib/sellerTypes";
 
 export interface SellerShopHeaderProps {
@@ -33,6 +34,11 @@ export default function SellerShopHeader({
 }: SellerShopHeaderProps) {
   const session = useSession();
   const isSelf = session ? session.userId === sellerId : false;
+  const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
+  const isCustomerView = session ? isCustomer(session.role) : false;
+  const selfUploadLabel = canUseSellerView ? "상품 올리기" : "사진 올리기";
+  const selfUploadHref = canUseSellerView ? "/seller/products/new" : "/space/posts/new";
+  const shareTextLabel = canUseSellerView ? "스토어 프로필" : "공간 프로필";
 
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -62,7 +68,7 @@ export default function SellerShopHeader({
     const profileUrl = window.location.href;
     const shareData = {
       title: shopName,
-      text: `${shopName} 상점 프로필`,
+      text: `${shopName} ${shareTextLabel}`,
       url: profileUrl,
     };
 
@@ -127,7 +133,6 @@ export default function SellerShopHeader({
         <div className="flex gap-2">
           {isSelf ? (
             <>
-              {/* Profile Edit Button (self only) */}
               <button
                 type="button"
                 onClick={() => setProfileEditOpen(true)}
@@ -135,12 +140,11 @@ export default function SellerShopHeader({
               >
                 프로필 편집
               </button>
-              {/* Shop Management Button (self only) */}
               <Link
-                href="/seller"
+                href={selfUploadHref}
                 className="flex-1 h-11 bg-black text-white rounded-lg text-[15px] font-medium flex items-center justify-center active:bg-gray-800 transition-colors"
               >
-                상점관리
+                {selfUploadLabel}
               </Link>
             </>
           ) : (
@@ -166,6 +170,20 @@ export default function SellerShopHeader({
             </>
           )}
         </div>
+        {isSelf && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[13px]">
+            {canUseSellerView ? (
+              <Link href="/seller" className="text-gray-700 underline underline-offset-2">
+                판매자 센터
+              </Link>
+            ) : null}
+            {isCustomerView ? (
+              <Link href="/apply/seller" className="text-gray-700 underline underline-offset-2">
+                판매자 신청
+              </Link>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Profile Edit Sheet */}

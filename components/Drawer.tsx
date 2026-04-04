@@ -9,9 +9,8 @@ import {
   isSeller,
   isSellerActive,
 } from "@/lib/roles";
-import { getAdminMode, getSellerMode } from "@/lib/uiPrefs";
+import { getAdminMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
-import SellerModeToggle from "@/components/SellerModeToggle";
 import AdminModeToggle from "@/components/AdminModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
@@ -41,24 +40,10 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const isAdminUser = session ? isAdmin(session.role) : false;
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
   const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
+  const ownedSpaceSectionTitle = canUseSellerView ? "스토어" : "내 공간";
+  const ownedSpaceViewLabel = canUseSellerView ? "스토어 보기" : "내 공간 보기";
 
-  const [sellerMode, setSellerModeState] = useState(false);
   const [adminMode, setAdminModeState] = useState(false);
-
-  useEffect(() => {
-    if (canUseSellerView) {
-      setSellerModeState(getSellerMode() === "seller");
-    } else {
-      setSellerModeState(false);
-    }
-
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setSellerModeState(detail.mode === "seller");
-    };
-    window.addEventListener("sellerModeChange", handler);
-    return () => window.removeEventListener("sellerModeChange", handler);
-  }, [canUseSellerView]);
 
   useEffect(() => {
     if (isAdminUser) {
@@ -241,8 +226,6 @@ export default function Drawer({ open, onClose }: DrawerProps) {
                   {isAdminUser
                     ? adminMode
                       ? "어드민 모드 사용 중"
-                      : sellerMode
-                        ? "판매자 뷰 사용 중"
                       : "플랫폼 관리자"
                     : isSellerActiveUser
                     ? "판매자 계정"
@@ -275,7 +258,6 @@ export default function Drawer({ open, onClose }: DrawerProps) {
         >
           {/* Home feed view toggle */}
           <HomeFeedViewToggle compact={canUseSellerView} />
-          <SellerModeToggle onToggle={onClose} />
 
           {/* Navigation sections */}
           <div className="flex-1">
@@ -284,16 +266,6 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuSection title="계정">
                 <MenuItem label="로그인" href="/login" isSubmenu />
                 <MenuItem label="회원가입" href="/signup" isSubmenu />
-              </MenuSection>
-            )}
-
-            {/* Seller Section - shown above browse when seller mode is ON */}
-            {canUseSellerView && session && sellerMode && (
-              <MenuSection title="판매자">
-                <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
-                <MenuItem label="대시보드" href="/seller" isSubmenu />
-                <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
-                <MenuItem label="주문 관리" href="/seller/orders" isSubmenu />
               </MenuSection>
             )}
 
@@ -306,18 +278,21 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             </MenuSection>
 
             {session && (
-              <MenuSection title="내 공간">
-                <MenuItem label="내 공간 보기" href="/space" isSubmenu />
-                <MenuItem label="아카이브 올리기" href="/space/posts/new" isSubmenu />
+              <MenuSection title={ownedSpaceSectionTitle}>
+                <MenuItem label={ownedSpaceViewLabel} href="/space" isSubmenu />
+                <MenuItem
+                  label={canUseSellerView ? "상품 올리기" : "사진 올리기"}
+                  href={canUseSellerView ? "/seller/products/new" : "/space/posts/new"}
+                  isSubmenu
+                />
               </MenuSection>
             )}
 
-            {/* Seller Section - shown below browse when seller mode is OFF */}
-            {canUseSellerView && session && !sellerMode && (
-              <MenuSection title="판매자">
-                <MenuItem label="내 상점 보기" href={`/s/${session.userId}`} isSubmenu />
+            {canUseSellerView && session && (
+              <MenuSection title="판매자 센터">
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
                 <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
+                <MenuItem label="상품 올리기" href="/seller/products/new" isSubmenu />
                 <MenuItem label="주문 관리" href="/seller/orders" isSubmenu />
               </MenuSection>
             )}

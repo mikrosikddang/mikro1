@@ -11,6 +11,8 @@ const chevronSvg = (
 
 export default async function MyPage() {
   const session = await getSession();
+  const ownedSpaceLabel =
+    session && canAccessSellerFeatures(session.role) ? "스토어 보기" : "내 공간";
 
   return (
     <Container>
@@ -106,14 +108,14 @@ export default async function MyPage() {
                 href="/space"
                 className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
               >
-                내 공간
+                {ownedSpaceLabel}
                 {chevronSvg}
               </Link>
               <Link
-                href="/space/posts/new"
+                href={canAccessSellerFeatures(session.role) ? "/seller/products/new" : "/space/posts/new"}
                 className="py-4 border-b border-gray-50 text-[15px] text-gray-800 flex items-center justify-between"
               >
-                아카이브 올리기
+                {canAccessSellerFeatures(session.role) ? "상품 올리기" : "사진 올리기"}
                 {chevronSvg}
               </Link>
             </>

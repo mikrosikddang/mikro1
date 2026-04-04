@@ -83,14 +83,14 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
             <div className="rounded-2xl border border-black bg-black px-4 py-4 text-white">
               <p className="text-[15px] font-semibold">내 공간이 만들어졌습니다.</p>
               <p className="mt-1 text-[13px] text-white/80 leading-relaxed">
-                지금은 아카이브 공간으로 바로 사용할 수 있고, 판매가 필요해지면 언제든 입점 신청을 이어갈 수 있습니다.
+                지금부터 사진과 기록을 올리며 내 공간을 운영할 수 있습니다. 판매가 필요해지면 언제든 입점 신청을 이어갈 수 있습니다.
               </p>
               <div className="mt-3 flex gap-2">
                 <Link
                   href="/space/posts/new"
                   className="inline-flex h-10 items-center rounded-xl bg-white px-4 text-[13px] font-semibold text-black"
                 >
-                  아카이브 올리기
+                  사진 올리기
                 </Link>
                 <Link
                   href="/apply/seller"
