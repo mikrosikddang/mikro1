@@ -105,11 +105,15 @@ function SignupForm() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data.ok) {
-        setError(data.error || "회원가입에 실패했습니다");
-        setLoading(false);
+      if (!res.ok || !data?.ok) {
+        setError(
+          data?.error ||
+            (res.status === 429
+              ? "요청이 많아 잠시 후 다시 시도해주세요"
+              : "회원가입에 실패했습니다"),
+        );
         return;
       }
 
@@ -123,8 +127,9 @@ function SignupForm() {
       // 자동 로그인 완료, 리다이렉트
       router.push(nextPath);
       router.refresh();
-    } catch {
-      setError("네트워크 오류가 발생했습니다");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "네트워크 오류가 발생했습니다");
+    } finally {
       setLoading(false);
     }
   }

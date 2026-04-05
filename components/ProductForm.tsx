@@ -17,7 +17,10 @@ import { getPostTypeLabel } from "@/lib/productPostType";
 
 // Browser-compatible UUID generation
 function generateId() {
-  return crypto.randomUUID();
+  if (typeof globalThis !== "undefined" && globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 const CATEGORIES = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
@@ -86,6 +89,27 @@ type DraftMainImage = {
   colorKey?: string | null;
 };
 
+type ProductDraft = {
+  _ts: number;
+  title?: string;
+  postType?: "SALE" | "ARCHIVE";
+  priceKrw?: string;
+  salePriceKrw?: string;
+  categoryMain?: string | null;
+  categoryMid?: string | null;
+  categorySub?: string | null;
+  detailText?: string;
+  specMeasurements?: string;
+  specModelInfo?: string;
+  specMaterial?: string;
+  specOrigin?: string;
+  specFit?: string;
+  variantTree?: VariantTree;
+  descBlocks?: DescriptionBlock[];
+  mainImageUrls?: DraftMainImage[];
+  contentImageUrls?: string[];
+};
+
 export default function ProductForm({
   initialValues,
   editProductId,
@@ -104,6 +128,12 @@ export default function ProductForm({
   const router = useRouter();
   const mainInputRef = useRef<HTMLInputElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
+  const initialPrimaryText =
+    initialValues?.descriptionJson?.v === 2 &&
+    Array.isArray(initialValues.descriptionJson.blocks) &&
+    initialValues.descriptionJson.blocks[0]?.type === "text"
+      ? initialValues.descriptionJson.blocks[0].content
+      : initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "";
 
   const [mainImages, setMainImages] = useState<ImageSlot[]>(
     initialValues?.mainImages.map((img) => urlToSlot(img.url, img.colorKey)) ?? [],
@@ -143,7 +173,6 @@ export default function ProductForm({
   const [categoryMid, setCategoryMid] = useState<string | null>(initialValues?.categoryMid ?? null);
   const [categorySub, setCategorySub] = useState<string | null>(initialValues?.categorySub ?? null);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
-  const [description, setDescription] = useState(initialValues?.description ?? "");
 
   // Structured description fields
   const [specMeasurements, setSpecMeasurements] = useState(initialValues?.descriptionJson?.spec?.measurements ?? "");
@@ -151,18 +180,19 @@ export default function ProductForm({
   const [specMaterial, setSpecMaterial] = useState(initialValues?.descriptionJson?.spec?.material ?? "");
   const [specOrigin, setSpecOrigin] = useState(initialValues?.descriptionJson?.spec?.origin ?? "");
   const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
-  const [detailText, setDetailText] = useState(initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "");
+  const [detailText, setDetailText] = useState(initialPrimaryText);
 
   // V2 block editor state
   const [descBlocks, setDescBlocks] = useState<(DescriptionBlock & { _id: string })[]>(() => {
     if (initialValues?.descriptionJson?.v === 2 && Array.isArray(initialValues.descriptionJson.blocks)) {
-      return initialValues.descriptionJson.blocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
+      const sourceBlocks =
+        initialValues.descriptionJson.blocks[0]?.type === "text"
+          ? initialValues.descriptionJson.blocks.slice(1)
+          : initialValues.descriptionJson.blocks;
+      return sourceBlocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
     }
-    // Migrate from V1: content images + detail text → blocks
+    // Migrate from V1: keep main description in dedicated textarea and only move images
     const blocks: (DescriptionBlock & { _id: string })[] = [];
-    if (initialValues?.descriptionJson?.detail || initialValues?.description) {
-      blocks.push({ _id: generateId(), type: "text", content: initialValues?.descriptionJson?.detail || initialValues?.description || "" });
-    }
     if (initialValues?.contentImages?.length) {
       for (const url of initialValues.contentImages) {
         blocks.push({ _id: generateId(), type: "image", url });
@@ -171,7 +201,6 @@ export default function ProductForm({
     return blocks;
   });
   const blockImageInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingBlockIndex, setUploadingBlockIndex] = useState<number | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -184,10 +213,61 @@ export default function ProductForm({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [colorPickerTargetGroup, setColorPickerTargetGroup] = useState<number | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<ProductDraft | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
   const isArchiveMode = postType === "ARCHIVE";
 
   // ---- Auto-save (localStorage draft) ----
   const draftKey = editProductId ? `product-draft-${editProductId}` : "product-draft-new";
+
+  const persistDraft = useCallback(() => {
+    try {
+      const doneMainImages = mainImages.filter((s) => s.status === "done" && s.publicUrl);
+      const doneContentImages = contentImages.filter((s) => s.status === "done" && s.publicUrl);
+      const draft: ProductDraft = {
+        _ts: Date.now(),
+        title,
+        postType,
+        priceKrw,
+        salePriceKrw,
+        categoryMain,
+        categoryMid,
+        categorySub,
+        detailText,
+        specMeasurements,
+        specModelInfo,
+        specMaterial,
+        specOrigin,
+        specFit,
+        variantTree,
+        descBlocks: descBlocks.map(({ _id, ...rest }) => rest),
+        mainImageUrls: doneMainImages.map((s) => ({ url: s.publicUrl!, colorKey: s.colorKey })),
+        contentImageUrls: doneContentImages.map((s) => s.publicUrl!),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch {
+      // ignore quota and serialization errors
+    }
+  }, [
+    categoryMain,
+    categoryMid,
+    categorySub,
+    descBlocks,
+    detailText,
+    draftKey,
+    mainImages,
+    postType,
+    priceKrw,
+    salePriceKrw,
+    specFit,
+    specMaterial,
+    specMeasurements,
+    specModelInfo,
+    specOrigin,
+    title,
+    variantTree,
+    contentImages,
+  ]);
 
   // Restore draft on mount
   useEffect(() => {
@@ -195,90 +275,85 @@ export default function ProductForm({
     try {
       const raw = localStorage.getItem(draftKey);
       if (!raw) return;
-      const draft = JSON.parse(raw);
+      const draft = JSON.parse(raw) as ProductDraft;
       if (!draft || !draft._ts) return;
       // Only restore if draft is less than 24h old
       if (Date.now() - draft._ts > 24 * 60 * 60 * 1000) {
         localStorage.removeItem(draftKey);
         return;
       }
+      setPendingDraft(draft);
       setDraftRestored(true);
     } catch { /* ignore */ }
+    finally {
+      setIsDraftReady(true);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function restoreDraft() {
+    if (!pendingDraft) return;
     try {
-      const raw = localStorage.getItem(draftKey);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      if (d.title) setTitle(d.title);
+      const d = pendingDraft;
+      if (typeof d.title === "string") setTitle(d.title);
       if ((d.postType === "SALE" || d.postType === "ARCHIVE") && !forcedPostType) {
         setPostType(d.postType);
       }
-      if (d.priceKrw) setPriceKrw(d.priceKrw);
-      if (d.salePriceKrw) setSalePriceKrw(d.salePriceKrw);
-      if (d.categoryMain) setCategoryMain(d.categoryMain);
-      if (d.categoryMid) setCategoryMid(d.categoryMid);
-      if (d.categorySub) setCategorySub(d.categorySub);
-      if (d.detailText) setDetailText(d.detailText);
-      if (d.specMeasurements) setSpecMeasurements(d.specMeasurements);
-      if (d.specModelInfo) setSpecModelInfo(d.specModelInfo);
-      if (d.specMaterial) setSpecMaterial(d.specMaterial);
-      if (d.specOrigin) setSpecOrigin(d.specOrigin);
-      if (d.specFit) setSpecFit(d.specFit);
+      setPriceKrw(d.priceKrw ?? "");
+      setSalePriceKrw(d.salePriceKrw ?? "");
+      setCategoryMain(d.categoryMain ?? null);
+      setCategoryMid(d.categoryMid ?? null);
+      setCategorySub(d.categorySub ?? null);
+      setDetailText(d.detailText ?? "");
+      setSpecMeasurements(d.specMeasurements ?? "");
+      setSpecModelInfo(d.specModelInfo ?? "");
+      setSpecMaterial(d.specMaterial ?? "");
+      setSpecOrigin(d.specOrigin ?? "");
+      setSpecFit(d.specFit ?? "");
       if (d.variantTree) setVariantTree(d.variantTree);
       if (d.descBlocks?.length) {
         setDescBlocks(d.descBlocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() })));
+      } else {
+        setDescBlocks([]);
       }
       if (d.mainImageUrls?.length) {
         setMainImages(d.mainImageUrls.map((img: DraftMainImage) => urlToSlot(img.url, img.colorKey)));
+      } else {
+        setMainImages([]);
       }
       if (d.contentImageUrls?.length) {
         setContentImages(d.contentImageUrls.map((url: string) => urlToSlot(url)));
+      } else {
+        setContentImages([]);
       }
     } catch { /* ignore */ }
+    setPendingDraft(null);
     setDraftRestored(false);
   }
 
   function dismissDraft() {
     localStorage.removeItem(draftKey);
+    setPendingDraft(null);
     setDraftRestored(false);
   }
 
   // Save draft (debounced 2s)
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    if (!isDraftReady || draftRestored) return;
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
-      try {
-        const doneMainImages = mainImages.filter((s) => s.status === "done" && s.publicUrl);
-        const doneContentImages = contentImages.filter((s) => s.status === "done" && s.publicUrl);
-        const draft = {
-          _ts: Date.now(),
-          title,
-          postType,
-          priceKrw,
-          salePriceKrw,
-          categoryMain,
-          categoryMid,
-          categorySub,
-          detailText,
-          specMeasurements,
-          specModelInfo,
-          specMaterial,
-          specOrigin,
-          specFit,
-          variantTree,
-          descBlocks: descBlocks.map(({ _id, ...rest }) => rest),
-          mainImageUrls: doneMainImages.map((s) => ({ url: s.publicUrl, colorKey: s.colorKey })),
-          contentImageUrls: doneContentImages.map((s) => s.publicUrl),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draft));
-      } catch { /* quota exceeded, etc. */ }
+      persistDraft();
     }, 2000);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
-  }, [title, postType, priceKrw, salePriceKrw, categoryMain, categoryMid, categorySub, detailText, specMeasurements, specModelInfo, specMaterial, specOrigin, specFit, variantTree, mainImages, contentImages, descBlocks, draftKey, forcedPostType]);
+  }, [persistDraft, draftRestored, forcedPostType, isDraftReady]);
+
+  useEffect(() => {
+    if (!isDraftReady || draftRestored) return;
+    const handlePageHide = () => persistDraft();
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, [draftRestored, isDraftReady, persistDraft]);
 
   // Clear draft on successful submit
   function clearDraft() {
@@ -328,6 +403,7 @@ export default function ProductForm({
     const files = e.target.files;
     if (!files) return;
     e.target.value = "";
+    setError(null);
 
     for (const file of Array.from(files)) {
       if (!ALLOWED_TYPES.has(file.type)) continue;
@@ -370,7 +446,7 @@ export default function ProductForm({
           { _id: generateId(), type: "image", url: publicUrl },
         ]);
       } catch {
-        // skip failed uploads
+        setError("상세 이미지 업로드에 실패했습니다. 다시 시도해주세요.");
       }
     }
   }
@@ -743,7 +819,12 @@ export default function ProductForm({
       }
 
       // Build V2 blocks from block editor (images already uploaded)
-      const cleanBlocks: DescriptionBlock[] = descBlocks
+      const cleanBlocks: DescriptionBlock[] = [
+        ...(detailText.trim()
+          ? [{ type: "text" as const, content: detailText.trim() }]
+          : []),
+        ...descBlocks
+      ]
         .map((b) => {
           if (b.type === "text") return { type: "text" as const, content: b.content.trim() };
           if (b.type === "image") return { type: "image" as const, url: b.url, ...(b.caption ? { caption: b.caption } : {}) };
@@ -782,7 +863,7 @@ export default function ProductForm({
         categoryMain: categoryMain,
         categoryMid: categoryMid,
         categorySub: categorySub,
-        description: description.trim() || undefined,
+        description: detailText.trim() || undefined,
         descriptionJson,
         mainImages: mainImages.map((slot, i) => ({
           url: slot.publicUrl || mainUrls[i],
@@ -1447,9 +1528,24 @@ export default function ProductForm({
       <section className="mb-8 space-y-6">
         <h3 className="text-[16px] font-bold text-gray-900">상품 설명</h3>
 
-        {/* Section 1: Spec */}
+        <div className="space-y-2">
+          <label htmlFor="detailText" className="block text-[14px] font-medium text-gray-700">
+            상세 글
+          </label>
+          <textarea
+            id="detailText"
+            value={detailText}
+            onChange={(e) => setDetailText(e.target.value)}
+            placeholder="상품의 특징, 추천 포인트, 상태 등을 자유롭게 적어주세요."
+            rows={6}
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] placeholder:text-gray-400 focus:outline-none focus:border-black resize-none"
+            disabled={submitting}
+          />
+        </div>
+
+        {/* Section 2: Spec */}
         <div className="p-4 bg-gray-50 rounded-xl space-y-3">
-          <h4 className="text-[14px] font-medium text-gray-700 mb-2">사양 정보</h4>
+          <h4 className="text-[14px] font-medium text-gray-700 mb-2">사양 정보 <span className="text-[12px] font-normal text-gray-400">(선택)</span></h4>
           <div className="grid grid-cols-1 gap-3">
             <input
               type="text"
@@ -1493,8 +1589,6 @@ export default function ProductForm({
             />
           </div>
         </div>
-
-        {/* Section 2: Detail — now handled by block editor above */}
 
       </section>
 

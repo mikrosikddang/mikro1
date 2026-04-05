@@ -6,7 +6,7 @@ import {
   MAX_FILE_SIZE,
 } from "@/lib/s3";
 import { getSession } from "@/lib/auth";
-import { requireSeller } from "@/lib/roleGuards";
+import { requireBuyerFeatures } from "@/lib/roleGuards";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auth guard: SELLER only
+    // Auth guard: any logged-in member can upload to their own space/product draft
     const _session = await getSession();
-    const session = await requireSeller(_session);
+    const session = requireBuyerFeatures(_session);
 
     const { fileName, contentType, fileSize } = await req.json();
 
@@ -48,11 +48,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sellerId = session.userId;
+    const ownerId = session.userId;
 
-    // Key: products/{sellerId}/{uuid}.{ext} — path-locked to seller
+    // Key: products/{ownerId}/{uuid}.{ext} — path-locked to the current member
     const ext = resolveUploadExtension(fileName, contentType);
-    const key = `products/${sellerId}/${randomUUID()}.${ext}`;
+    const key = `products/${ownerId}/${randomUUID()}.${ext}`;
 
     const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType);
 
