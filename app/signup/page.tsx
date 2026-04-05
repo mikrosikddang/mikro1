@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
+
+const POLICY_VIEWED_KEYS = {
+  terms: "signup-policy-viewed-terms",
+  privacy: "signup-policy-viewed-privacy",
+} as const;
 
 function SignupForm() {
   const router = useRouter();
@@ -21,6 +26,10 @@ function SignupForm() {
     privacy: false,
     age: false,
   });
+  const [viewedPolicies, setViewedPolicies] = useState({
+    terms: false,
+    privacy: false,
+  });
   const [error, setError] = useState(
     signupError === "consent_required"
       ? "간편가입 전에 필수 약관에 동의해주세요."
@@ -30,15 +39,39 @@ function SignupForm() {
   );
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setViewedPolicies({
+      terms: window.sessionStorage.getItem(POLICY_VIEWED_KEYS.terms) === "1",
+      privacy: window.sessionStorage.getItem(POLICY_VIEWED_KEYS.privacy) === "1",
+    });
+  }, []);
+
   function hasRequiredAgreements() {
     return agreements.terms && agreements.privacy && agreements.age;
   }
 
   function toggleAgreement(key: keyof typeof agreements) {
+    if ((key === "terms" || key === "privacy") && !viewedPolicies[key]) {
+      setError("전문보기를 한 번 확인한 뒤 동의 체크를 할 수 있습니다");
+      return;
+    }
     setAgreements((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function markPolicyViewed(key: keyof typeof viewedPolicies) {
+    setViewedPolicies((prev) => ({ ...prev, [key]: true }));
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(POLICY_VIEWED_KEYS[key], "1");
+    }
+    setError("");
+  }
+
   function validateRequiredAgreements() {
+    if (!viewedPolicies.terms || !viewedPolicies.privacy) {
+      setError("이용약관과 개인정보 수집·이용 전문보기를 먼저 확인해주세요");
+      return false;
+    }
     if (hasRequiredAgreements()) return true;
     setError("이용약관, 개인정보 수집·이용, 만 14세 이상 항목에 모두 동의해주세요");
     return false;
@@ -216,38 +249,62 @@ function SignupForm() {
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <p className="text-[13px] font-semibold text-gray-900 mb-3">필수 약관 동의</p>
             <div className="space-y-2 text-[13px] text-gray-700">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreements.terms}
-                  onChange={() => toggleAgreement("terms")}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
-                  disabled={loading}
-                />
-                <span>
-                  [필수]{" "}
-                  <Link href="/policy/terms" className="underline text-gray-900">
-                    서비스 이용약관
+              <div className="rounded-xl border border-gray-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.terms}
+                      onChange={() => toggleAgreement("terms")}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                      disabled={loading || !viewedPolicies.terms}
+                    />
+                    <span className={!viewedPolicies.terms ? "text-gray-400" : ""}>
+                      [필수] 서비스 이용약관에 동의합니다.
+                    </span>
+                  </label>
+                  <Link
+                    href="/policy/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => markPolicyViewed("terms")}
+                    className="shrink-0 rounded-full border border-gray-300 px-3 py-1 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    전문보기
                   </Link>
-                  에 동의합니다.
-                </span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreements.privacy}
-                  onChange={() => toggleAgreement("privacy")}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
-                  disabled={loading}
-                />
-                <span>
-                  [필수]{" "}
-                  <Link href="/policy/privacy" className="underline text-gray-900">
-                    개인정보 수집·이용
+                </div>
+                {!viewedPolicies.terms && (
+                  <p className="mt-2 text-[12px] text-amber-700">전문보기를 한 번 확인해야 체크할 수 있습니다.</p>
+                )}
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.privacy}
+                      onChange={() => toggleAgreement("privacy")}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                      disabled={loading || !viewedPolicies.privacy}
+                    />
+                    <span className={!viewedPolicies.privacy ? "text-gray-400" : ""}>
+                      [필수] 개인정보 수집·이용에 동의합니다.
+                    </span>
+                  </label>
+                  <Link
+                    href="/policy/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => markPolicyViewed("privacy")}
+                    className="shrink-0 rounded-full border border-gray-300 px-3 py-1 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    전문보기
                   </Link>
-                  에 동의합니다.
-                </span>
-              </label>
+                </div>
+                {!viewedPolicies.privacy && (
+                  <p className="mt-2 text-[12px] text-amber-700">전문보기를 한 번 확인해야 체크할 수 있습니다.</p>
+                )}
+              </div>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
