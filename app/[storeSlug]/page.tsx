@@ -37,9 +37,6 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
   const session = await getSession();
   const sellerId = seller.id;
   const isOwner = session?.userId === sellerId;
-  const isApprovedSeller =
-    seller.role === "SELLER_ACTIVE" &&
-    seller.sellerProfile.status === "APPROVED";
 
   const limit = 30;
   const products = await prisma.product.findMany({
@@ -110,14 +107,6 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
           socialChannelType={seller.sellerProfile.socialChannelType}
           socialChannelUrl={seller.sellerProfile.socialChannelUrl}
         />
-        {!isApprovedSeller && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-[13px] font-medium text-amber-800">아카이브 공간</p>
-            <p className="mt-1 text-[12px] text-amber-700 leading-relaxed">
-              이 공간은 판매자 승인 전 아카이브·쇼룸 용도로 운영됩니다. 판매 운영은 판매자 승인 완료 후 가능합니다.
-            </p>
-          </div>
-        )}
       </Container>
 
       <div className="mx-auto w-full max-w-[420px]">

@@ -6,8 +6,9 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
 import {
-  getAdminMode,
-  setAdminMode as persistAdminMode,
+  getAdminViewMode,
+  setAdminViewMode as persistAdminViewMode,
+  type AdminViewMode,
 } from "@/lib/uiPrefs";
 
 export default function BottomTab() {
@@ -15,9 +16,12 @@ export default function BottomTab() {
   const session = useSession();
   const isAdminUser = session ? isAdmin(session.role) : false;
   const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
-  const spaceTabLabel = canUseSellerView ? "스토어" : "내 공간";
+  const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>("user");
+  const effectiveViewMode: AdminViewMode = isAdminUser ? adminViewMode : canUseSellerView ? "seller" : "user";
+  const showingSellerView = effectiveViewMode === "seller";
+  const showingAdminView = effectiveViewMode === "admin";
+  const spaceTabLabel = showingSellerView ? "스토어" : "내 공간";
 
-  const [adminMode, setAdminMode] = useState(false);
   const [spaceSlug, setSpaceSlug] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,29 +51,37 @@ export default function BottomTab() {
   }, [session]);
 
   useEffect(() => {
-    if (isAdminUser) {
-      setAdminMode(getAdminMode() === "admin");
-    }
-
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setAdminMode(detail.mode === "admin");
+    const syncAdminViewMode = () => {
+      if (!isAdminUser) {
+        setAdminViewMode("user");
+        return;
+      }
+      setAdminViewMode(getAdminViewMode());
     };
-    window.addEventListener("adminModeChange", handler);
-    return () => window.removeEventListener("adminModeChange", handler);
+
+    syncAdminViewMode();
+    window.addEventListener("adminModeChange", syncAdminViewMode);
+    window.addEventListener("sellerModeChange", syncAdminViewMode);
+    return () => {
+      window.removeEventListener("adminModeChange", syncAdminViewMode);
+      window.removeEventListener("sellerModeChange", syncAdminViewMode);
+    };
   }, [isAdminUser]);
 
   useEffect(() => {
-    if (isAdminUser && pathname.startsWith("/admin") && !adminMode) {
-      setAdminMode(true);
-      persistAdminMode("admin");
+    if (isAdminUser && pathname.startsWith("/admin") && !showingAdminView) {
+      setAdminViewMode("admin");
+      persistAdminViewMode("admin");
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("adminModeChange", { detail: { mode: "admin" } }),
         );
+        window.dispatchEvent(
+          new CustomEvent("sellerModeChange", { detail: { mode: "buyer" } }),
+        );
       }
     }
-  }, [pathname, isAdminUser, adminMode]);
+  }, [pathname, isAdminUser, showingAdminView]);
 
   const buyerTabs = [
     { label: "홈", href: "/" },
@@ -96,12 +108,11 @@ export default function BottomTab() {
     { label: "분쟁", href: "/admin/disputes" },
   ];
 
-  const inSellerCenter = pathname.startsWith("/seller");
   const tabs =
-    adminMode && isAdminUser ? adminTabs : inSellerCenter && canUseSellerView ? sellerTabs : buyerTabs;
+    showingAdminView ? adminTabs : showingSellerView ? sellerTabs : buyerTabs;
 
   // Hide bottom tab in admin area unless admin mode is on
-  if (pathname.startsWith("/admin") && !(adminMode && isAdminUser)) {
+  if (pathname.startsWith("/admin") && !showingAdminView) {
     return null;
   }
 

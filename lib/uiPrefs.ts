@@ -6,6 +6,7 @@
 export type HomeFeedViewMode = "feed" | "carrot";
 export type SellerMode = "buyer" | "seller";
 export type AdminMode = "user" | "admin";
+export type AdminViewMode = "user" | "seller" | "admin";
 
 const STORAGE_KEYS = {
   HOME_FEED_VIEW_MODE: "homeFeedViewMode",
@@ -106,4 +107,20 @@ export function setAdminMode(mode: AdminMode): void {
   } catch (error) {
     console.error("Failed to save adminMode to localStorage:", error);
   }
+}
+
+/**
+ * Get current admin user's effective view mode
+ */
+export function getAdminViewMode(): AdminViewMode {
+  if (getAdminMode() === "admin") return "admin";
+  return getSellerMode() === "seller" ? "seller" : "user";
+}
+
+/**
+ * Set current admin user's effective view mode
+ */
+export function setAdminViewMode(mode: AdminViewMode): void {
+  setAdminMode(mode === "admin" ? "admin" : "user");
+  setSellerMode(mode === "seller" ? "seller" : "buyer");
 }

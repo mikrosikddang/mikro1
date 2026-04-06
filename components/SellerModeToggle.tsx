@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { canAccessSellerFeatures } from "@/lib/roles";
+import { canAccessSellerFeatures, isAdmin } from "@/lib/roles";
 import {
   getAdminMode,
   getSellerMode,
@@ -23,13 +23,14 @@ export default function SellerModeToggle({ onToggle }: SellerModeToggleProps) {
   const [mounted, setMounted] = useState(false);
 
   const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
+  const isAdminUser = session ? isAdmin(session.role) : false;
 
   useEffect(() => {
     setMode(getSellerMode());
     setMounted(true);
   }, []);
 
-  if (!canUseSellerView) return null;
+  if (!canUseSellerView || isAdminUser) return null;
 
   const isOn = mode === "seller";
 

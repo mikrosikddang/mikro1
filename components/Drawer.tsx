@@ -9,9 +9,10 @@ import {
   isSeller,
   isSellerActive,
 } from "@/lib/roles";
-import { getAdminMode } from "@/lib/uiPrefs";
+import { getAdminViewMode, type AdminViewMode } from "@/lib/uiPrefs";
 import HomeFeedViewToggle from "@/components/HomeFeedViewToggle";
 import AdminModeToggle from "@/components/AdminModeToggle";
+import SellerModeToggle from "@/components/SellerModeToggle";
 import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
@@ -40,23 +41,33 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const isAdminUser = session ? isAdmin(session.role) : false;
   const isSellerActiveUser = session ? isSellerActive(session.role) : false;
   const canUseSellerView = session ? canAccessSellerFeatures(session.role) : false;
-  const ownedSpaceSectionTitle = canUseSellerView ? "스토어" : "내 공간";
-  const ownedSpaceViewLabel = canUseSellerView ? "스토어 보기" : "내 공간 보기";
-
-  const [adminMode, setAdminModeState] = useState(false);
+  const [adminViewMode, setAdminViewModeState] = useState<AdminViewMode>("user");
 
   useEffect(() => {
-    if (isAdminUser) {
-      setAdminModeState(getAdminMode() === "admin");
-    }
-
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setAdminModeState(detail.mode === "admin");
+    const syncAdminViewMode = () => {
+      if (!isAdminUser) {
+        setAdminViewModeState("user");
+        return;
+      }
+      setAdminViewModeState(getAdminViewMode());
     };
-    window.addEventListener("adminModeChange", handler);
-    return () => window.removeEventListener("adminModeChange", handler);
+
+    syncAdminViewMode();
+    window.addEventListener("adminModeChange", syncAdminViewMode);
+    window.addEventListener("sellerModeChange", syncAdminViewMode);
+    return () => {
+      window.removeEventListener("adminModeChange", syncAdminViewMode);
+      window.removeEventListener("sellerModeChange", syncAdminViewMode);
+    };
   }, [isAdminUser]);
+
+  const effectiveViewMode: AdminViewMode = isAdminUser ? adminViewMode : canUseSellerView ? "seller" : "user";
+  const showingSellerView = effectiveViewMode === "seller";
+  const showingAdminView = effectiveViewMode === "admin";
+  const ownedSpaceSectionTitle = showingSellerView ? "스토어" : "내 공간";
+  const ownedSpaceViewLabel = showingSellerView ? "스토어 보기" : "내 공간 보기";
+  const uploadLabel = showingSellerView ? "상품 올리기" : "사진 올리기";
+  const uploadHref = showingSellerView ? "/seller/products/new" : "/space/posts/new";
 
   useEffect(() => {
     if (!session || isAdminUser || isSellerActiveUser) {
@@ -211,22 +222,24 @@ export default function Drawer({ open, onClose }: DrawerProps) {
                   </h2>
                   <span
                     className={`inline-block text-[11px] font-semibold px-2 py-[3px] rounded-full flex-shrink-0 ${
-                      isAdminUser
+                      showingAdminView
                         ? "bg-red-50 text-red-600"
-                        : isSellerActiveUser
+                        : showingSellerView
                         ? "bg-blue-50 text-blue-600"
                         : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {isAdminUser ? "관리자" : isSellerActiveUser ? "판매자" : "일반"}
+                    {showingAdminView ? "관리자" : showingSellerView ? "판매자" : "일반"}
                   </span>
                 </div>
                 {/* Subtitle */}
                 <p className="text-[13px] font-normal text-gray-500 mt-[2px]">
                   {isAdminUser
-                    ? adminMode
-                      ? "어드민 모드 사용 중"
-                      : "플랫폼 관리자"
+                    ? showingAdminView
+                      ? "관리자 모드 사용 중"
+                      : showingSellerView
+                        ? "셀러 모드 사용 중"
+                        : "일반 유저 모드 사용 중"
                     : isSellerActiveUser
                     ? "판매자 계정"
                     : "일반 회원"}
@@ -281,14 +294,14 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               <MenuSection title={ownedSpaceSectionTitle}>
                 <MenuItem label={ownedSpaceViewLabel} href="/space" isSubmenu />
                 <MenuItem
-                  label={canUseSellerView ? "상품 올리기" : "사진 올리기"}
-                  href={canUseSellerView ? "/seller/products/new" : "/space/posts/new"}
+                  label={uploadLabel}
+                  href={uploadHref}
                   isSubmenu
                 />
               </MenuSection>
             )}
 
-            {canUseSellerView && session && (
+            {showingSellerView && session && (
               <MenuSection title="판매자 센터">
                 <MenuItem label="대시보드" href="/seller" isSubmenu />
                 <MenuItem label="상품 관리" href="/seller/products" isSubmenu />
@@ -298,7 +311,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
             )}
 
             {/* Admin Section */}
-            {isAdminUser && (
+            {showingAdminView && (
               <MenuSection title="관리자">
                 <MenuItem label="플랫폼 관리" href="/admin" isSubmenu />
                 <MenuItem label="판매자 승인" href="/admin/sellers" isSubmenu />
@@ -335,6 +348,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
               )}
             </MenuSection>
           </div>
+          <SellerModeToggle onToggle={onClose} />
           <AdminModeToggle onToggle={onClose} />
         </nav>
 
