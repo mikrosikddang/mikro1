@@ -80,9 +80,7 @@ export default function ProductGridTile({
       </h3>
 
       {/* Price */}
-      {archive ? (
-        <p className="mt-1 text-[12px] font-medium text-gray-500">아카이브 게시물</p>
-      ) : hasDiscount ? (
+      {!archive && (hasDiscount ? (
         <div className="mt-1">
           <div className="flex items-baseline gap-1">
             <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
@@ -98,7 +96,7 @@ export default function ProductGridTile({
         <p className="mt-1 text-base font-semibold text-black">
           {priceKrw.toLocaleString()}원
         </p>
-      )}
+      ))}
     </Link>
   );
 }

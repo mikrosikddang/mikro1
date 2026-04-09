@@ -237,10 +237,9 @@ export default function ProductCard({
             <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
               {title}
             </h3>
-            <div className="mt-1">
-              {archive ? (
-                <p className="text-[13px] font-medium text-gray-500">아카이브 게시물</p>
-              ) : hasDiscount ? (
+            {!archive && (
+              <div className="mt-1">
+                {hasDiscount ? (
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
                   <span className="text-[16px] font-semibold text-black tabular-nums">
@@ -250,14 +249,15 @@ export default function ProductCard({
                     {priceKrw.toLocaleString()}원
                   </span>
                 </div>
-              ) : (
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-[16px] font-semibold text-black tabular-nums">
-                    {priceKrw.toLocaleString()}원
-                  </span>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-[16px] font-semibold text-black tabular-nums">
+                      {priceKrw.toLocaleString()}원
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </Link>
 
           {/* Right: wishlist + share buttons */}

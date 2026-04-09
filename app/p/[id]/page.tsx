@@ -137,7 +137,7 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
 
         {/* Review Summary */}
-        <ReviewSummary productId={product.id} />
+        {!isArchive && <ReviewSummary productId={product.id} />}
 
         {/* Seller Actions (self only) */}
         {isSelf && (
@@ -145,7 +145,7 @@ export default async function ProductDetailPage({ params }: Props) {
         )}
 
         {/* Divider */}
-        <div className="border-t border-gray-100 my-6" />
+        {!isArchive && <div className="border-t border-gray-100 my-6" />}
 
         {/* Size selection and CTA */}
         {!isArchive && (
@@ -160,7 +160,7 @@ export default async function ProductDetailPage({ params }: Props) {
         )}
 
         {/* Divider */}
-        <div className="border-t border-gray-100 my-6" />
+        {!isArchive && <div className="border-t border-gray-100 my-6" />}
 
         {/* Description */}
         {(() => {
@@ -174,7 +174,7 @@ export default async function ProductDetailPage({ params }: Props) {
             if (!hasContent) return null;
 
             return (
-              <div className="mt-6 pt-5 border-t border-gray-100 space-y-5">
+              <div className={`${isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"} space-y-5`}>
                 {/* Spec Section */}
                 {rendered.spec.length > 0 && (
                   <div>
@@ -233,7 +233,7 @@ export default async function ProductDetailPage({ params }: Props) {
           // Fallback to legacy description
           if (product.description) {
             return (
-              <div className="mt-6 pt-5 border-t border-gray-100">
+              <div className={isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"}>
                 <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">
                   {product.description}
                 </p>
@@ -246,7 +246,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
         {/* Content images – stacked vertically (V1 only, V2 uses blocks) */}
         {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as unknown as ProductDescription).v !== 2) && (
-          <div className="mt-6 pt-5 border-t border-gray-100 space-y-2">
+          <div className={`${isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"} space-y-2`}>
             {contentImages.map((img) => (
               <div key={img.id} className="w-full rounded-lg overflow-hidden">
                 <img
@@ -261,7 +261,7 @@ export default async function ProductDetailPage({ params }: Props) {
         )}
 
         {/* Shipping & CS from Seller Profile */}
-        {shippingInfo.length > 0 && (
+        {!isArchive && shippingInfo.length > 0 && (
           <div className="mt-6 pt-5 border-t border-gray-100">
             <div className="p-4 bg-gray-50 rounded-xl">
               <h3 className="text-[13px] font-bold text-gray-900 mb-2">배송 및 고객센터</h3>
@@ -278,15 +278,17 @@ export default async function ProductDetailPage({ params }: Props) {
         )}
 
         {/* Reviews */}
-        <ReviewSection productId={product.id} />
+        {!isArchive && <ReviewSection productId={product.id} />}
 
         {/* Inquiries */}
-        <InquirySection productId={product.id} />
+        {!isArchive && <InquirySection productId={product.id} />}
 
         {/* Wishlist button */}
-        <div className="mt-4 flex justify-end">
-          <WishlistButton productId={product.id} variant="detail" />
-        </div>
+        {!isArchive && (
+          <div className="mt-4 flex justify-end">
+            <WishlistButton productId={product.id} variant="detail" />
+          </div>
+        )}
       </div>
     </Container>
   );

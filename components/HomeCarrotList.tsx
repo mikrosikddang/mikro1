@@ -88,13 +88,7 @@ function CarrotListItem({ product }: { product: Product }) {
 
             {/* Bottom row: price */}
             <div className="flex items-end justify-between mt-auto pt-1">
-              {archive ? (
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-[13px] font-medium text-gray-500">
-                    아카이브 게시물
-                  </span>
-                </div>
-              ) : hasDiscount ? (
+              {!archive && (hasDiscount ? (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-[13px] font-bold text-red-500">
@@ -114,7 +108,7 @@ function CarrotListItem({ product }: { product: Product }) {
                     {product.priceKrw.toLocaleString()}원
                   </span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
