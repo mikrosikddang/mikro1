@@ -9,6 +9,7 @@ import {
   validateSellerKindRequirements,
 } from "@/lib/sellerTypes";
 import { hasSellerPortalAccess } from "@/lib/sellerPortal";
+import { StoreSlugConflictError, updateStoreSlugForProfile } from "@/lib/storeSlug";
 
 /**
  * GET /api/seller/profile
@@ -332,20 +333,6 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const existingStoreSlug = await prisma.sellerProfile.findFirst({
-      where: {
-        storeSlug: nextStoreSlug,
-        userId: { not: session.userId },
-      },
-      select: { id: true },
-    });
-    if (existingStoreSlug) {
-      return NextResponse.json(
-        { error: "이미 사용 중인 상점 URL입니다" },
-        { status: 409 }
-      );
-    }
-
     const nextSettlementBank =
       settlementBank !== undefined ? normalize(settlementBank) : normalize(current.settlementBank);
     const nextSettlementAccountNo =
@@ -439,76 +426,89 @@ export async function PATCH(req: NextRequest) {
     }
 
     // SellerProfile 업데이트
-    const updated = await prisma.sellerProfile.update({
-      where: { userId: session.userId },
-      data: {
-        ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
-        ...(storeSlug !== undefined && { storeSlug: nextStoreSlug }),
-        ...(bio !== undefined && { bio: bio?.trim() || null }),
-        ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
-        ...(sellerKind !== undefined && { sellerKind: nextSellerKind }),
-        ...(type !== undefined && { type: type?.trim() || null }),
-        ...(marketBuilding !== undefined && { marketBuilding: marketBuilding?.trim() || null }),
-        ...(floor !== undefined && { floor: floor?.trim() || null }),
-        ...(roomNo !== undefined && { roomNo: roomNo?.trim() || null }),
-        ...(managerPhone !== undefined && { managerPhone: managerPhone?.trim() || null }),
-        ...(csEmail !== undefined && { csEmail: csEmail?.trim() || null }),
-        ...(csPhone !== undefined && { csPhone: csPhone?.trim() || null }),
-        ...(csHours !== undefined && { csHours: csHours?.trim() || null }),
-        ...(avatarUrl !== undefined && { avatarUrl }),
-        ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
-        ...(bizRegImageUrl !== undefined && { bizRegImageUrl: bizRegImageUrl?.trim() || null }),
-        ...(mailOrderReportImageUrl !== undefined && {
-          mailOrderReportImageUrl: mailOrderReportImageUrl?.trim() || null,
-        }),
-        ...(passbookImageUrl !== undefined && {
-          passbookImageUrl: passbookImageUrl?.trim() || null,
-        }),
-        ...(instagramHandle !== undefined && {
-          instagramHandle: instagramHandle?.trim().replace(/^@+/, "") || null,
-        }),
-        ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
-        ...(csAddress !== undefined && { csAddress: csAddress?.trim() || null }),
-        ...(shippingGuide !== undefined && { shippingGuide: shippingGuide?.trim() || null }),
-        ...(exchangeGuide !== undefined && { exchangeGuide: exchangeGuide?.trim() || null }),
-        ...(refundGuide !== undefined && { refundGuide: refundGuide?.trim() || null }),
-        ...(etcGuide !== undefined && { etcGuide: etcGuide?.trim() || null }),
-        ...(settlementBank !== undefined && { settlementBank: settlementBank?.trim() || null }),
-        ...(settlementAccountNo !== undefined && {
-          settlementAccountNo: settlementAccountNo?.trim() || null,
-        }),
-        ...(settlementAccountHolder !== undefined && {
-          settlementAccountHolder: settlementAccountHolder?.trim() || null,
-        }),
-        ...(creatorSlug !== undefined && { creatorSlug: nextCreatorSlug || null }),
-        ...(socialChannelType !== undefined && {
-          socialChannelType: (socialChannelType as SocialChannelType | null) ?? null,
-        }),
-        ...(socialChannelUrl !== undefined && {
-          socialChannelUrl: socialChannelUrl?.trim() || null,
-        }),
-        ...(followerCount !== undefined && {
-          followerCount:
-            followerCount === null || followerCount === ""
-              ? null
-              : Math.floor(Number(followerCount)),
-        }),
-        ...(isBusinessSeller !== undefined && {
-          isBusinessSeller: true,
-        }),
-        ...(commissionRateBps !== undefined && {
-          commissionRateBps: Math.floor(Number(commissionRateBps)),
-        }),
-        ...(bizTouched &&
-          (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),
-        ...((settlementTouched || passbookTouched) &&
-          (hasAnySettlementField || nextPassbookImageUrl) && { settlementSubmittedAt: new Date() }),
-        ...(complianceTouched && { complianceReviewPending: true }),
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const profile = await tx.sellerProfile.update({
+        where: { userId: session.userId },
+        data: {
+          ...(shopName !== undefined && { shopName: shopName?.trim() || null }),
+          ...(bio !== undefined && { bio: bio?.trim() || null }),
+          ...(locationText !== undefined && { locationText: locationText?.trim() || null }),
+          ...(sellerKind !== undefined && { sellerKind: nextSellerKind }),
+          ...(type !== undefined && { type: type?.trim() || null }),
+          ...(marketBuilding !== undefined && { marketBuilding: marketBuilding?.trim() || null }),
+          ...(floor !== undefined && { floor: floor?.trim() || null }),
+          ...(roomNo !== undefined && { roomNo: roomNo?.trim() || null }),
+          ...(managerPhone !== undefined && { managerPhone: managerPhone?.trim() || null }),
+          ...(csEmail !== undefined && { csEmail: csEmail?.trim() || null }),
+          ...(csPhone !== undefined && { csPhone: csPhone?.trim() || null }),
+          ...(csHours !== undefined && { csHours: csHours?.trim() || null }),
+          ...(avatarUrl !== undefined && { avatarUrl }),
+          ...(bizRegNo !== undefined && { bizRegNo: bizRegNo?.trim() || null }),
+          ...(bizRegImageUrl !== undefined && { bizRegImageUrl: bizRegImageUrl?.trim() || null }),
+          ...(mailOrderReportImageUrl !== undefined && {
+            mailOrderReportImageUrl: mailOrderReportImageUrl?.trim() || null,
+          }),
+          ...(passbookImageUrl !== undefined && {
+            passbookImageUrl: passbookImageUrl?.trim() || null,
+          }),
+          ...(instagramHandle !== undefined && {
+            instagramHandle: instagramHandle?.trim().replace(/^@+/, "") || null,
+          }),
+          ...(csKakaoId !== undefined && { csKakaoId: csKakaoId?.trim() || null }),
+          ...(csAddress !== undefined && { csAddress: csAddress?.trim() || null }),
+          ...(shippingGuide !== undefined && { shippingGuide: shippingGuide?.trim() || null }),
+          ...(exchangeGuide !== undefined && { exchangeGuide: exchangeGuide?.trim() || null }),
+          ...(refundGuide !== undefined && { refundGuide: refundGuide?.trim() || null }),
+          ...(etcGuide !== undefined && { etcGuide: etcGuide?.trim() || null }),
+          ...(settlementBank !== undefined && { settlementBank: settlementBank?.trim() || null }),
+          ...(settlementAccountNo !== undefined && {
+            settlementAccountNo: settlementAccountNo?.trim() || null,
+          }),
+          ...(settlementAccountHolder !== undefined && {
+            settlementAccountHolder: settlementAccountHolder?.trim() || null,
+          }),
+          ...(creatorSlug !== undefined && { creatorSlug: nextCreatorSlug || null }),
+          ...(socialChannelType !== undefined && {
+            socialChannelType: (socialChannelType as SocialChannelType | null) ?? null,
+          }),
+          ...(socialChannelUrl !== undefined && {
+            socialChannelUrl: socialChannelUrl?.trim() || null,
+          }),
+          ...(followerCount !== undefined && {
+            followerCount:
+              followerCount === null || followerCount === ""
+                ? null
+                : Math.floor(Number(followerCount)),
+          }),
+          ...(isBusinessSeller !== undefined && {
+            isBusinessSeller: true,
+          }),
+          ...(commissionRateBps !== undefined && {
+            commissionRateBps: Math.floor(Number(commissionRateBps)),
+          }),
+          ...(bizTouched &&
+            (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),
+          ...((settlementTouched || passbookTouched) &&
+            (hasAnySettlementField || nextPassbookImageUrl) && { settlementSubmittedAt: new Date() }),
+          ...(complianceTouched && { complianceReviewPending: true }),
+        },
+      });
+
+      if (storeSlug !== undefined) {
+        return updateStoreSlugForProfile(tx, profile.id, nextStoreSlug);
+      }
+
+      return profile;
     });
 
     return NextResponse.json(updated);
   } catch (error: any) {
+    if (error instanceof StoreSlugConflictError) {
+      return NextResponse.json(
+        { error: "이미 사용 중인 상점 URL입니다" },
+        { status: 409 }
+      );
+    }
     console.error("Error updating seller profile:", error);
 
     // Prisma not found error

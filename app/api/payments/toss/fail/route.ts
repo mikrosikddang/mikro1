@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const message = searchParams.get("message");
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const baseUrl = getCanonicalOrigin();
 
   return NextResponse.redirect(
     `${baseUrl}/checkout?error=${encodeURIComponent(message || "결제가 취소되었습니다")}`,

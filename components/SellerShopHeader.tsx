@@ -14,9 +14,11 @@ import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
 import { canAccessSellerFeatures, isCustomer } from "@/lib/roles";
 import { socialChannelLabel } from "@/lib/sellerTypes";
+import { buildCanonicalUrl } from "@/lib/siteUrl";
 
 export interface SellerShopHeaderProps {
   sellerId: string;
+  storeSlug: string;
   shopName: string;
   bio?: string | null;
   avatarUrl?: string | null;
@@ -26,6 +28,7 @@ export interface SellerShopHeaderProps {
 
 export default function SellerShopHeader({
   sellerId,
+  storeSlug,
   shopName,
   bio,
   avatarUrl,
@@ -65,7 +68,7 @@ export default function SellerShopHeader({
   };
 
   const handleShareProfile = async () => {
-    const profileUrl = window.location.href;
+    const profileUrl = buildCanonicalUrl(`/${storeSlug}`);
     const shareData = {
       title: shopName,
       text: `${shopName} ${shareTextLabel}`,

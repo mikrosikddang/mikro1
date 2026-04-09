@@ -15,6 +15,7 @@ import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 import { useSession } from "@/components/SessionProvider";
 import { isArchivePost } from "@/lib/productPostType";
+import { buildCanonicalUrl } from "@/lib/siteUrl";
 
 type ProductCardProps = {
   id: string;
@@ -127,7 +128,7 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
 
-    const url = `${window.location.origin}/p/${id}`;
+    const url = buildCanonicalUrl(`/p/${id}`);
     const shareData = {
       title: title,
       text: `${shopName} - ${title}`,

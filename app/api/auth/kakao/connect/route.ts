@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function GET() {
   }
 
   const clientId = process.env.KAKAO_REST_API_KEY!;
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const base = getCanonicalOrigin();
   const redirectUri = `${base}/api/auth/kakao/connect/callback`;
   const state = randomBytes(16).toString("hex");
 

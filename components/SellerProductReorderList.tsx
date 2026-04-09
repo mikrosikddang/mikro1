@@ -408,7 +408,7 @@ export default function SellerProductReorderList({ shopName }: Props) {
         )}
 
         {/* Thumbnail 52px with overlay */}
-        <Link href={`/seller/products/${product.id}/edit`} className="relative shrink-0 w-[52px] h-[52px] rounded-lg overflow-hidden bg-gray-100">
+        <Link href={`/p/${product.id}/edit`} className="relative shrink-0 w-[52px] h-[52px] rounded-lg overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
             alt={product.title}
@@ -422,7 +422,7 @@ export default function SellerProductReorderList({ shopName }: Props) {
         </Link>
 
         {/* Info */}
-        <Link href={`/seller/products/${product.id}/edit`} className="flex-1 min-w-0">
+        <Link href={`/p/${product.id}/edit`} className="flex-1 min-w-0">
           <h3 className="text-[14px] font-medium text-black truncate">{product.title}</h3>
           <div className="flex items-baseline gap-2 mt-0.5">
             {isArchive ? (
@@ -474,7 +474,7 @@ export default function SellerProductReorderList({ shopName }: Props) {
                   {product.isActive ? "숨기기" : "노출하기"}
                 </button>
                 <Link
-                  href={`/seller/products/${product.id}/edit`}
+                  href={`/p/${product.id}/edit`}
                   onClick={() => setOpenMenuId(null)}
                   className="block px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
                 >

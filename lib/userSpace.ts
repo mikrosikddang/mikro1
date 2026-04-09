@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient, SellerApprovalStatus, SellerKind, type SellerProfile } from "@prisma/client";
-import { buildDefaultStoreSlug, defaultCommissionRateBps, isReservedStoreSlug } from "@/lib/sellerTypes";
+import { defaultCommissionRateBps } from "@/lib/sellerTypes";
+import { resolveUniqueStoreSlug } from "@/lib/storeSlug";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -15,32 +16,6 @@ function buildDefaultSpaceName(user: UserSpaceSeed) {
     user.email?.split("@")[0]?.trim() ||
     `space-${user.id.slice(-6)}`;
   return base.slice(0, 30);
-}
-
-function buildSlugBase(user: UserSpaceSeed, shopName: string) {
-  const fallback = `space-${user.id.slice(-6).toLowerCase()}`;
-  const base = buildDefaultStoreSlug(shopName);
-  if (!base || isReservedStoreSlug(base)) {
-    return fallback;
-  }
-  return base;
-}
-
-async function resolveUniqueStoreSlug(db: DbClient, user: UserSpaceSeed, shopName: string) {
-  const base = buildSlugBase(user, shopName);
-
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
-    if (isReservedStoreSlug(candidate)) continue;
-
-    const existing = await db.sellerProfile.findFirst({
-      where: { storeSlug: candidate },
-      select: { id: true },
-    });
-    if (!existing) return candidate;
-  }
-
-  return `space-${user.id.slice(-10).toLowerCase()}`;
 }
 
 export async function ensureUserSpaceProfile(db: DbClient, user: UserSpaceSeed): Promise<SellerProfile> {

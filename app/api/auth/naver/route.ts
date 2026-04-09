@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   const clientId = process.env.NAVER_CLIENT_ID!;
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const base = getCanonicalOrigin();
   const redirectUri = `${base}/api/auth/naver/callback`;
   const intent = new URL(req.url).searchParams.get("intent");
 

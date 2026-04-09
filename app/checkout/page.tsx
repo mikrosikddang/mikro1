@@ -7,6 +7,7 @@ import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
 import AddressForm from "@/components/AddressForm";
 import ActionSheet from "@/components/ActionSheet";
+import { buildCanonicalUrl } from "@/lib/siteUrl";
 
 interface AvailableCoupon {
   id: string;
@@ -442,8 +443,8 @@ export default function CheckoutPage() {
         orderId: ids[0],
         orderName,
         customerName: selectedAddress?.name || "고객",
-        successUrl: `${window.location.origin}/api/payments/toss/success?orderIds=${ids.join(",")}`,
-        failUrl: `${window.location.origin}/api/payments/toss/fail?orderIds=${ids.join(",")}`,
+        successUrl: buildCanonicalUrl(`/api/payments/toss/success?orderIds=${ids.join(",")}`),
+        failUrl: buildCanonicalUrl(`/api/payments/toss/fail?orderIds=${ids.join(",")}`),
       }).catch((err: any) => {
         if (err.code === "USER_CANCEL") {
           setError("결제가 취소되었습니다.");

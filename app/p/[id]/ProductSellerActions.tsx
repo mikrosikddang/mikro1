@@ -6,9 +6,13 @@ import { useRouter } from "next/navigation";
 
 interface ProductSellerActionsProps {
   productId: string;
+  postType: "SALE" | "ARCHIVE";
 }
 
-export default function ProductSellerActions({ productId }: ProductSellerActionsProps) {
+export default function ProductSellerActions({
+  productId,
+  postType,
+}: ProductSellerActionsProps) {
   const router = useRouter();
   const [hiding, setHiding] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -29,9 +33,9 @@ export default function ProductSellerActions({ productId }: ProductSellerActions
       }
 
       // Redirect to seller products page
-      router.push("/seller/products");
+      router.push(postType === "ARCHIVE" ? "/space" : "/seller/products");
       router.refresh();
-    } catch (error) {
+    } catch {
       alert("상품 숨기기에 실패했습니다.");
       setHiding(false);
     }
@@ -41,7 +45,7 @@ export default function ProductSellerActions({ productId }: ProductSellerActions
     <>
       <div className="mt-4 mb-6 flex gap-2">
         <Link
-          href={`/seller/products/${productId}/edit`}
+          href={`/p/${productId}/edit`}
           className="flex-1 h-11 bg-gray-100 text-black rounded-lg text-[15px] font-medium flex items-center justify-center active:bg-gray-200 transition-colors"
         >
           정보 수정

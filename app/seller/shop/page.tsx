@@ -41,6 +41,7 @@ export default function ShopManagePage() {
   // Basic profile
   const [shopName, setShopName] = useState("");
   const [storeSlug, setStoreSlug] = useState("");
+  const [originalStoreSlug, setOriginalStoreSlug] = useState("");
   const [bio, setBio] = useState("");
   const [locationText, setLocationText] = useState("");
   const [sellerKind, setSellerKind] = useState<SellerKind>(SellerKind.BRAND);
@@ -104,6 +105,7 @@ export default function ShopManagePage() {
       .then((data) => {
         setShopName(data.shopName ?? "");
         setStoreSlug(data.storeSlug ?? buildDefaultStoreSlug(data.shopName ?? ""));
+        setOriginalStoreSlug(data.storeSlug ?? buildDefaultStoreSlug(data.shopName ?? ""));
         setBio(data.bio ?? "");
         setLocationText(data.locationText ?? "");
         setSellerKind(normalizeVisibleSellerKind(data.sellerKind));
@@ -261,6 +263,18 @@ export default function ShopManagePage() {
     setSuccess(false);
 
     try {
+      const nextStoreSlug = storeSlug.trim();
+      if (
+        originalStoreSlug &&
+        nextStoreSlug !== originalStoreSlug &&
+        !window.confirm(
+          "상점 URL을 변경하시겠습니까?\n\n기존 링크로 들어온 방문자는 새 주소로 자동 이동됩니다.",
+        )
+      ) {
+        setSaving(false);
+        return;
+      }
+
       let csKakaoIdValue: string | null = null;
       let csPhoneValue: string | null = null;
       let csEmailValue: string | null = null;
@@ -315,6 +329,7 @@ export default function ShopManagePage() {
       }
 
       const updated = await res.json();
+      setOriginalStoreSlug(updated.storeSlug ?? nextStoreSlug);
       setPendingReview(Boolean(updated.complianceReviewPending));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

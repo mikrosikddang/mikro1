@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   const orderId = searchParams.get("orderId")!;
   const amount = Number(searchParams.get("amount"));
   const orderIds = searchParams.get("orderIds")?.split(",") || [orderId];
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const baseUrl = getCanonicalOrigin();
 
   try {
     // 토스 결제 승인 API 호출

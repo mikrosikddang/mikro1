@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { CANONICAL_HOST, buildCanonicalUrl } from "@/lib/siteUrl";
+import { isReservedStoreSlug, normalizeStoreSlug } from "@/lib/sellerTypes";
 
 type UserData = {
   name: string | null;
@@ -20,6 +22,11 @@ type PendingConnect = {
   providerPhone: string;
 };
 
+type SpaceProfileData = {
+  storeSlug: string | null;
+  shopName: string | null;
+};
+
 export default function AccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -32,6 +39,11 @@ export default function AccountPage() {
   const [infoSaving, setInfoSaving] = useState(false);
   const [infoError, setInfoError] = useState<string | null>(null);
   const [infoSuccess, setInfoSuccess] = useState(false);
+  const [spaceProfile, setSpaceProfile] = useState<SpaceProfileData | null>(null);
+  const [spaceStoreSlug, setSpaceStoreSlug] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkSuccessMessage, setLinkSuccessMessage] = useState<string | null>(null);
 
   // Password
   const [currentPw, setCurrentPw] = useState("");
@@ -109,6 +121,22 @@ export default function AccountPage() {
       params.delete("connectError");
       window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchSpaceProfile = async () => {
+      try {
+        const res = await fetch("/api/space/profile");
+        if (!res.ok) return;
+        const data = (await res.json()) as SpaceProfileData;
+        setSpaceProfile(data);
+        setSpaceStoreSlug(data.storeSlug ?? "");
+      } catch {
+        // ignore
+      }
+    };
+    fetchSpaceProfile();
   }, [user]);
 
   const handleInfoSave = async () => {
@@ -189,6 +217,77 @@ export default function AccountPage() {
       setPwError(err instanceof Error ? err.message : "비밀번호 변경에 실패했습니다");
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const handleProfileLinkSave = async () => {
+    setLinkError(null);
+    setLinkSuccessMessage(null);
+
+    const nextStoreSlug = normalizeStoreSlug(spaceStoreSlug);
+    if (!nextStoreSlug) {
+      setLinkError("프로필 링크를 입력해주세요");
+      return;
+    }
+    if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(nextStoreSlug)) {
+      setLinkError("프로필 링크 형식을 확인해주세요");
+      return;
+    }
+    if (isReservedStoreSlug(nextStoreSlug)) {
+      setLinkError("사용할 수 없는 프로필 링크입니다");
+      return;
+    }
+    if (
+      spaceProfile?.storeSlug &&
+      nextStoreSlug !== spaceProfile.storeSlug &&
+      !window.confirm(
+        "프로필 링크를 변경하시겠습니까?\n\n기존 링크로 들어온 방문자는 새 주소로 자동 이동됩니다.",
+      )
+    ) {
+      return;
+    }
+
+    setLinkSaving(true);
+    try {
+      const res = await fetch("/api/space/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeSlug: nextStoreSlug }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "프로필 링크 저장에 실패했습니다");
+      }
+
+      setSpaceProfile((prev) => ({
+        storeSlug: data.storeSlug ?? nextStoreSlug,
+        shopName: data.shopName ?? prev?.shopName ?? null,
+      }));
+      setSpaceStoreSlug(data.storeSlug ?? nextStoreSlug);
+      setLinkSuccessMessage("프로필 링크가 저장되었습니다");
+      setTimeout(() => setLinkSuccessMessage(null), 3000);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "프로필 링크 저장에 실패했습니다");
+    } finally {
+      setLinkSaving(false);
+    }
+  };
+
+  const handleCopyProfileLink = async () => {
+    const nextStoreSlug = normalizeStoreSlug(spaceStoreSlug);
+    if (!nextStoreSlug) {
+      setLinkError("먼저 사용할 프로필 링크를 입력해주세요");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildCanonicalUrl(`/${nextStoreSlug}`));
+      setLinkError(null);
+      setLinkSuccessMessage("프로필 링크가 복사되었습니다");
+      setTimeout(() => setLinkSuccessMessage(null), 3000);
+    } catch {
+      setLinkError("프로필 링크 복사에 실패했습니다");
     }
   };
 
@@ -320,6 +419,62 @@ export default function AccountPage() {
         >
           {infoSaving ? "저장 중..." : "저장"}
         </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+        <h2 className="text-[16px] font-bold text-black mb-1">내 프로필 링크</h2>
+        <p className="text-[13px] text-gray-500 mb-4">
+          인스타그램 등 외부 채널에 바로 걸 수 있는 공개 프로필 주소입니다.
+        </p>
+
+        <div>
+          <label className={labelClass}>프로필 링크</label>
+          <input
+            type="text"
+            value={spaceStoreSlug}
+            onChange={(e) => {
+              setSpaceStoreSlug(normalizeStoreSlug(e.target.value));
+              setLinkError(null);
+              setLinkSuccessMessage(null);
+            }}
+            placeholder="예: mikrobrand"
+            maxLength={40}
+            className={inputClass}
+          />
+          <p className="mt-2 text-[12px] text-gray-500">
+            공개 주소: <code>{`${CANONICAL_HOST}/${spaceStoreSlug || "your-link"}`}</code>
+          </p>
+          {spaceProfile?.shopName ? (
+            <p className="mt-1 text-[12px] text-gray-400">
+              현재 프로필명: {spaceProfile.shopName}
+            </p>
+          ) : null}
+        </div>
+
+        {linkError && (
+          <p className="mt-3 text-[12px] text-red-500">{linkError}</p>
+        )}
+        {linkSuccessMessage && (
+          <p className="mt-3 text-[13px] text-green-600">{linkSuccessMessage}</p>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleCopyProfileLink}
+            className="h-11 rounded-xl bg-gray-100 text-[14px] font-medium text-gray-700 active:bg-gray-200 transition-colors"
+          >
+            링크 복사
+          </button>
+          <button
+            type="button"
+            onClick={handleProfileLinkSave}
+            disabled={linkSaving}
+            className="h-11 rounded-xl bg-black text-[14px] font-bold text-white active:bg-gray-800 transition-colors disabled:bg-gray-300"
+          >
+            {linkSaving ? "저장 중..." : "링크 저장"}
+          </button>
+        </div>
       </div>
 
       {/* Section 2: 비밀번호 변경 */}

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureUserSpaceProfile } from "@/lib/userSpace";
 import { isReservedStoreSlug, normalizeStoreSlug } from "@/lib/sellerTypes";
+import { updateStoreSlugForProfile, StoreSlugConflictError } from "@/lib/storeSlug";
 
 function normalizeString(value: unknown) {
   if (typeof value !== "string") return null;
@@ -141,42 +142,41 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const existingSlug = await prisma.sellerProfile.findFirst({
-      where: {
-        storeSlug: nextStoreSlug,
-        userId: { not: session.userId },
-      },
-      select: { id: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const profile = await tx.sellerProfile.update({
+        where: { userId: session.userId },
+        data: {
+          ...(shopName !== undefined && { shopName: String(shopName).trim() }),
+          ...(bio !== undefined && { bio: normalizeString(bio) }),
+          ...(locationText !== undefined && { locationText: normalizeString(locationText) }),
+          ...(avatarUrl !== undefined && { avatarUrl: normalizeString(avatarUrl) }),
+          ...(socialChannelType !== undefined && {
+            socialChannelType: (socialChannelType as SocialChannelType | null) ?? null,
+          }),
+          ...(socialChannelUrl !== undefined && {
+            socialChannelUrl: normalizeString(socialChannelUrl),
+          }),
+          ...(csEmail !== undefined && { csEmail: normalizeString(csEmail) }),
+          ...(csPhone !== undefined && { csPhone: normalizeString(csPhone) }),
+          ...(csHours !== undefined && { csHours: normalizeString(csHours) }),
+        },
+      });
+
+      if (storeSlug !== undefined) {
+        return updateStoreSlugForProfile(tx, profile.id, nextStoreSlug);
+      }
+
+      return profile;
     });
-    if (existingSlug) {
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    if (error instanceof StoreSlugConflictError) {
       return NextResponse.json(
         { error: "이미 사용 중인 공간 주소입니다" },
         { status: 409 },
       );
     }
-
-    const updated = await prisma.sellerProfile.update({
-      where: { userId: session.userId },
-      data: {
-        ...(shopName !== undefined && { shopName: String(shopName).trim() }),
-        ...(storeSlug !== undefined && { storeSlug: nextStoreSlug }),
-        ...(bio !== undefined && { bio: normalizeString(bio) }),
-        ...(locationText !== undefined && { locationText: normalizeString(locationText) }),
-        ...(avatarUrl !== undefined && { avatarUrl: normalizeString(avatarUrl) }),
-        ...(socialChannelType !== undefined && {
-          socialChannelType: (socialChannelType as SocialChannelType | null) ?? null,
-        }),
-        ...(socialChannelUrl !== undefined && {
-          socialChannelUrl: normalizeString(socialChannelUrl),
-        }),
-        ...(csEmail !== undefined && { csEmail: normalizeString(csEmail) }),
-        ...(csPhone !== undefined && { csPhone: normalizeString(csPhone) }),
-        ...(csHours !== undefined && { csHours: normalizeString(csHours) }),
-      },
-    });
-
-    return NextResponse.json(updated);
-  } catch (error) {
     console.error("PATCH /api/space/profile error:", error);
     return NextResponse.json(
       { error: "공간 정보 저장에 실패했습니다" },

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ActionSheet from "@/components/ActionSheet";
 import { resizeImage } from "@/lib/imageResize";
+import { CANONICAL_HOST } from "@/lib/siteUrl";
+import { isReservedStoreSlug, normalizeStoreSlug } from "@/lib/sellerTypes";
 
 type ProfileEditSheetProps = {
   open: boolean;
@@ -12,6 +14,7 @@ type ProfileEditSheetProps = {
 
 type ProfileData = {
   shopName: string;
+  storeSlug: string;
   bio: string;
   locationText: string;
   csEmail: string;
@@ -24,10 +27,12 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [originalStoreSlug, setOriginalStoreSlug] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ProfileData>({
     shopName: "",
+    storeSlug: "",
     bio: "",
     locationText: "",
     csEmail: "",
@@ -48,6 +53,7 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
           const data = await res.json();
           setFormData({
             shopName: data.shopName || "",
+            storeSlug: data.storeSlug || "",
             bio: data.bio || "",
             locationText: data.locationText || "",
             csEmail: data.csEmail || "",
@@ -55,6 +61,7 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
             csHours: data.csHours || "",
             avatarUrl: data.avatarUrl || null,
           });
+          setOriginalStoreSlug(data.storeSlug || "");
         } else {
           alert("프로필을 불러올 수 없습니다");
           onClose();
@@ -136,12 +143,38 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
       return;
     }
 
+    const nextStoreSlug = normalizeStoreSlug(formData.storeSlug);
+    if (!nextStoreSlug) {
+      alert("프로필 링크를 입력해주세요");
+      return;
+    }
+    if (!/^[a-z0-9][a-z0-9-_]{1,39}$/.test(nextStoreSlug)) {
+      alert("프로필 링크 형식을 확인해주세요");
+      return;
+    }
+    if (isReservedStoreSlug(nextStoreSlug)) {
+      alert("사용할 수 없는 프로필 링크입니다");
+      return;
+    }
+    if (
+      originalStoreSlug &&
+      nextStoreSlug !== originalStoreSlug &&
+      !window.confirm(
+        "프로필 링크를 변경하시겠습니까?\n\n기존 링크로 들어온 방문자는 새 주소로 자동 이동됩니다.",
+      )
+    ) {
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/space/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          storeSlug: nextStoreSlug,
+        }),
       });
 
       if (!res.ok) {
@@ -150,8 +183,13 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
         return;
       }
 
+      const saved = await res.json();
+      setOriginalStoreSlug(saved.storeSlug ?? nextStoreSlug);
       alert("프로필이 저장되었습니다");
       onClose();
+      if (saved.storeSlug && window.location.pathname !== `/${saved.storeSlug}`) {
+        window.location.href = `/${saved.storeSlug}`;
+      }
     } catch (error) {
       console.error("Failed to save profile:", error);
       alert("저장 중 오류가 발생했습니다");
@@ -240,6 +278,28 @@ export default function ProfileEditSheet({ open, onClose }: ProfileEditSheetProp
             <div className="mt-1 text-xs text-gray-500 text-right">
               {formData.shopName.length}/30
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              프로필 링크 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.storeSlug}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  storeSlug: normalizeStoreSlug(e.target.value),
+                }))
+              }
+              placeholder="예: mikrobrand"
+              maxLength={40}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-black focus:border-black"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              공개 링크: <code>{`${CANONICAL_HOST}/${formData.storeSlug || "your-link"}`}</code>
+            </p>
           </div>
 
           {/* 소개 */}

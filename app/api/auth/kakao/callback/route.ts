@@ -8,6 +8,7 @@ import {
   upsertUserAttribution,
 } from "@/lib/attribution";
 import { ensureUserSpaceProfile } from "@/lib/userSpace";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const clientId = process.env.KAKAO_REST_API_KEY!;
   const clientSecret = process.env.KAKAO_CLIENT_SECRET!;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const baseUrl = getCanonicalOrigin();
   const redirectUri = `${baseUrl}/api/auth/kakao/callback`;
 
   try {

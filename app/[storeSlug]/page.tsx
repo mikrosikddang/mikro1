@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import Container from "@/components/Container";
@@ -8,6 +8,7 @@ import ProductGrid from "@/components/ProductGrid";
 import ScrollToTop from "@/components/ScrollToTop";
 import {
   getCustomerVisibleProductWhere,
+  getOwnerVisibleProductWhere,
   getPublicSpaceUserWhere,
 } from "@/lib/publicVisibility";
 
@@ -31,6 +32,22 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
   });
 
   if (!seller || !seller.sellerProfile) {
+    const historical = await prisma.storeSlugHistory.findUnique({
+      where: { slug: storeSlug },
+      select: {
+        sellerProfile: {
+          select: {
+            storeSlug: true,
+          },
+        },
+      },
+    });
+
+    const currentSlug = historical?.sellerProfile.storeSlug;
+    if (currentSlug && currentSlug !== storeSlug) {
+      redirect(`/${currentSlug}`);
+    }
+
     notFound();
   }
 
@@ -40,7 +57,9 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
 
   const limit = 30;
   const products = await prisma.product.findMany({
-    where: getCustomerVisibleProductWhere({ sellerId }),
+    where: isOwner
+      ? getOwnerVisibleProductWhere({ sellerId })
+      : getCustomerVisibleProductWhere({ sellerId }),
     orderBy: [
       { sortOrder: "asc" },
       { createdAt: "desc" },
@@ -101,6 +120,7 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
         )}
         <SellerShopHeader
           sellerId={sellerId}
+          storeSlug={seller.sellerProfile.storeSlug ?? storeSlug}
           shopName={seller.sellerProfile.shopName}
           bio={seller.sellerProfile.bio}
           avatarUrl={seller.sellerProfile.avatarUrl}

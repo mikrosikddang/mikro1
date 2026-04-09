@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
+import { getSession } from "@/lib/auth";
+import {
+  getCustomerVisibleProductWhere,
+  getOwnerVisibleProductWhere,
+} from "@/lib/publicVisibility";
 
 export const runtime = "nodejs";
 
@@ -21,6 +25,7 @@ type Props = { params: Promise<{ sellerId: string }> };
 export async function GET(request: Request, { params }: Props) {
   try {
     const { sellerId } = await params;
+    const session = await getSession();
     const url = new URL(request.url);
     const cursor = url.searchParams.get("cursor");
     const limitParam = url.searchParams.get("limit");
@@ -30,14 +35,18 @@ export async function GET(request: Request, { params }: Props) {
     );
 
     // Build query conditions
-    const where = getCustomerVisibleProductWhere({
+    const extra = {
       sellerId,
       ...(cursor && {
         createdAt: {
           lt: new Date(cursor),
         },
       }),
-    });
+    };
+    const where =
+      session?.userId === sellerId
+        ? getOwnerVisibleProductWhere(extra)
+        : getCustomerVisibleProductWhere(extra);
 
     // Fetch products with pagination
     const products = await prisma.product.findMany({

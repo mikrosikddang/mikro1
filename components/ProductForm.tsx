@@ -996,11 +996,6 @@ export default function ProductForm({
               아카이브 게시물
             </button>
           </div>
-          <p className="mt-2 text-[12px] text-gray-500 leading-relaxed">
-            {isArchiveMode
-              ? "아카이브 게시물은 가격과 옵션 없이 공개되며 장바구니/주문 대상이 아닙니다."
-              : "판매 게시물은 가격과 옵션을 입력하고 기존 판매자 기능으로 운영합니다."}
-          </p>
         </section>
       )}
 
@@ -1477,15 +1472,6 @@ export default function ProductForm({
         })()}
         {fieldErrors.salePrice && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.salePrice}</p>}
       </section>
-      )}
-
-      {isArchiveMode && (
-        <section className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-[13px] font-medium text-gray-800">아카이브 게시물</p>
-          <p className="mt-1 text-[12px] text-gray-500 leading-relaxed">
-            가격과 옵션은 노출되지 않습니다. 사진과 설명 중심으로 내 공간에 공개됩니다.
-          </p>
-        </section>
       )}
 
       {/* ===== Category (3-Depth) ===== */}

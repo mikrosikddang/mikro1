@@ -359,6 +359,17 @@ export default function SellerApplyPage() {
     e.preventDefault();
     if (!validate()) return;
 
+    const nextStoreSlug = formData.storeSlug.trim();
+    if (
+      existingProfile?.storeSlug &&
+      nextStoreSlug !== existingProfile.storeSlug &&
+      !window.confirm(
+        "상점 URL을 변경하시겠습니까?\n\n기존 링크로 들어온 방문자는 새 주소로 자동 이동됩니다.",
+      )
+    ) {
+      return;
+    }
+
     setSubmitting(true);
 
     let csKakaoId: string | null = null;
@@ -375,7 +386,7 @@ export default function SellerApplyPage() {
         body: JSON.stringify({
           sellerKind: formData.sellerKind,
           shopName: formData.shopName.trim(),
-          storeSlug: formData.storeSlug.trim(),
+          storeSlug: nextStoreSlug,
           bizRegNo: formData.bizRegNo.trim() || null,
           type: formData.type,
           marketBuilding: resolvedMarketBuilding || null,

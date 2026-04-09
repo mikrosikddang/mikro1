@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
-import { isAdmin, canAccessSellerFeatures } from "@/lib/roles";
+import { isAdmin } from "@/lib/roles";
 import { toggleWishlist, isWishlisted } from "@/lib/wishlist";
 import ActionSheet, { ActionSheetItem } from "@/components/ActionSheet";
 
@@ -23,7 +23,6 @@ export default function ProductActionMenu({
   const [processing, setProcessing] = useState(false);
 
   const isAdminUser = session ? isAdmin(session.role) : false;
-  const isSellerUser = session ? canAccessSellerFeatures(session.role) : false;
   const isOwnProduct = session ? session.userId === sellerId : false;
   const wishlisted = isWishlisted(productId);
 
@@ -42,7 +41,7 @@ export default function ProductActionMenu({
 
   // 판매자: 상품 편집
   const handleEdit = useCallback(() => {
-    router.push(`/seller/products/${productId}/edit`);
+    router.push(`/p/${productId}/edit`);
     onClose();
   }, [productId, router, onClose]);
 
@@ -126,10 +125,10 @@ export default function ProductActionMenu({
         onClick={handleToggleWishlist}
       />
 
-      {/* 판매자: 내 상품 편집 */}
-      {isSellerUser && isOwnProduct && (
+      {/* 작성자: 내 게시물 편집 */}
+      {isOwnProduct && (
         <ActionSheetItem
-          label="상품 편집"
+          label="게시물 수정"
           icon={
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path

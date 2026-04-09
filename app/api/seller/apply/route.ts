@@ -21,6 +21,7 @@ import {
   normalizeStoreSlug,
   validateSellerKindRequirements,
 } from "@/lib/sellerTypes";
+import { StoreSlugConflictError, updateStoreSlugForProfile } from "@/lib/storeSlug";
 
 export const runtime = "nodejs";
 
@@ -273,24 +274,9 @@ export async function POST(request: Request) {
         })
       : null;
 
-    const existingStoreSlug = await prisma.sellerProfile.findFirst({
-      where: {
-        storeSlug,
-        userId: { not: session.userId },
-      },
-      select: { id: true },
-    });
-
     if (existingSlug) {
       return NextResponse.json(
         { error: "이미 사용 중인 크리에이터 슬러그입니다." },
-        { status: 409 }
-      );
-    }
-
-    if (existingStoreSlug) {
-      return NextResponse.json(
-        { error: "이미 사용 중인 상점 URL입니다." },
         { status: 409 }
       );
     }
@@ -337,20 +323,33 @@ export async function POST(request: Request) {
     };
 
     const result = await prisma.$transaction(async (tx) => {
-      const profile = await tx.sellerProfile.upsert({
+      const existingProfile = await tx.sellerProfile.findUnique({
         where: { userId: session.userId },
-        create: {
-          userId: session.userId,
-          ...profileData,
-          status: SellerApprovalStatus.PENDING,
-          rejectedReason: null,
-        },
-        update: {
-          ...profileData,
-          status: SellerApprovalStatus.PENDING,
-          rejectedReason: null,
-        },
+        select: { id: true, storeSlug: true },
       });
+
+      const profile = existingProfile
+        ? await tx.sellerProfile.update({
+            where: { userId: session.userId },
+            data: {
+              ...profileData,
+              status: SellerApprovalStatus.PENDING,
+              rejectedReason: null,
+              storeSlug: undefined,
+            },
+          })
+        : await tx.sellerProfile.create({
+            data: {
+              userId: session.userId,
+              ...profileData,
+              status: SellerApprovalStatus.PENDING,
+              rejectedReason: null,
+            },
+          });
+
+      if (existingProfile) {
+        await updateStoreSlugForProfile(tx, profile.id, storeSlug);
+      }
 
       // ADMIN keeps their role — only creates sellerProfile
       if (!userIsAdmin) {
@@ -387,6 +386,12 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
+    if (error instanceof StoreSlugConflictError) {
+      return NextResponse.json(
+        { error: "이미 사용 중인 상점 URL입니다." },
+        { status: 409 }
+      );
+    }
     console.error("POST /api/seller/apply error:", error);
     return NextResponse.json(
       { error: "Failed to submit application" },

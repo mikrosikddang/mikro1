@@ -35,9 +35,6 @@ export default async function ApplyPage() {
         </p>
         <div className="mb-8 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
           <p className="text-[14px] font-semibold text-gray-900">가입 즉시 내 공간이 생성됩니다.</p>
-          <p className="mt-1 text-[13px] text-gray-600 leading-relaxed">
-            판매자 승인 전에도 공간에서 아카이브 게시물을 올릴 수 있으며, 실제 판매는 입점 승인 후부터 가능합니다.
-          </p>
           <div className="mt-3 flex gap-2">
             <Link
               href="/space"

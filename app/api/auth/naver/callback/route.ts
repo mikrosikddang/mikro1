@@ -8,6 +8,7 @@ import {
   upsertUserAttribution,
 } from "@/lib/attribution";
 import { ensureUserSpaceProfile } from "@/lib/userSpace";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const clientId = process.env.NAVER_CLIENT_ID!;
   const clientSecret = process.env.NAVER_CLIENT_SECRET!;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const baseUrl = getCanonicalOrigin();
   const redirectUri = `${baseUrl}/api/auth/naver/callback`;
 
   try {

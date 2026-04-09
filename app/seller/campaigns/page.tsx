@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CampaignStatus, SellerKind } from "@prisma/client";
 import { formatKrw } from "@/lib/format";
 import { sellerKindLabel } from "@/lib/sellerTypes";
+import { buildCanonicalUrl } from "@/lib/siteUrl";
 
 type ProductOption = {
   id: string;
@@ -134,8 +135,9 @@ export default function SellerCampaignsPage() {
   };
 
   const copyLink = async (campaign: CampaignItem) => {
-    const origin = window.location.origin;
-    const url = `${origin}/c/${campaign.slug}?campaign=${campaign.slug}&ref=${sellerProfile?.creatorSlug || campaign.refCode}`;
+    const url = buildCanonicalUrl(
+      `/c/${campaign.slug}?campaign=${campaign.slug}&ref=${sellerProfile?.creatorSlug || campaign.refCode}`,
+    );
     await navigator.clipboard.writeText(url);
     setSuccess("캠페인 링크를 복사했습니다.");
     window.setTimeout(() => setSuccess(null), 2500);

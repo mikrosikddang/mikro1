@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { normalizeName, normalizePhone } from "@/lib/socialAuth";
+import { getCanonicalOrigin } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,7 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   const session = await getSession();
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mikrobrand.kr";
+  const baseUrl = getCanonicalOrigin();
   if (!session) {
     return NextResponse.redirect(`${baseUrl}/login?next=/my/account`);
   }

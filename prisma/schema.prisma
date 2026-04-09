@@ -214,6 +214,18 @@ model SellerProfile {
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  slugHistory    StoreSlugHistory[]
+}
+
+model StoreSlugHistory {
+  id              String        @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  slug            String        @unique
+  createdAt       DateTime      @default(now())
+
+  @@index([sellerProfileId, createdAt])
 }
 
 model Product {

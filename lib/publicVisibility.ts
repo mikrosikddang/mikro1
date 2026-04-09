@@ -72,3 +72,12 @@ export function getCustomerVisibleProductWhere(
   };
 }
 
+export function getOwnerVisibleProductWhere(
+  extra: Prisma.ProductWhereInput = {},
+): Prisma.ProductWhereInput {
+  return {
+    isDeleted: false,
+    ...extra,
+  };
+}
+

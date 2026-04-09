@@ -85,6 +85,7 @@ export default async function SellerShopPage({ params }: Props) {
         {/* Instagram-style header */}
         <SellerShopHeader
           sellerId={sellerId}
+          storeSlug={profile.storeSlug ?? `s/${sellerId}`}
           shopName={profile.shopName}
           bio={profile.bio}
           avatarUrl={profile.avatarUrl}

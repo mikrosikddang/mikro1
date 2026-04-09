@@ -15,7 +15,10 @@ import ProductSellerActions from "./ProductSellerActions";
 import ReviewSection, { ReviewSummary } from "./ReviewSection";
 import InquirySection from "./InquirySection";
 import ScrollToTop from "@/components/ScrollToTop";
-import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
+import {
+  getCustomerVisibleProductWhere,
+  getOwnerVisibleProductWhere,
+} from "@/lib/publicVisibility";
 import { isArchivePost } from "@/lib/productPostType";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
@@ -24,18 +27,22 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
-
-  const [product, session] = await Promise.all([
-    prisma.product.findFirst({
-      where: getCustomerVisibleProductWhere({ id }),
-      include: {
-        images: { orderBy: { sortOrder: "asc" } },
-        seller: { include: { sellerProfile: true } },
-        variants: { orderBy: { createdAt: "asc" } },
-      },
-    }),
-    getSession(),
-  ]);
+  const session = await getSession();
+  const product = await prisma.product.findFirst({
+    where: session
+      ? {
+          OR: [
+            getOwnerVisibleProductWhere({ id, sellerId: session.userId }),
+            getCustomerVisibleProductWhere({ id }),
+          ],
+        }
+      : getCustomerVisibleProductWhere({ id }),
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+      seller: { include: { sellerProfile: true } },
+      variants: { orderBy: { createdAt: "asc" } },
+    },
+  });
 
   if (!product) notFound();
 
@@ -132,17 +139,10 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Review Summary */}
         <ReviewSummary productId={product.id} />
 
-        {isArchive && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-[13px] font-medium text-amber-800">아카이브 게시물</p>
-            <p className="mt-1 text-[12px] text-amber-700 leading-relaxed">
-              가격과 옵션이 없는 기록형 게시물입니다. 판매 운영은 판매자 승인 완료 후 가능한 상품에서만 진행됩니다.
-            </p>
-          </div>
-        )}
-
         {/* Seller Actions (self only) */}
-        {isSelf && <ProductSellerActions productId={product.id} />}
+        {isSelf && (
+          <ProductSellerActions productId={product.id} postType={product.postType} />
+        )}
 
         {/* Divider */}
         <div className="border-t border-gray-100 my-6" />

@@ -8,6 +8,7 @@ import {
   ATTRIBUTION_COOKIE_KEYS,
   buildAttributionCookieValues,
 } from "@/lib/attributionShared";
+import { CANONICAL_HOST, getCanonicalOrigin, isLocalHost } from "@/lib/siteUrl";
 
 /** Route-specific rate limit rules (matched in order, first match wins) */
 const RATE_RULES: {
@@ -79,6 +80,7 @@ const DEFAULT_MUTATION_WINDOW_MS = 60_000;
 
 /** CORS allowed origins */
 const ALLOWED_ORIGINS = [
+  getCanonicalOrigin(),
   process.env.NEXT_PUBLIC_APP_URL,
   "http://localhost:3000",
   "http://localhost:3001",
@@ -100,6 +102,19 @@ export function middleware(request: NextRequest) {
   const method = request.method;
   const origin = request.headers.get("origin");
   const isApiRoute = pathname.startsWith("/api/");
+  const requestHost = request.nextUrl.host;
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    !isLocalHost(requestHost) &&
+    requestHost !== CANONICAL_HOST &&
+    (method === "GET" || method === "HEAD")
+  ) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.protocol = "https:";
+    redirectUrl.host = CANONICAL_HOST;
+    return NextResponse.redirect(redirectUrl, 308);
+  }
 
   const response = NextResponse.next();
   const existingSessionKey =
