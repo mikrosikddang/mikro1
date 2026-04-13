@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getSession } from "@/lib/auth";
+import { getSession, type Session } from "@/lib/auth";
 import { requireBuyerFeatures, requireSeller } from "@/lib/roleGuards";
 import { sanitizeDescriptionJson, type ProductDescription } from "@/lib/descriptionSchema";
 import { validateFlatVariants, formatValidationErrors } from "@/lib/variantValidation";
@@ -437,13 +437,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const _session = await getSession();
-    const session = await requireSeller(_session);
-
-    const sellerId = session.userId;
     const { id } = await params;
 
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing || existing.sellerId !== sellerId) {
+    if (!existing) {
+      return NextResponse.json({ error: "상품을 찾을 수 없습니다" }, { status: 404 });
+    }
+
+    let session: Session;
+    if (existing.postType === "ARCHIVE") {
+      session = requireBuyerFeatures(_session);
+    } else {
+      session = await requireSeller(_session);
+    }
+
+    if (existing.sellerId !== session.userId) {
       return NextResponse.json({ error: "상품을 찾을 수 없습니다" }, { status: 404 });
     }
 

@@ -110,11 +110,7 @@ export default async function ProductDetailPage({ params }: Props) {
             {product.title}
           </h1>
           <div className="shrink-0 text-right">
-            {isArchive ? (
-              <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-600">
-                아카이브 게시물
-              </span>
-            ) : product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
+            {isArchive ? null : product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
               <>
                 <div className="flex items-baseline gap-1.5">
                   <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">

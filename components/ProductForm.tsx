@@ -24,7 +24,7 @@ function generateId() {
 }
 
 const CATEGORIES = ["아우터", "반팔티", "긴팔티", "니트", "셔츠", "바지", "원피스", "스커트"];
-const MAX_MAIN = 10;
+const MAX_MAIN = 15;
 const MAX_CONTENT = 20;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -768,7 +768,7 @@ export default function ProductForm({
     const errs: Record<string, string> = {};
 
     if (mainImages.length === 0) errs.mainImages = "대표 이미지를 1장 이상 올려주세요";
-    if (!title.trim()) errs.title = "상품명을 입력해주세요";
+    if (!title.trim()) errs.title = isArchiveMode ? "제목을 입력해주세요" : "상품명을 입력해주세요";
 
     const price = parseInt(priceKrw.replace(/,/g, ""), 10);
     if (!isArchiveMode && (isNaN(price) || price < 0)) errs.price = "가격을 올바르게 입력해주세요";
@@ -894,7 +894,7 @@ export default function ProductForm({
       router.push(redirectTo);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : (editProductId ? "상품 수정에 실패했습니다" : "상품 등록에 실패했습니다"));
+      setError(err instanceof Error ? err.message : (editProductId ? (isArchiveMode ? "게시물 수정에 실패했습니다" : "상품 수정에 실패했습니다") : (isArchiveMode ? "게시물 등록에 실패했습니다" : "상품 등록에 실패했습니다")));
       setSubmitting(false);
     }
   }
@@ -937,11 +937,11 @@ export default function ProductForm({
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-bold text-black">
           {editProductId
-            ? `${getPostTypeLabel(postType)} ${postType === "ARCHIVE" ? "게시물" : "상품"} 수정`
-            : initialValues
-              ? "복제 등록"
-              : isArchiveMode
-                ? "아카이브 올리기"
+            ? `${postType === "ARCHIVE" ? "게시물" : "상품"} 수정`
+            : isArchiveMode
+              ? "게시물 올리기"
+              : initialValues
+                ? "복제 등록"
                 : "상품 올리기"}
         </h1>
         {editProductId && (
@@ -960,7 +960,7 @@ export default function ProductForm({
                 : "bg-gray-200 text-gray-500"
             }`}
           >
-            {isActive ? "판매중" : "숨김"}
+            {isActive ? (isArchiveMode ? "공개" : "판매중") : "숨김"}
           </button>
         )}
       </div>
@@ -1014,8 +1014,8 @@ export default function ProductForm({
       />
       {fieldErrors.mainImages && <p className="-mt-4 mb-4 text-[12px] text-red-500">{fieldErrors.mainImages}</p>}
 
-      {/* 이미지 컬러 지정 */}
-      {mainImages.length >= 2 && (
+      {/* 이미지 컬러 지정 (판매 게시물 전용) */}
+      {!isArchiveMode && mainImages.length >= 2 && (
         <section className="-mt-2 mb-6">
           <h3 className="text-[14px] font-medium text-gray-700 mb-2">
             이미지 컬러 지정 <span className="text-gray-400 font-normal">(선택)</span>
@@ -1394,7 +1394,7 @@ export default function ProductForm({
       {/* ===== Title ===== */}
       <section className="mb-5">
         <label htmlFor="title" className="block text-[14px] font-medium text-gray-700 mb-1.5">
-          상품명 <span className="text-red-500">*</span>
+          {isArchiveMode ? "제목" : "상품명"} <span className="text-red-500">*</span>
         </label>
         <input
           id="title"
@@ -1512,7 +1512,7 @@ export default function ProductForm({
 
       {/* ===== Structured Description ===== */}
       <section className="mb-8 space-y-6">
-        <h3 className="text-[16px] font-bold text-gray-900">상품 설명</h3>
+        <h3 className="text-[16px] font-bold text-gray-900">{isArchiveMode ? "설명" : "상품 설명"}</h3>
 
         <div className="space-y-2">
           <label htmlFor="detailText" className="block text-[14px] font-medium text-gray-700">
@@ -1522,14 +1522,15 @@ export default function ProductForm({
             id="detailText"
             value={detailText}
             onChange={(e) => setDetailText(e.target.value)}
-            placeholder="상품의 특징, 추천 포인트, 상태 등을 자유롭게 적어주세요."
+            placeholder={isArchiveMode ? "내용을 자유롭게 적어주세요." : "상품의 특징, 추천 포인트, 상태 등을 자유롭게 적어주세요."}
             rows={6}
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] placeholder:text-gray-400 focus:outline-none focus:border-black resize-none"
             disabled={submitting}
           />
         </div>
 
-        {/* Section 2: Spec */}
+        {/* Section 2: Spec (판매 게시물 전용) */}
+        {!isArchiveMode && (
         <div className="p-4 bg-gray-50 rounded-xl space-y-3">
           <h4 className="text-[14px] font-medium text-gray-700 mb-2">사양 정보 <span className="text-[12px] font-normal text-gray-400">(선택)</span></h4>
           <div className="grid grid-cols-1 gap-3">
@@ -1575,6 +1576,7 @@ export default function ProductForm({
             />
           </div>
         </div>
+        )}
 
       </section>
 
@@ -1591,7 +1593,7 @@ export default function ProductForm({
           <button
             type="button"
             onClick={async () => {
-              if (!confirm("정말로 이 상품을 삭제하시겠습니까?")) return;
+              if (!confirm(isArchiveMode ? "정말로 이 게시물을 삭제하시겠습니까?" : "정말로 이 상품을 삭제하시겠습니까?")) return;
               setDeleting(true);
               try {
                 const res = await fetch(`/api/seller/products/${editProductId}`, { method: "DELETE" });
@@ -1602,7 +1604,7 @@ export default function ProductForm({
                 router.push("/seller");
                 router.refresh();
               } catch (err) {
-                alert(err instanceof Error ? err.message : "상품 삭제에 실패했습니다");
+                alert(err instanceof Error ? err.message : (isArchiveMode ? "게시물 삭제에 실패했습니다" : "상품 삭제에 실패했습니다"));
                 setDeleting(false);
               }
             }}
@@ -1815,7 +1817,7 @@ function ImagePickerSection({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
 
-      <div ref={listRef} className="flex gap-2 overflow-x-auto pb-2" style={{ touchAction: "pan-y", overscrollBehaviorX: "none", WebkitOverflowScrolling: "touch" }}>
+      <div ref={listRef} className="flex gap-2 overflow-x-auto pb-2" style={{ touchAction: imgDragIndex !== null ? "none" : "auto", overscrollBehaviorX: "none", WebkitOverflowScrolling: "touch" }}>
         {/* Add button */}
         {images.length < max && (
           <button

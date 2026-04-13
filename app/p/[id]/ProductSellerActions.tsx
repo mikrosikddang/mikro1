@@ -29,14 +29,13 @@ export default function ProductSellerActions({
       });
 
       if (!res.ok) {
-        throw new Error("상품 숨기기 실패");
+        throw new Error("숨기기 실패");
       }
 
-      // Redirect to seller products page
       router.push(postType === "ARCHIVE" ? "/space" : "/seller/products");
       router.refresh();
     } catch {
-      alert("상품 숨기기에 실패했습니다.");
+      alert("숨기기에 실패했습니다.");
       setHiding(false);
     }
   };
@@ -74,10 +73,10 @@ export default function ProductSellerActions({
             <div className="bg-white rounded-2xl max-w-[280px] w-full overflow-hidden">
               <div className="p-6 text-center">
                 <h3 className="text-[17px] font-bold text-gray-900 mb-2">
-                  상품을 숨기시겠어요?
+                  {postType === "ARCHIVE" ? "게시물을 숨기시겠어요?" : "상품을 숨기시겠어요?"}
                 </h3>
                 <p className="text-[14px] text-gray-600">
-                  숨긴 상품은 고객에게 보이지 않습니다.
+                  {postType === "ARCHIVE" ? "숨긴 게시물은 다른 사용자에게 보이지 않습니다." : "숨긴 상품은 고객에게 보이지 않습니다."}
                 </p>
               </div>
 
