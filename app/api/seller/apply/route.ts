@@ -34,11 +34,18 @@ interface SellerApplyRequest {
   floor?: string;
   roomNo?: string;
   managerPhone: string;
+  taxType?: string | null;
+  bizName?: string | null;
+  bizOwnerName?: string | null;
   bizRegImageUrl?: string;
   mailOrderReportImageUrl?: string;
   passbookImageUrl?: string;
   bizRegNo?: string | null;
   instagramHandle?: string | null;
+  settlementBank?: string | null;
+  settlementAccountNo?: string | null;
+  settlementPhone?: string | null;
+  settlementEmail?: string | null;
   csKakaoId?: string | null;
   csPhone?: string | null;
   csEmail?: string | null;
@@ -140,18 +147,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!normalize(body.bizRegImageUrl)) {
-      return NextResponse.json(
-        { error: "사업자등록증을 업로드해주세요." },
-        { status: 400 }
-      );
-    }
+    const isBizSeller = body.isBusinessSeller !== false;
 
-    if (!normalize(body.mailOrderReportImageUrl)) {
-      return NextResponse.json(
-        { error: "통신판매업 신고증을 업로드해주세요." },
-        { status: 400 }
-      );
+    if (isBizSeller) {
+      if (!normalize(body.bizRegImageUrl)) {
+        return NextResponse.json(
+          { error: "사업자등록증을 업로드해주세요." },
+          { status: 400 }
+        );
+      }
+
+      if (body.taxType === "GENERAL_CORP" && !normalize(body.mailOrderReportImageUrl)) {
+        return NextResponse.json(
+          { error: "통신판매업 신고증을 업로드해주세요." },
+          { status: 400 }
+        );
+      }
     }
 
     if (!normalize(body.passbookImageUrl)) {
@@ -290,11 +301,19 @@ export async function POST(request: Request) {
       floor: normalize(body.floor),
       roomNo: normalize(body.roomNo),
       managerPhone: body.managerPhone.trim(),
+      taxType: normalize(body.taxType),
+      bizName: normalize(body.bizName),
+      bizOwnerName: normalize(body.bizOwnerName),
       bizRegNo: normalize(body.bizRegNo),
       bizRegImageUrl: normalize(body.bizRegImageUrl),
       mailOrderReportImageUrl: normalize(body.mailOrderReportImageUrl),
       passbookImageUrl: normalize(body.passbookImageUrl),
       instagramHandle: normalize(body.instagramHandle)?.replace(/^@+/, "") ?? null,
+      settlementBank: normalize(body.settlementBank),
+      settlementAccountNo: normalize(body.settlementAccountNo),
+      settlementAccountHolder: normalize(body.bizOwnerName),
+      settlementPhone: normalize(body.settlementPhone),
+      settlementEmail: normalize(body.settlementEmail),
       csKakaoId: normalize(body.csKakaoId),
       csPhone: normalize(body.csPhone),
       csEmail: normalize(body.csEmail),
@@ -309,7 +328,7 @@ export async function POST(request: Request) {
       socialChannelUrl: normalize(body.socialChannelUrl),
       followerCount:
         body.followerCount != null ? Math.floor(body.followerCount) : null,
-      isBusinessSeller: true,
+      isBusinessSeller: isBizSeller,
       commissionRateBps: defaultCommissionRateBps(sellerKind),
       ...(normalize(body.bizRegNo) ||
       normalize(body.bizRegImageUrl) ||

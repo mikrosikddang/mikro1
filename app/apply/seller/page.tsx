@@ -17,6 +17,34 @@ import {
   normalizeVisibleSellerKind,
 } from "@/lib/sellerTypes";
 
+const TAX_TYPES = [
+  { value: "SIMPLIFIED", label: "간이과세자", desc: "통신판매업 신고증 없이 신청 가능" },
+  { value: "GENERAL_CORP", label: "일반 / 법인사업자", desc: "통신판매업 신고증 필수" },
+] as const;
+type TaxType = (typeof TAX_TYPES)[number]["value"];
+
+const BIZ_CLASS = [
+  { value: "INDIVIDUAL", label: "개인" },
+  { value: "BUSINESS", label: "사업자" },
+] as const;
+type BizClass = (typeof BIZ_CLASS)[number]["value"];
+
+const BANK_LIST = [
+  "KDB산업은행", "IBK기업은행", "(구)KEB외환은행", "KB국민은행",
+  "Sh수협은행", "NH농협은행", "단위농협(지역농축업)", "우리은행",
+  "SC제일은행", "(구)신한은행", "씨티은행", "수협중앙회",
+  "DGB대구은행", "광주은행", "제주은행", "전북은행", "경남은행",
+  "새마을금고", "신협", "저축은행중앙회", "홍콩상하이은행", "도이치은행",
+  "BOA", "산림조합", "우체국예금보험", "하나은행", "신한은행",
+  "케이뱅크", "카카오뱅크", "유안타증권", "KB증권",
+  "KTB투자증권(다올투자증권)", "미래에셋증권", "삼성증권", "한국투자증권",
+  "NH투자증권", "교보증권", "하이투자증권", "현대차증권", "키움증권",
+  "SK증권", "대신증권", "한화투자증권", "하나금융투자", "토스증권",
+  "신한금융투자", "DB금융투자", "유진투자증권", "메리츠증권",
+  "카카오페이증권", "부국증권", "신영증권", "LIG투자증권", "우리투자증권",
+  "JPMorgan Chase Bank N.A., SEOUL Branch",
+] as const;
+
 const SHOP_TYPES = ["남성복", "여성복", "유니섹스"];
 const MARKET_BUILDINGS = [
   "APM",
@@ -40,6 +68,10 @@ type FormState = {
   shopName: string;
   storeSlug: string;
   type: string;
+  bizClass: BizClass;
+  taxType: TaxType;
+  bizName: string;
+  bizOwnerName: string;
   bizRegNo: string;
   bizLicenseImage: string;
   mailOrderReportImage: string;
@@ -50,6 +82,10 @@ type FormState = {
   floor: string;
   roomNo: string;
   managerPhone: string;
+  settlementBank: string;
+  settlementAccountNo: string;
+  settlementPhone: string;
+  settlementEmail: string;
   csType: CsType | "";
   csContact: string;
   csAddress: string;
@@ -70,6 +106,10 @@ const INITIAL_FORM: FormState = {
   shopName: "",
   storeSlug: "",
   type: "",
+  bizClass: "INDIVIDUAL",
+  taxType: "SIMPLIFIED",
+  bizName: "",
+  bizOwnerName: "",
   bizRegNo: "",
   bizLicenseImage: "",
   mailOrderReportImage: "",
@@ -80,6 +120,10 @@ const INITIAL_FORM: FormState = {
   floor: "",
   roomNo: "",
   managerPhone: "",
+  settlementBank: "",
+  settlementAccountNo: "",
+  settlementPhone: "",
+  settlementEmail: "",
   csType: "",
   csContact: "",
   csAddress: "",
@@ -189,6 +233,10 @@ export default function SellerApplyPage() {
           shopName: p.shopName || "",
           storeSlug: p.storeSlug || buildDefaultStoreSlug(p.shopName || ""),
           type: p.type || "",
+          bizClass: p.isBusinessSeller === false ? "INDIVIDUAL" : "BUSINESS",
+          taxType: (p.taxType as TaxType) || "SIMPLIFIED",
+          bizName: p.bizName || "",
+          bizOwnerName: p.bizOwnerName || "",
           bizRegNo: p.bizRegNo || "",
           bizLicenseImage: p.bizRegImageUrl || "",
           mailOrderReportImage: p.mailOrderReportImageUrl || "",
@@ -203,6 +251,10 @@ export default function SellerApplyPage() {
           floor: p.floor || "",
           roomNo: p.roomNo || "",
           managerPhone: p.managerPhone || "",
+          settlementBank: p.settlementBank || "",
+          settlementAccountNo: p.settlementAccountNo || "",
+          settlementPhone: p.settlementPhone || "",
+          settlementEmail: p.settlementEmail || "",
           csType,
           csContact,
           csAddress: p.csAddress || "",
@@ -217,7 +269,7 @@ export default function SellerApplyPage() {
           socialChannelUrl: p.socialChannelUrl || "",
           followerCount:
             p.followerCount != null ? String(p.followerCount) : "",
-          isBusinessSeller: true,
+          isBusinessSeller: p.isBusinessSeller !== false,
         });
       }
     } catch (error) {
@@ -275,12 +327,21 @@ export default function SellerApplyPage() {
       nextErrors.storeSlug = "사용할 수 없는 상점 URL입니다.";
     }
     if (!formData.type) nextErrors.type = "상점 유형을 선택해주세요.";
-    if (!formData.bizLicenseImage) {
-      nextErrors.bizLicenseImage = "사업자등록증을 업로드해주세요.";
+    if (formData.bizClass === "BUSINESS") {
+      if (!formData.bizName.trim()) nextErrors.bizName = "상호명을 입력해주세요.";
+      if (!formData.bizRegNo.trim()) nextErrors.bizRegNo = "사업자등록번호를 입력해주세요.";
+      if (!formData.bizLicenseImage) {
+        nextErrors.bizLicenseImage = "사업자등록증을 업로드해주세요.";
+      }
+      if (formData.taxType === "GENERAL_CORP" && !formData.mailOrderReportImage) {
+        nextErrors.mailOrderReportImage = "통신판매업 신고증을 업로드해주세요.";
+      }
     }
-    if (!formData.mailOrderReportImage) {
-      nextErrors.mailOrderReportImage = "통신판매업 신고증을 업로드해주세요.";
-    }
+    if (!formData.bizOwnerName.trim()) nextErrors.bizOwnerName = "대표자명을 입력해주세요.";
+    if (!formData.settlementBank) nextErrors.settlementBank = "정산 은행을 선택해주세요.";
+    if (!formData.settlementAccountNo.trim()) nextErrors.settlementAccountNo = "계좌번호를 입력해주세요.";
+    if (!formData.settlementPhone.trim()) nextErrors.settlementPhone = "휴대폰번호를 입력해주세요.";
+    if (!formData.settlementEmail.trim()) nextErrors.settlementEmail = "이메일을 입력해주세요.";
     if (!formData.passbookImage) {
       nextErrors.passbookImage = "정산 통장 사본을 업로드해주세요.";
     }
@@ -387,16 +448,26 @@ export default function SellerApplyPage() {
           sellerKind: formData.sellerKind,
           shopName: formData.shopName.trim(),
           storeSlug: nextStoreSlug,
-          bizRegNo: formData.bizRegNo.trim() || null,
+          taxType: formData.taxType,
+          bizName: formData.bizClass === "BUSINESS" ? formData.bizName.trim() || null : null,
+          bizOwnerName: formData.bizOwnerName.trim(),
+          bizRegNo: formData.bizClass === "BUSINESS" ? formData.bizRegNo.trim() || null : null,
           type: formData.type,
           marketBuilding: resolvedMarketBuilding || null,
           floor: formData.floor.trim() || null,
           roomNo: formData.roomNo.trim() || null,
           managerPhone: formData.managerPhone.trim(),
-          bizRegImageUrl: formData.bizLicenseImage || null,
-          mailOrderReportImageUrl: formData.mailOrderReportImage || null,
+          bizRegImageUrl: formData.bizClass === "BUSINESS" ? formData.bizLicenseImage || null : null,
+          mailOrderReportImageUrl:
+            formData.bizClass === "BUSINESS" && formData.taxType === "GENERAL_CORP"
+              ? formData.mailOrderReportImage || null
+              : null,
           passbookImageUrl: formData.passbookImage || null,
           instagramHandle: formData.instagramHandle.trim() || null,
+          settlementBank: formData.settlementBank || null,
+          settlementAccountNo: formData.settlementAccountNo.replace(/-/g, "").trim() || null,
+          settlementPhone: formData.settlementPhone.trim() || null,
+          settlementEmail: formData.settlementEmail.trim() || null,
           csKakaoId,
           csPhone,
           csEmail,
@@ -412,7 +483,7 @@ export default function SellerApplyPage() {
           followerCount: formData.followerCount.trim()
             ? Number(formData.followerCount.trim())
             : null,
-          isBusinessSeller: formData.isBusinessSeller,
+          isBusinessSeller: formData.bizClass === "BUSINESS",
         }),
       });
 
@@ -873,74 +944,226 @@ export default function SellerApplyPage() {
             {inlineError("managerPhone")}
           </div>
 
-          <div className="mb-4">
-            <label className="mb-2 block text-[14px] font-medium text-gray-700">
-              정산 구분 <span className="text-red-500">*</span>
-            </label>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[14px] font-medium text-gray-900">
-              사업자 정산
+          <div className="border-t border-gray-200 pt-6 mb-6">
+            <h2 className="mb-4 text-[16px] font-bold text-black">정산 / 사업자 정보</h2>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                분류 <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                {BIZ_CLASS.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => updateField("bizClass", item.value)}
+                    className={`flex-1 rounded-xl border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                      formData.bizClass === item.value
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-700"
+                    }`}
+                    disabled={submitting}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="mt-1 text-[12px] text-gray-500">
-              판매자 정산은 사업자 정산 기준으로만 진행됩니다.
-            </p>
+
+            {formData.bizClass === "BUSINESS" && (
+              <>
+                <div className="mb-4">
+                  <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                    과세 유형 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TAX_TYPES.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => updateField("taxType", item.value)}
+                        className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                          formData.taxType === item.value
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-700"
+                        }`}
+                        disabled={submitting}
+                      >
+                        <div className="text-[14px] font-semibold">{item.label}</div>
+                        <div
+                          className={`mt-1 text-[12px] ${
+                            formData.taxType === item.value ? "text-gray-200" : "text-gray-500"
+                          }`}
+                        >
+                          {item.desc}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                    상호명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.bizName}
+                    onChange={(e) => updateField("bizName", e.target.value)}
+                    placeholder="사업자등록증상의 상호명"
+                    className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                    disabled={submitting}
+                  />
+                  {inlineError("bizName")}
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                    사업자등록번호 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.bizRegNo}
+                    onChange={(e) => updateField("bizRegNo", e.target.value)}
+                    placeholder="예: 123-45-67890"
+                    className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                    disabled={submitting}
+                  />
+                  {inlineError("bizRegNo")}
+                </div>
+              </>
+            )}
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                대표자명 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.bizOwnerName}
+                onChange={(e) => updateField("bizOwnerName", e.target.value)}
+                placeholder="정산 예금주와 일치해야 합니다"
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                disabled={submitting}
+              />
+              {inlineError("bizOwnerName")}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                은행 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.settlementBank}
+                onChange={(e) => updateField("settlementBank", e.target.value)}
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                disabled={submitting}
+              >
+                <option value="">선택해주세요</option>
+                {BANK_LIST.map((bank) => (
+                  <option key={bank} value={bank}>
+                    {bank}
+                  </option>
+                ))}
+              </select>
+              {inlineError("settlementBank")}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                계좌번호 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.settlementAccountNo}
+                onChange={(e) =>
+                  updateField("settlementAccountNo", e.target.value.replace(/[^\d]/g, ""))
+                }
+                placeholder="- 없이 입력"
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                inputMode="numeric"
+                disabled={submitting}
+              />
+              {inlineError("settlementAccountNo")}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                휴대폰번호 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={formData.settlementPhone}
+                onChange={(e) => updateField("settlementPhone", e.target.value)}
+                placeholder="010-1234-5678"
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                disabled={submitting}
+              />
+              {inlineError("settlementPhone")}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-[14px] font-medium text-gray-700">
+                이메일 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={formData.settlementEmail}
+                onChange={(e) => updateField("settlementEmail", e.target.value)}
+                placeholder="example@email.com"
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                disabled={submitting}
+              />
+              {inlineError("settlementEmail")}
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label className="mb-2 block text-[14px] font-medium text-gray-700">
-              사업자등록번호 <span className="text-gray-400">(선택)</span>
-            </label>
-            <input
-              type="text"
-              value={formData.bizRegNo}
-              onChange={(e) => updateField("bizRegNo", e.target.value)}
-              placeholder="예: 123-45-67890"
-              className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
-            />
-            <p className="mt-1 text-[12px] text-gray-500">
-              입점 심사 및 정산/세무 확인 용도로만 사용됩니다.
-            </p>
-          </div>
+          {formData.bizClass === "BUSINESS" && (
+            <>
+              <SellerDocumentUploadField
+                label="사업자등록증"
+                value={formData.bizLicenseImage}
+                uploading={uploadingField === "bizLicenseImage"}
+                disabled={submitting}
+                helperText="입점 심사 및 정산/세무 확인 용도로 사용됩니다."
+                errorText={errors.bizLicenseImage ?? null}
+                onUpload={(file) =>
+                  handleDocumentUpload(
+                    "bizLicenseImage",
+                    "/api/uploads/biz-license",
+                    file,
+                  )
+                }
+                onClear={() => updateField("bizLicenseImage", "")}
+              />
 
-          <SellerDocumentUploadField
-            label="사업자등록증"
-            value={formData.bizLicenseImage}
-            uploading={uploadingField === "bizLicenseImage"}
-            disabled={submitting}
-            helperText="입점 심사 및 정산/세무 확인 용도로 사용됩니다."
-            errorText={errors.bizLicenseImage ?? null}
-            onUpload={(file) =>
-              handleDocumentUpload(
-                "bizLicenseImage",
-                "/api/uploads/biz-license",
-                file,
-              )
-            }
-            onClear={() => updateField("bizLicenseImage", "")}
-          />
-
-          <SellerDocumentUploadField
-            label="통신판매업 신고증"
-            value={formData.mailOrderReportImage}
-            uploading={uploadingField === "mailOrderReportImage"}
-            disabled={submitting}
-            helperText="전자상거래 판매 자격 확인을 위한 필수 서류입니다."
-            errorText={errors.mailOrderReportImage ?? null}
-            onUpload={(file) =>
-              handleDocumentUpload(
-                "mailOrderReportImage",
-                "/api/uploads/mail-order-report",
-                file,
-              )
-            }
-            onClear={() => updateField("mailOrderReportImage", "")}
-          />
+              {formData.taxType === "GENERAL_CORP" && (
+                <SellerDocumentUploadField
+                  label="통신판매업 신고증"
+                  value={formData.mailOrderReportImage}
+                  uploading={uploadingField === "mailOrderReportImage"}
+                  disabled={submitting}
+                  helperText="전자상거래 판매 자격 확인을 위한 필수 서류입니다."
+                  errorText={errors.mailOrderReportImage ?? null}
+                  onUpload={(file) =>
+                    handleDocumentUpload(
+                      "mailOrderReportImage",
+                      "/api/uploads/mail-order-report",
+                      file,
+                    )
+                  }
+                  onClear={() => updateField("mailOrderReportImage", "")}
+                />
+              )}
+            </>
+          )}
 
           <SellerDocumentUploadField
             label="정산 통장 사본"
             value={formData.passbookImage}
             uploading={uploadingField === "passbookImage"}
             disabled={submitting}
-            helperText="사업자등록증상의 대표자명과 실제 정산받을 계좌의 예금주가 일치하는지 확인해야 합니다."
+            helperText="대표자명과 실제 정산받을 계좌의 예금주가 일치하는지 확인해야 합니다."
             errorText={errors.passbookImage ?? null}
             onUpload={(file) =>
               handleDocumentUpload("passbookImage", "/api/uploads/passbook", file)

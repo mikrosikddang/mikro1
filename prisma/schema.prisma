@@ -184,6 +184,9 @@ model SellerProfile {
   managerPhone   String?
   instagramHandle String?            @db.VarChar(80)  // 브랜드 확인용 인스타그램 계정
 
+  taxType        String?              @db.VarChar(20)  // SIMPLIFIED(간이과세자) | GENERAL_CORP(일반/법인)
+  bizName        String?              @db.VarChar(80)  // 상호명 (사업자등록증상)
+  bizOwnerName   String?              @db.VarChar(40)  // 대표자명
   bizRegNo       String?              // 사업자등록번호 (전자상거래법 표시용)
   bizRegImageUrl String?              // S3 URL
   mailOrderReportImageUrl String?     // 통신판매업 신고증 이미지
@@ -204,6 +207,8 @@ model SellerProfile {
   settlementBank String?              @db.VarChar(40)  // 정산 은행
   settlementAccountNo String?         @db.VarChar(60)  // 정산 계좌번호
   settlementAccountHolder String?     @db.VarChar(40)  // 정산 예금주
+  settlementPhone String?             @db.VarChar(30)  // 정산용 휴대폰
+  settlementEmail String?             // 정산용 이메일
   settlementSubmittedAt DateTime?     // 정산 계좌 제출 시점
   complianceReviewPending Boolean      @default(false) // 사업자/정산 정보 변경 검토 필요 여부
   status         SellerApprovalStatus @default(PENDING)
