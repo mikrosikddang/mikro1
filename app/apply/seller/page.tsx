@@ -99,6 +99,8 @@ type FormState = {
   socialChannelUrl: string;
   followerCount: string;
   isBusinessSeller: boolean;
+  bizRegVerified: "idle" | "loading" | "verified" | "failed";
+  bizRegVerifyMsg: string;
 };
 
 const INITIAL_FORM: FormState = {
@@ -137,6 +139,8 @@ const INITIAL_FORM: FormState = {
   socialChannelUrl: "",
   followerCount: "",
   isBusinessSeller: true,
+  bizRegVerified: "idle",
+  bizRegVerifyMsg: "",
 };
 
 export default function SellerApplyPage() {
@@ -270,6 +274,8 @@ export default function SellerApplyPage() {
           followerCount:
             p.followerCount != null ? String(p.followerCount) : "",
           isBusinessSeller: p.isBusinessSeller !== false,
+          bizRegVerified: "idle",
+          bizRegVerifyMsg: "",
         });
       }
     } catch (error) {
@@ -314,6 +320,50 @@ export default function SellerApplyPage() {
     }
   };
 
+  const handleVerifyBizRegNo = async () => {
+    const cleaned = formData.bizRegNo.replace(/[^0-9]/g, "");
+    if (cleaned.length !== 10) {
+      updateField("bizRegVerified", "failed");
+      updateField("bizRegVerifyMsg", "사업자등록번호는 10자리 숫자여야 합니다.");
+      return;
+    }
+
+    updateField("bizRegVerified", "loading");
+    updateField("bizRegVerifyMsg", "");
+
+    try {
+      const res = await fetch("/api/biz/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bizRegNo: cleaned }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        updateField("bizRegVerified", "failed");
+        updateField("bizRegVerifyMsg", data.error || "인증에 실패했습니다.");
+        return;
+      }
+
+      if (data.verified) {
+        updateField("bizRegVerified", "verified");
+        updateField(
+          "bizRegVerifyMsg",
+          `인증 완료 (${data.status}${data.taxType ? ` · ${data.taxType}` : ""})`,
+        );
+      } else {
+        updateField("bizRegVerified", "failed");
+        updateField(
+          "bizRegVerifyMsg",
+          `등록 상태: ${data.status} — 계속사업자만 신청 가능합니다.`,
+        );
+      }
+    } catch {
+      updateField("bizRegVerified", "failed");
+      updateField("bizRegVerifyMsg", "인증 중 오류가 발생했습니다.");
+    }
+  };
+
   const validate = () => {
     const nextErrors: FormErrors = {};
 
@@ -329,7 +379,11 @@ export default function SellerApplyPage() {
     if (!formData.type) nextErrors.type = "상점 유형을 선택해주세요.";
     if (formData.bizClass === "BUSINESS") {
       if (!formData.bizName.trim()) nextErrors.bizName = "상호명을 입력해주세요.";
-      if (!formData.bizRegNo.trim()) nextErrors.bizRegNo = "사업자등록번호를 입력해주세요.";
+      if (!formData.bizRegNo.trim()) {
+        nextErrors.bizRegNo = "사업자등록번호를 입력해주세요.";
+      } else if (formData.bizRegVerified !== "verified") {
+        nextErrors.bizRegNo = "사업자등록번호 인증을 완료해주세요.";
+      }
       if (!formData.bizLicenseImage) {
         nextErrors.bizLicenseImage = "사업자등록증을 업로드해주세요.";
       }
@@ -1021,14 +1075,58 @@ export default function SellerApplyPage() {
                   <label className="mb-2 block text-[14px] font-medium text-gray-700">
                     사업자등록번호 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bizRegNo}
-                    onChange={(e) => updateField("bizRegNo", e.target.value)}
-                    placeholder="예: 123-45-67890"
-                    className="h-12 w-full rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
-                    disabled={submitting}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.bizRegNo}
+                      onChange={(e) => {
+                        updateField("bizRegNo", e.target.value);
+                        if (formData.bizRegVerified !== "idle") {
+                          updateField("bizRegVerified", "idle");
+                          updateField("bizRegVerifyMsg", "");
+                        }
+                      }}
+                      placeholder="- 없이 숫자만 입력"
+                      className="h-12 flex-1 rounded-xl border border-gray-200 px-4 text-[15px] focus:border-black focus:outline-none"
+                      inputMode="numeric"
+                      disabled={submitting}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyBizRegNo}
+                      disabled={
+                        submitting ||
+                        formData.bizRegVerified === "loading" ||
+                        formData.bizRegVerified === "verified"
+                      }
+                      className={`h-12 shrink-0 rounded-xl px-4 text-[14px] font-medium transition-colors ${
+                        formData.bizRegVerified === "verified"
+                          ? "border border-green-500 bg-green-50 text-green-700"
+                          : formData.bizRegVerified === "loading"
+                            ? "bg-gray-200 text-gray-500"
+                            : "bg-black text-white"
+                      }`}
+                    >
+                      {formData.bizRegVerified === "loading"
+                        ? "조회중..."
+                        : formData.bizRegVerified === "verified"
+                          ? "인증완료"
+                          : "인증"}
+                    </button>
+                  </div>
+                  {formData.bizRegVerifyMsg && (
+                    <p
+                      className={`mt-1 text-[12px] ${
+                        formData.bizRegVerified === "verified"
+                          ? "text-green-600"
+                          : formData.bizRegVerified === "failed"
+                            ? "text-red-500"
+                            : "text-gray-500"
+                      }`}
+                    >
+                      {formData.bizRegVerifyMsg}
+                    </p>
+                  )}
                   {inlineError("bizRegNo")}
                 </div>
               </>
