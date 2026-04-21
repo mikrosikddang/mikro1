@@ -28,10 +28,41 @@ type HomeClientViewProps = {
   products: Product[];
 };
 
+const PAGE_SIZE = 20;
+const CACHE_KEY = "home_feed_cache";
+
 function buildFeedUrl(cursor: string) {
   const params = new URLSearchParams(window.location.search);
   params.set("cursor", cursor);
   return `/api/feed?${params.toString()}`;
+}
+
+function getCacheKey() {
+  return `${CACHE_KEY}_${window.location.search || "default"}`;
+}
+
+function saveFeedCache(items: Product[], cursor: string | null, scrollY: number) {
+  try {
+    sessionStorage.setItem(
+      getCacheKey(),
+      JSON.stringify({ items, cursor, scrollY, ts: Date.now() }),
+    );
+  } catch { /* quota exceeded — 무시 */ }
+}
+
+function loadFeedCache(): { items: Product[]; cursor: string | null; scrollY: number } | null {
+  try {
+    const raw = sessionStorage.getItem(getCacheKey());
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() - data.ts > 5 * 60 * 1000) {
+      sessionStorage.removeItem(getCacheKey());
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export default function HomeClientView({ products }: HomeClientViewProps) {
@@ -42,21 +73,38 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
 
   const [allProducts, setAllProducts] = useState<Product[]>(products);
   const [nextCursor, setNextCursor] = useState<string | null>(
-    products.length >= 20 ? products[products.length - 1].id : null,
+    products.length >= PAGE_SIZE ? products[products.length - 1].id : null,
   );
   const [loadingMore, setLoadingMore] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const restoredRef = useRef(false);
+
+  const cursorRef = useRef(nextCursor);
+  const loadingRef = useRef(loadingMore);
+  cursorRef.current = nextCursor;
+  loadingRef.current = loadingMore;
 
   useEffect(() => {
-    setAllProducts(products);
-    setNextCursor(products.length >= 20 ? products[products.length - 1].id : null);
+    const cached = loadFeedCache();
+    if (cached && cached.items.length > products.length) {
+      setAllProducts(cached.items);
+      setNextCursor(cached.cursor);
+      restoredRef.current = true;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, cached.scrollY);
+      });
+    } else {
+      setAllProducts(products);
+      setNextCursor(products.length >= PAGE_SIZE ? products[products.length - 1].id : null);
+    }
+    setLoadingMore(false);
   }, [products]);
 
   const loadMore = useCallback(async () => {
-    if (!nextCursor || loadingMore) return;
+    const cursor = cursorRef.current;
+    if (!cursor || loadingRef.current) return;
     setLoadingMore(true);
     try {
-      const res = await fetch(buildFeedUrl(nextCursor));
+      const res = await fetch(buildFeedUrl(cursor));
       if (!res.ok) return;
       const data = await res.json();
       setAllProducts((prev) => {
@@ -70,7 +118,9 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
     } finally {
       setLoadingMore(false);
     }
-  }, [nextCursor, loadingMore]);
+  }, []);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -84,7 +134,7 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [nextCursor, loadMore]);
+  }, [nextCursor, mounted, loadMore]);
 
   useEffect(() => {
     setViewMode(getHomeFeedViewMode());
@@ -99,6 +149,21 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
       window.removeEventListener("homeFeedViewModeChange", handleModeChange as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let ticking = false;
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        saveFeedCache(allProducts, cursorRef.current, window.scrollY);
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [mounted, allProducts]);
 
   useEffect(() => {
     if (!session || allProducts.length === 0) return;
