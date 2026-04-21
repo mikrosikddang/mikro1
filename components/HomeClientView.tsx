@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
 import { useSession } from "@/components/SessionProvider";
 import { checkWishlistDB } from "@/lib/wishlist";
@@ -28,18 +28,68 @@ type HomeClientViewProps = {
   products: Product[];
 };
 
+function buildFeedUrl(cursor: string) {
+  const params = new URLSearchParams(window.location.search);
+  params.set("cursor", cursor);
+  return `/api/feed?${params.toString()}`;
+}
+
 export default function HomeClientView({ products }: HomeClientViewProps) {
   const session = useSession();
   const [viewMode, setViewMode] = useState<HomeFeedViewMode>("feed");
   const [mounted, setMounted] = useState(false);
   const [wishlistMap, setWishlistMap] = useState<Record<string, boolean>>({});
 
+  const [allProducts, setAllProducts] = useState<Product[]>(products);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    products.length >= 20 ? products[products.length - 1].id : null,
+  );
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    // Initialize from localStorage
+    setAllProducts(products);
+    setNextCursor(products.length >= 20 ? products[products.length - 1].id : null);
+  }, [products]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(buildFeedUrl(nextCursor));
+      if (!res.ok) return;
+      const data = await res.json();
+      setAllProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newItems = (data.items as Product[]).filter((p) => !existingIds.has(p.id));
+        return [...prev, ...newItems];
+      });
+      setNextCursor(data.nextCursor);
+    } catch {
+      /* network error — 다음 스크롤 시 재시도 */
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, loadingMore]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !nextCursor) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [nextCursor, loadMore]);
+
+  useEffect(() => {
     setViewMode(getHomeFeedViewMode());
     setMounted(true);
 
-    // Listen for mode changes from drawer toggle
     const handleModeChange = (e: CustomEvent<{ mode: HomeFeedViewMode }>) => {
       setViewMode(e.detail.mode);
     };
@@ -50,19 +100,17 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
     };
   }, []);
 
-  // Batch wishlist check for logged-in users
   useEffect(() => {
-    if (!session || products.length === 0) return;
-    const productIds = products.map((p) => p.id);
+    if (!session || allProducts.length === 0) return;
+    const productIds = allProducts.map((p) => p.id);
     const loadWishlist = () => {
       checkWishlistDB(productIds).then(setWishlistMap);
     };
     loadWishlist();
     window.addEventListener("wishlist-change", loadWishlist);
     return () => window.removeEventListener("wishlist-change", loadWishlist);
-  }, [session, products]);
+  }, [session, allProducts]);
 
-  // Show placeholder during hydration
   if (!mounted) {
     return (
       <div className="flex flex-col pb-8">
@@ -74,13 +122,22 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
   }
 
   if (viewMode === "carrot") {
-    return <HomeCarrotList products={products} />;
+    return (
+      <>
+        <HomeCarrotList products={allProducts} />
+        {nextCursor && <div ref={sentinelRef} className="h-1" />}
+        {loadingMore && (
+          <div className="flex justify-center py-6">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-black" />
+          </div>
+        )}
+      </>
+    );
   }
 
-  // Default: Instagram feed style
   return (
     <div className="flex flex-col pb-8">
-      {products.map((product) => (
+      {allProducts.map((product) => (
         <ProductCard
           key={product.id}
           id={product.id}
@@ -95,6 +152,12 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
           initialWishlisted={session ? (wishlistMap[product.id] ?? false) : undefined}
         />
       ))}
+      {nextCursor && <div ref={sentinelRef} className="h-1" />}
+      {loadingMore && (
+        <div className="flex justify-center py-6">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-black" />
+        </div>
+      )}
     </div>
   );
 }
