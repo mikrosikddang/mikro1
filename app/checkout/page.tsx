@@ -68,10 +68,19 @@ interface SellerGroup {
   freeShippingThreshold: number;
 }
 
+// 단순 취소(사용자가 결제창 X 버튼)는 오류가 아니라 "중단"으로 안내
+const USER_CANCEL_CODES = new Set([
+  "USER_CANCEL",
+  "PAY_PROCESS_CANCELED",
+  "PAY_PROCESS_ABORTED",
+]);
+
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const directOrderId = searchParams.get("direct");
+  const paymentError = searchParams.get("payment_error");
+  const paymentErrorCode = searchParams.get("payment_error_code");
 
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -739,7 +748,61 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Error */}
+        {/* 결제 실패/취소 배너 (Toss fail 콜백에서 리다이렉트됨) */}
+        {paymentError && (() => {
+          const isUserCancel = paymentErrorCode
+            ? USER_CANCEL_CODES.has(paymentErrorCode)
+            : false;
+          return (
+            <div
+              role="alert"
+              className={`mb-4 rounded-xl border p-4 ${
+                isUserCancel
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="text-[14px] font-semibold">
+                    {isUserCancel ? "결제가 중단되었습니다" : "결제에 실패했습니다"}
+                  </p>
+                  <p className="mt-1 text-[13px] leading-relaxed opacity-90">
+                    {paymentError}
+                  </p>
+                  <p className="mt-1 text-[12px] opacity-70">
+                    결제 금액은 청구되지 않았습니다. 아래에서 다시 결제하거나 장바구니로 돌아갈 수 있습니다.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete("payment_error");
+                        url.searchParams.delete("payment_error_code");
+                        window.history.replaceState(null, "", url.toString());
+                        router.refresh();
+                      }}
+                      className="rounded-lg bg-black px-3 py-1.5 text-[12px] font-medium text-white"
+                    >
+                      다시 결제하기
+                    </button>
+                    {!directOrderId && (
+                      <Link
+                        href="/cart"
+                        className="rounded-lg border border-current px-3 py-1.5 text-[12px] font-medium"
+                      >
+                        장바구니로 이동
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Error (주문 생성 실패 등 인라인 오류) */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-xl text-[14px]">
             {error}

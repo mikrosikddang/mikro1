@@ -1,66 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getCanonicalOrigin } from "@/lib/siteUrl";
-import { sendPaymentFailedAlimtalk } from "@/lib/alimtalk";
 
 export const runtime = "nodejs";
 
-// 사용자가 명시적으로 취소한 경우 알림톡을 보내지 않는다.
-const USER_CANCEL_CODES = new Set([
-  "USER_CANCEL",
-  "PAY_PROCESS_CANCELED",
-  "PAY_PROCESS_ABORTED",
-]);
-
 /**
  * GET /api/payments/toss/fail
- * 토스 결제 실패/취소 콜백
  *
- * Toss 가 제공하는 query: code, message, orderId
- * (우리는 체크아웃에서 successUrl/failUrl 에 orderIds 도 싣어두었음)
+ * Toss 결제 실패/취소 콜백.
+ * 알림톡은 보내지 않는다 — 사용자가 결제창을 닫거나 실패한 직후이므로
+ * 화면에서 즉시 안내 배너를 띄우고 재시도/장바구니 이동 CTA 를 제공한다.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const code = searchParams.get("code") || "";
-  const message = searchParams.get("message") || "결제가 취소되었습니다";
-  const orderId = searchParams.get("orderId");
-  const orderIds = searchParams.get("orderIds")?.split(",").filter(Boolean);
+  const code = searchParams.get("code") ?? "";
+  const message = searchParams.get("message") ?? "결제가 취소되었습니다";
+  const orderIds = searchParams.get("orderIds") ?? "";
   const baseUrl = getCanonicalOrigin();
 
-  // 단순 사용자 취소가 아닌 실제 실패인 경우에만 알림톡 발송
-  if (!USER_CANCEL_CODES.has(code) && orderId) {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: {
-          id: true,
-          orderNo: true,
-          buyer: { select: { name: true, phone: true } },
-          shipToName: true,
-          shipToPhone: true,
-        },
-      });
+  const params = new URLSearchParams();
+  params.set("payment_error", message);
+  if (code) params.set("payment_error_code", code);
+  if (orderIds) params.set("orderIds", orderIds);
 
-      if (order) {
-        await sendPaymentFailedAlimtalk({
-          orderId: order.id,
-          orderNo: order.orderNo,
-          buyerName: order.buyer?.name ?? order.shipToName ?? null,
-          buyerPhone: order.buyer?.phone ?? order.shipToPhone ?? null,
-          reason: message,
-        });
-      }
-    } catch (err) {
-      console.error("[toss/fail] alimtalk dispatch error:", err);
-    }
-  } else {
-    console.log("[toss/fail] User cancel — alimtalk skipped", { code, orderId });
-  }
-
-  const suffix = orderIds?.length
-    ? `&orderIds=${orderIds.join(",")}`
-    : "";
-  return NextResponse.redirect(
-    `${baseUrl}/checkout?error=${encodeURIComponent(message)}${suffix}`,
-  );
+  return NextResponse.redirect(`${baseUrl}/checkout?${params.toString()}`);
 }
