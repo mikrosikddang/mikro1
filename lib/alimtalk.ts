@@ -36,21 +36,16 @@ function getSenderProfileKey() {
   return process.env.BIZM_SENDER_PROFILE_KEY?.trim() || null;
 }
 
+const ORDER_TEMPLATE_IDS: Partial<Record<OrderStatus, string>> = {
+  [OrderStatus.PAID]: "mikro_order_paid_v1",
+  [OrderStatus.CANCELLED]: "mikro_order_cancelled_v1",
+  [OrderStatus.SHIPPED]: "mikro_order_shipped_v1",
+  [OrderStatus.COMPLETED]: "mikro_order_completed_v1",
+  [OrderStatus.REFUNDED]: "mikro_order_refunded_v1",
+};
+
 function getTemplateId(status: OrderStatus) {
-  switch (status) {
-    case OrderStatus.PAID:
-      return process.env.BIZM_TEMPLATE_ORDER_PAID?.trim() || null;
-    case OrderStatus.CANCELLED:
-      return process.env.BIZM_TEMPLATE_ORDER_CANCELLED?.trim() || null;
-    case OrderStatus.SHIPPED:
-      return process.env.BIZM_TEMPLATE_ORDER_SHIPPED?.trim() || null;
-    case OrderStatus.COMPLETED:
-      return process.env.BIZM_TEMPLATE_ORDER_COMPLETED?.trim() || null;
-    case OrderStatus.REFUNDED:
-      return process.env.BIZM_TEMPLATE_ORDER_REFUNDED?.trim() || null;
-    default:
-      return null;
-  }
+  return ORDER_TEMPLATE_IDS[status] ?? null;
 }
 
 function toBizmPhone(raw: string | null | undefined) {
@@ -107,7 +102,6 @@ export async function sendOrderStatusAlimtalk(
         hasUserId: Boolean(userId),
         hasProfileKey: Boolean(profileKey),
         hasTemplateId: Boolean(templateId),
-        templateEnvVar: `BIZM_TEMPLATE_ORDER_${status}`,
       });
       return;
     }
