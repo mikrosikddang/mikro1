@@ -7,6 +7,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { cancelPayment } from "@/lib/toss";
 import { notifyOrderStatusChange } from "@/lib/notifications";
+import { getTossMode } from "@/lib/tossConfig";
 
 export const runtime = "nodejs";
 
@@ -136,6 +137,8 @@ export async function POST(req: NextRequest) {
   /* ---- PART C: transaction — stock deduction + status update ---- */
   let stockFailed = false;
   let failedProductId: string | null = null;
+  // 결제 시점 모드 고정 (차후 취소/환불 시 이 모드의 Secret Key 로 요청)
+  const tossMode = await getTossMode();
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -197,6 +200,7 @@ export async function POST(req: NextRequest) {
               data: {
                 status: PaymentStatus.FAILED,
                 paymentKey,
+                mode: tossMode,
                 rawResponse: { failureReason: "OUT_OF_STOCK", productId: item.productId },
               },
             });
@@ -207,6 +211,7 @@ export async function POST(req: NextRequest) {
                 status: PaymentStatus.FAILED,
                 amountKrw: order.totalPayKrw,
                 paymentKey,
+                mode: tossMode,
                 rawResponse: { failureReason: "OUT_OF_STOCK", productId: item.productId },
               },
             });
@@ -237,6 +242,7 @@ export async function POST(req: NextRequest) {
             data: {
               status: PaymentStatus.CONFIRMED,
               paymentKey,
+              mode: tossMode,
               approvedAt: new Date(),
             },
           });
@@ -247,6 +253,7 @@ export async function POST(req: NextRequest) {
               status: PaymentStatus.CONFIRMED,
               amountKrw: order.totalPayKrw,
               paymentKey,
+              mode: tossMode,
               approvedAt: new Date(),
             },
           });

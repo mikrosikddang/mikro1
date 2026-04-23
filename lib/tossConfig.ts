@@ -83,6 +83,15 @@ export async function getTossSecretKey(): Promise<string> {
   return secretKeyFor(mode);
 }
 
+/**
+ * 특정 모드의 Secret Key 조회 (Payment.mode 저장값 기반 취소 등에 사용).
+ * 해당 모드 키가 미설정이면 현재 모드 키로 폴백.
+ */
+export function getTossSecretKeyForMode(mode: TossMode | null | undefined): string {
+  if (mode !== "live" && mode !== "test") return "";
+  return secretKeyFor(mode);
+}
+
 export async function getTossClientKey(): Promise<string> {
   const mode = await getTossMode();
   return clientKeyFor(mode);

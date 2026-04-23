@@ -380,6 +380,7 @@ model Payment {
   status      PaymentStatus @default(READY)
   method      String?
   amountKrw   Int
+  mode        String?       @db.VarChar(8) // "live" | "test" — 결제 시작 시점 모드 고정
   rawResponse Json?
 
   approvedAt  DateTime?

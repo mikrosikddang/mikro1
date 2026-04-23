@@ -133,6 +133,7 @@ export async function POST(request: Request) {
             where: { id: order.payment.id },
             data: {
               status: "DONE",
+              mode: "test",
               approvedAt: new Date(),
             },
           });
@@ -143,6 +144,7 @@ export async function POST(request: Request) {
               status: "DONE",
               amountKrw: order.totalPayKrw, // Use snapshot from order
               method: "TEST_SIMULATION",
+              mode: "test",
               approvedAt: new Date(),
             },
           });

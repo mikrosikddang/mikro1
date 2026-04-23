@@ -60,6 +60,7 @@ export async function POST(request: Request) {
             where: { id: order.payment.id },
             data: {
               status: PaymentStatus.FAILED,
+              mode: "test",
             },
           });
         } else {
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
               status: PaymentStatus.FAILED,
               amountKrw: order.totalPayKrw,
               method: "TEST_SIMULATION",
+              mode: "test",
             },
           });
         }

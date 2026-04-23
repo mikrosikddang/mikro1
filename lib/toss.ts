@@ -5,14 +5,27 @@
  * Cancel: POST /v1/payments/{paymentKey}/cancel
  */
 
-import { getTossSecretKey } from "@/lib/tossConfig";
+import { getTossSecretKey, getTossSecretKeyForMode, type TossMode } from "@/lib/tossConfig";
+import { prisma } from "@/lib/prisma";
 
 const TOSS_API_BASE = "https://api.tosspayments.com/v1";
 
-async function authHeader(): Promise<string> {
-  const secretKey = await getTossSecretKey();
-  const encoded = Buffer.from(`${secretKey}:`).toString("base64");
-  return `Basic ${encoded}`;
+async function resolveSecretKey(paymentKey: string): Promise<string> {
+  // 1순위: Payment 레코드에 저장된 결제 시점 모드 — 이미 취소된 결제는 건너뛰지만,
+  // live 에서 발급된 paymentKey 는 live secret 으로만 취소 가능하므로 저장된 모드가 우선.
+  try {
+    const row = await prisma.payment.findUnique({
+      where: { paymentKey },
+      select: { mode: true },
+    });
+    if (row?.mode === "live" || row?.mode === "test") {
+      const key = getTossSecretKeyForMode(row.mode as TossMode);
+      if (key) return key;
+    }
+  } catch (err) {
+    console.warn("[toss] payment.mode lookup failed, fallback to current mode:", err);
+  }
+  return getTossSecretKey();
 }
 
 export type TossCancelResult =
@@ -32,10 +45,10 @@ export async function cancelPayment(
   paymentKey: string,
   cancelReason: string,
 ): Promise<TossCancelResult> {
-  const secretKey = await getTossSecretKey();
+  const secretKey = await resolveSecretKey(paymentKey);
   if (!secretKey) {
     console.warn(
-      "[toss] Secret key not configured for current Toss mode — skipping cancel API call for paymentKey:",
+      "[toss] Secret key not configured — skipping cancel API call for paymentKey:",
       paymentKey,
     );
     return {
@@ -44,6 +57,7 @@ export async function cancelPayment(
       message: "Toss API key not configured",
     };
   }
+  const encoded = Buffer.from(`${secretKey}:`).toString("base64");
 
   try {
     const res = await fetch(
@@ -51,7 +65,7 @@ export async function cancelPayment(
       {
         method: "POST",
         headers: {
-          Authorization: await authHeader(),
+          Authorization: `Basic ${encoded}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ cancelReason }),
