@@ -149,6 +149,10 @@ export async function sendOrderStatusAlimtalk(
             tmplId: templateId,
             msg,
             reserveDt: "00000000000000",
+            button1: {
+              name: "채널 추가",
+              type: "AC",
+            },
           },
         ]),
         signal: controller.signal,
