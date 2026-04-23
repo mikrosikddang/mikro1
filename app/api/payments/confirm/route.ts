@@ -328,8 +328,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (finalOrder?.status === OrderStatus.PAID) {
-    // Send payment notification (fire-and-forget)
-    notifyOrderStatusChange(
+    // 알림톡은 반드시 await — Lambda(serverless)에서 fire-and-forget은 응답 후 process가 frozen되면서
+    // BizM HTTP 호출이 중간에 끊김. 외부 알림 도달 보장을 위해 응답 전에 완료 대기.
+    await notifyOrderStatusChange(
       order.id,
       order.orderNo,
       order.buyerId,

@@ -158,9 +158,9 @@ export async function POST(request: Request) {
       return { ok: true, alreadyPaid: false };
     });
 
-    // Send payment notifications (fire-and-forget)
+    // 알림톡은 반드시 await — Lambda 환경에서 fire-and-forget은 외부 호출이 중간에 끊김
     for (const info of paidOrderInfos) {
-      notifyOrderStatusChange(info.id, info.orderNo, info.buyerId, info.sellerId, "PAID");
+      await notifyOrderStatusChange(info.id, info.orderNo, info.buyerId, info.sellerId, "PAID");
     }
 
     return NextResponse.json(result);

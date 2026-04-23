@@ -47,7 +47,7 @@ function getGroupPosition(
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return d.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function shouldShowTime(messages: Message[], index: number): boolean {

@@ -178,7 +178,7 @@ export default function CheckoutPage() {
         subtotal: order.itemsSubtotalKrw,
         shippingFee: order.shippingFeeKrw,
         freeShippingThreshold:
-          product.seller?.sellerProfile?.freeShippingThreshold || 50000,
+          product.seller?.sellerProfile?.freeShippingThreshold ?? 50000,
       };
 
       setSellerGroups([group]);
@@ -242,9 +242,9 @@ export default function CheckoutPage() {
         const shopName =
           product.seller?.sellerProfile?.shopName || "알수없음";
         const shippingFeeKrw =
-          product.seller?.sellerProfile?.shippingFeeKrw || 3000;
+          product.seller?.sellerProfile?.shippingFeeKrw ?? 3000;
         const freeShippingThreshold =
-          product.seller?.sellerProfile?.freeShippingThreshold || 50000;
+          product.seller?.sellerProfile?.freeShippingThreshold ?? 50000;
 
         if (!groups.has(sellerId)) {
           groups.set(sellerId, {
@@ -263,9 +263,14 @@ export default function CheckoutPage() {
       }
 
       // Calculate shipping fees
+      // shippingFee=0 → 항상 무료. freeShippingThreshold=0 → 무료배송 기준 비활성
       const groupsArray = Array.from(groups.values());
       for (const group of groupsArray) {
-        if (group.subtotal >= group.freeShippingThreshold) {
+        if (
+          group.shippingFee > 0 &&
+          group.freeShippingThreshold > 0 &&
+          group.subtotal >= group.freeShippingThreshold
+        ) {
           group.shippingFee = 0;
         }
       }
@@ -661,7 +666,7 @@ export default function CheckoutPage() {
                       )}
                     </span>
                   </div>
-                  {group.shippingFee > 0 && (
+                  {group.shippingFee > 0 && group.freeShippingThreshold > 0 && (
                     <p className="text-[12px] text-gray-500">
                       {formatKrw(group.freeShippingThreshold)} 이상 구매 시 무료배송
                     </p>
@@ -893,7 +898,7 @@ export default function CheckoutPage() {
                         )}
                         {coupon.expiresAt && (
                           <p className="text-[12px] text-gray-400">
-                            ~{new Date(coupon.expiresAt).toLocaleDateString("ko-KR")}
+                            ~{new Date(coupon.expiresAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                           </p>
                         )}
                       </div>

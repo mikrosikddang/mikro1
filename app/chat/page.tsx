@@ -40,7 +40,7 @@ function formatRelativeTime(dateStr: string): string {
   const diffDay = Math.floor(diffHour / 24);
   if (diffDay < 7) return `${diffDay}일 전`;
 
-  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "short", day: "numeric" });
 }
 
 export default function ChatListPage() {

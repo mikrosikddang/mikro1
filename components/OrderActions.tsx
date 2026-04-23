@@ -60,10 +60,9 @@ export default function OrderActions({
 
   if (isBuyer && !canAccessSellerFeatures(userRole)) {
     // CUSTOMER buyer view
+    // 환불/교환 신청은 OrderClaimButton(클레임 시스템)에서 처리
     if (currentStatus === "PENDING") {
       buttons.push({ label: "주문 취소", status: "CANCELLED", variant: "danger" });
-    } else if (currentStatus === "PAID" || currentStatus === "SHIPPED") {
-      buttons.push({ label: "환불 요청", status: "REFUND_REQUESTED", variant: "danger" });
     }
   }
 

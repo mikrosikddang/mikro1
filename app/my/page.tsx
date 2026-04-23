@@ -2,6 +2,7 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import { getSession, canAccessSellerFeatures, isCustomer } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import { prisma } from "@/lib/prisma";
 
 const chevronSvg = (
   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,6 +14,23 @@ export default async function MyPage() {
   const session = await getSession();
   const ownedSpaceLabel =
     session && canAccessSellerFeatures(session.role) ? "스토어 보기" : "내 공간";
+
+  // 주문/배송 현황 카운트 (구매자 기준)
+  let orderCounts = { paid: 0, shipped: 0, completed: 0, claim: 0 };
+  if (session) {
+    const [paid, shipped, completed, claim] = await Promise.all([
+      prisma.order.count({ where: { buyerId: session.userId, status: "PAID" } }),
+      prisma.order.count({ where: { buyerId: session.userId, status: "SHIPPED" } }),
+      prisma.order.count({ where: { buyerId: session.userId, status: "COMPLETED" } }),
+      prisma.orderClaim.count({
+        where: {
+          status: { in: ["REQUESTED", "APPROVED"] },
+          order: { buyerId: session.userId },
+        },
+      }),
+    ]);
+    orderCounts = { paid, shipped, completed, claim };
+  }
 
   return (
     <Container>
@@ -59,6 +77,63 @@ export default async function MyPage() {
               {chevronSvg}
             </div>
           </Link>
+        )}
+
+        {/* 주문/배송 현황 카드 */}
+        {session && (
+          <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[15px] font-bold text-black">주문 / 배송 조회</h2>
+              <Link
+                href="/orders"
+                className="text-[12px] font-medium text-gray-600"
+              >
+                전체보기 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link
+                href="/orders?status=PAID"
+                className="flex flex-col items-center rounded-xl bg-gray-50 px-2 py-3 text-center transition-colors active:bg-gray-100"
+              >
+                <span className="text-[20px] font-bold text-black">
+                  {orderCounts.paid}
+                </span>
+                <span className="mt-1 text-[11px] text-gray-600">결제완료</span>
+              </Link>
+              <Link
+                href="/orders?status=SHIPPED"
+                className="flex flex-col items-center rounded-xl bg-gray-50 px-2 py-3 text-center transition-colors active:bg-gray-100"
+              >
+                <span className="text-[20px] font-bold text-black">
+                  {orderCounts.shipped}
+                </span>
+                <span className="mt-1 text-[11px] text-gray-600">배송중</span>
+              </Link>
+              <Link
+                href="/orders?status=COMPLETED"
+                className="flex flex-col items-center rounded-xl bg-gray-50 px-2 py-3 text-center transition-colors active:bg-gray-100"
+              >
+                <span className="text-[20px] font-bold text-black">
+                  {orderCounts.completed}
+                </span>
+                <span className="mt-1 text-[11px] text-gray-600">배송완료</span>
+              </Link>
+              <Link
+                href="/orders?claims=1"
+                className="flex flex-col items-center rounded-xl bg-gray-50 px-2 py-3 text-center transition-colors active:bg-gray-100"
+              >
+                <span
+                  className={`text-[20px] font-bold ${
+                    orderCounts.claim > 0 ? "text-amber-600" : "text-black"
+                  }`}
+                >
+                  {orderCounts.claim}
+                </span>
+                <span className="mt-1 text-[11px] text-gray-600">환불/교환</span>
+              </Link>
+            </div>
+          </div>
         )}
 
         {/* Menu list */}

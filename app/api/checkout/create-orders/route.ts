@@ -211,10 +211,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Calculate shipping fee based on seller's rules
+        // - shippingFeeKrw=0 → 항상 무료배송
+        // - freeShippingThreshold=0 → 무료배송 기준 비활성 (항상 배송비 부과)
         let shippingFeeKrw = sellerProfile?.shippingFeeKrw ?? 3000;
         const freeShippingThreshold = sellerProfile?.freeShippingThreshold ?? 50000;
 
-        if (itemsSubtotalKrw >= freeShippingThreshold) {
+        if (
+          shippingFeeKrw > 0 &&
+          freeShippingThreshold > 0 &&
+          itemsSubtotalKrw >= freeShippingThreshold
+        ) {
           shippingFeeKrw = 0;
         }
 

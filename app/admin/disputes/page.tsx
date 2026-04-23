@@ -116,7 +116,7 @@ export default async function AdminDisputesPage({ searchParams }: Props) {
                   ) : null}
                   <p className="mt-3 text-xs text-gray-400">
                     {note.admin.name || note.admin.email || note.admin.id} ·{" "}
-                    {new Date(note.createdAt).toLocaleString("ko-KR")}
+                    {new Date(note.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
               </div>

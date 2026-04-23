@@ -100,7 +100,7 @@ export default function AdminOrderNotesPanel({
               {log.reason ? <p className="mt-1 text-gray-600">{log.reason}</p> : null}
               <p className="mt-2 text-xs text-gray-400">
                 {log.admin.name || log.admin.email || log.admin.id} ·{" "}
-                {new Date(log.createdAt).toLocaleString("ko-KR")}
+                {new Date(log.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
               </p>
             </div>
           ))

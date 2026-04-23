@@ -175,7 +175,7 @@ export default function SellerInquiriesPage() {
                     <span className="text-[12px] text-gray-400">{inquiry.userName}</span>
                     <span className="text-[12px] text-gray-300">·</span>
                     <span className="text-[12px] text-gray-400">
-                      {new Date(inquiry.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(inquiry.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </span>
                   </div>
                 </div>
@@ -191,7 +191,7 @@ export default function SellerInquiriesPage() {
                     </p>
                     {inquiry.answeredAt && (
                       <span className="text-[12px] text-gray-400 mt-1 block">
-                        {new Date(inquiry.answeredAt).toLocaleDateString("ko-KR")}
+                        {new Date(inquiry.answeredAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                       </span>
                     )}
                   </div>

@@ -297,7 +297,7 @@ export default async function SellerDashboardPage() {
                       {order.items.length > 1 && ` 외 ${order.items.length - 1}건`}
                     </p>
                     <p className="text-[12px] text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(order.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </p>
                   </div>
                   <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-medium ${getStatusColor(order.status)}`}>

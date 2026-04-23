@@ -84,6 +84,10 @@ export default function ShopManagePage() {
   const [settlementAccountNo, setSettlementAccountNo] = useState("");
   const [settlementAccountHolder, setSettlementAccountHolder] = useState("");
 
+  // Shipping fee policy
+  const [shippingFeeKrw, setShippingFeeKrw] = useState("3000");
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState("50000");
+
   const formatBizRegNo = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
     if (digits.length <= 3) return digits;
@@ -146,6 +150,12 @@ export default function ShopManagePage() {
         setSettlementBank(data.settlementBank ?? "");
         setSettlementAccountNo(data.settlementAccountNo ?? "");
         setSettlementAccountHolder(data.settlementAccountHolder ?? "");
+        setShippingFeeKrw(
+          data.shippingFeeKrw != null ? String(data.shippingFeeKrw) : "3000",
+        );
+        setFreeShippingThreshold(
+          data.freeShippingThreshold != null ? String(data.freeShippingThreshold) : "50000",
+        );
         setPendingReview(Boolean(data.complianceReviewPending));
 
         // Determine contact type from existing data
@@ -320,6 +330,12 @@ export default function ShopManagePage() {
           settlementBank: settlementBank.trim() || null,
           settlementAccountNo: settlementAccountNo.trim() || null,
           settlementAccountHolder: settlementAccountHolder.trim() || null,
+          shippingFeeKrw: shippingFeeKrw.trim()
+            ? Math.max(0, Math.floor(Number(shippingFeeKrw.replace(/[^\d]/g, ""))))
+            : 0,
+          freeShippingThreshold: freeShippingThreshold.trim()
+            ? Math.max(0, Math.floor(Number(freeShippingThreshold.replace(/[^\d]/g, ""))))
+            : 0,
         }),
       });
 
@@ -829,6 +845,57 @@ export default function ShopManagePage() {
             onChange={(e) => setCsHours(e.target.value)}
             className={inputClass}
           />
+        </div>
+      </div>
+
+      {/* Section 3a: 배송비 정책 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+        <h2 className="text-[15px] font-bold text-black mb-1">배송비 정책</h2>
+        <p className="text-[12px] text-gray-500 mb-4">
+          상품 결제 시 자동으로 적용됩니다. 0원으로 설정하면 항상 무료배송으로 노출됩니다.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass}>기본 배송비 (원)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={shippingFeeKrw}
+              onChange={(e) =>
+                setShippingFeeKrw(e.target.value.replace(/[^\d]/g, ""))
+              }
+              className={inputClass}
+              placeholder="예: 3000"
+            />
+            <p className="mt-1 text-[12px] text-gray-500">
+              {shippingFeeKrw === "" || Number(shippingFeeKrw) === 0
+                ? "기본 무료배송으로 적용됩니다."
+                : `주문 시 ${Number(shippingFeeKrw).toLocaleString("ko-KR")}원이 부과됩니다.`}
+            </p>
+          </div>
+
+          <div>
+            <label className={labelClass}>무료배송 기준액 (원)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={freeShippingThreshold}
+              onChange={(e) =>
+                setFreeShippingThreshold(e.target.value.replace(/[^\d]/g, ""))
+              }
+              className={inputClass}
+              placeholder="예: 50000 (0이면 비활성)"
+              disabled={shippingFeeKrw === "" || Number(shippingFeeKrw) === 0}
+            />
+            <p className="mt-1 text-[12px] text-gray-500">
+              {shippingFeeKrw === "" || Number(shippingFeeKrw) === 0
+                ? "기본 무료배송이라 무료배송 기준액은 사용되지 않습니다."
+                : freeShippingThreshold === "" || Number(freeShippingThreshold) === 0
+                  ? "무료배송 기준이 없습니다 (항상 배송비 부과)."
+                  : `${Number(freeShippingThreshold).toLocaleString("ko-KR")}원 이상 구매 시 무료배송됩니다.`}
+            </p>
+          </div>
         </div>
       </div>
 

@@ -151,7 +151,7 @@ export default function AdminOrdersPage() {
                     판매자: {order.seller.sellerProfile?.shopName || order.seller.id}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(order.createdAt).toLocaleString("ko-KR")}
+                    {new Date(order.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
                 <div className="text-right">

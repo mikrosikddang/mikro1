@@ -236,7 +236,7 @@ export default function AdminCouponsPage() {
                   <p className="text-gray-500">만료일</p>
                   <p className="font-medium text-gray-900">
                     {coupon.expiresAt
-                      ? new Date(coupon.expiresAt).toLocaleString("ko-KR")
+                      ? new Date(coupon.expiresAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
                       : "-"}
                   </p>
                 </div>

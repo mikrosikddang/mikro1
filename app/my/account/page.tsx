@@ -655,6 +655,7 @@ export default function AccountPage() {
             <dt className="w-20 text-gray-500 shrink-0">가입일</dt>
             <dd className="text-gray-700">
               {new Date(user.createdAt).toLocaleDateString("ko-KR", {
+                timeZone: "Asia/Seoul",
                 year: "numeric",
                 month: "long",
                 day: "numeric",

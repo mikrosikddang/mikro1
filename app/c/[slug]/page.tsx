@@ -170,13 +170,13 @@ export default async function CampaignLandingPage({
             <div className="mt-5 rounded-2xl bg-gray-50 px-4 py-3 text-[13px] text-gray-600">
               {campaign.startsAt && (
                 <span>
-                  시작 {new Date(campaign.startsAt).toLocaleString("ko-KR")}
+                  시작 {new Date(campaign.startsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                 </span>
               )}
               {campaign.startsAt && campaign.endsAt && <span> · </span>}
               {campaign.endsAt && (
                 <span>
-                  종료 {new Date(campaign.endsAt).toLocaleString("ko-KR")}
+                  종료 {new Date(campaign.endsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                 </span>
               )}
             </div>

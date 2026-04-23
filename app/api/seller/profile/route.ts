@@ -106,6 +106,8 @@ export async function PATCH(req: NextRequest) {
       followerCount,
       isBusinessSeller,
       commissionRateBps,
+      shippingFeeKrw,
+      freeShippingThreshold,
     } = body;
 
     const current = await prisma.sellerProfile.findUnique({
@@ -317,6 +319,30 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    if (
+      shippingFeeKrw !== undefined &&
+      shippingFeeKrw !== null &&
+      (!Number.isFinite(shippingFeeKrw) || shippingFeeKrw < 0 || shippingFeeKrw > 100000)
+    ) {
+      return NextResponse.json(
+        { error: "기본 배송비는 0~100,000원 범위로 입력해주세요" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      freeShippingThreshold !== undefined &&
+      freeShippingThreshold !== null &&
+      (!Number.isFinite(freeShippingThreshold) ||
+        freeShippingThreshold < 0 ||
+        freeShippingThreshold > 10000000)
+    ) {
+      return NextResponse.json(
+        { error: "무료배송 기준액은 0~10,000,000원 범위로 입력해주세요" },
+        { status: 400 }
+      );
+    }
+
     if (nextCreatorSlug) {
       const existingSlug = await prisma.sellerProfile.findFirst({
         where: {
@@ -485,6 +511,12 @@ export async function PATCH(req: NextRequest) {
           }),
           ...(commissionRateBps !== undefined && {
             commissionRateBps: Math.floor(Number(commissionRateBps)),
+          }),
+          ...(shippingFeeKrw !== undefined && {
+            shippingFeeKrw: Math.max(0, Math.floor(Number(shippingFeeKrw))),
+          }),
+          ...(freeShippingThreshold !== undefined && {
+            freeShippingThreshold: Math.max(0, Math.floor(Number(freeShippingThreshold))),
           }),
           ...(bizTouched &&
             (nextBizRegNo || nextBizRegImageUrl) && { bizRegSubmittedAt: new Date() }),

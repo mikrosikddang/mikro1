@@ -127,8 +127,13 @@ export async function POST(request: NextRequest) {
     const freeShippingThreshold = sellerProfile?.freeShippingThreshold ?? 50000;
     const baseShippingFee = sellerProfile?.shippingFeeKrw ?? 3000;
 
+    // baseShippingFee=0 → 항상 무료. freeShippingThreshold=0 → 무료 기준 비활성
     const shippingFeeKrw =
-      itemsSubtotalKrw >= freeShippingThreshold ? 0 : baseShippingFee;
+      baseShippingFee === 0
+        ? 0
+        : freeShippingThreshold > 0 && itemsSubtotalKrw >= freeShippingThreshold
+          ? 0
+          : baseShippingFee;
 
     const totalPayKrw = itemsSubtotalKrw + shippingFeeKrw;
 

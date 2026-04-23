@@ -3,14 +3,40 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatKrw } from "@/lib/format";
+import { formatKrw, formatKstDate } from "@/lib/format";
+import { OrderStatus, Prisma } from "@prisma/client";
 
-export default async function OrdersPage() {
+type Props = {
+  searchParams: Promise<{ status?: string; claims?: string }>;
+};
+
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "PAID", label: "결제완료" },
+  { value: "SHIPPED", label: "배송중" },
+  { value: "COMPLETED", label: "배송완료" },
+  { value: "claims", label: "환불/교환" },
+];
+
+export default async function OrdersPage({ searchParams }: Props) {
   const session = await getSession();
 
   if (!session) {
     redirect("/login?next=/orders");
   }
+
+  const { status: statusParam, claims: claimsParam } = await searchParams;
+  const claimsFilter = claimsParam === "1";
+  const validStatuses = ["PAID", "SHIPPED", "COMPLETED"] as const;
+  const statusFilter = (validStatuses as readonly string[]).includes(
+    statusParam || "",
+  )
+    ? (statusParam as OrderStatus)
+    : null;
+
+  const activeFilter = claimsFilter
+    ? "claims"
+    : statusFilter ?? "all";
 
   // Auto-expire expired PENDING orders for this buyer
   await prisma.order.updateMany({
@@ -22,12 +48,21 @@ export default async function OrdersPage() {
     data: { status: "EXPIRED" },
   });
 
-  // Phase 2: Sellers can now purchase, so they can view their buyer orders
+  const where: Prisma.OrderWhereInput = {
+    buyerId: session.userId,
+    status: { notIn: ["PENDING", "EXPIRED"] },
+  };
+  if (statusFilter) {
+    where.status = statusFilter;
+  }
+  if (claimsFilter) {
+    where.claims = {
+      some: { status: { in: ["REQUESTED", "APPROVED"] } },
+    };
+  }
+
   const orders = await prisma.order.findMany({
-    where: {
-      buyerId: session.userId,
-      status: { notIn: ["PENDING", "EXPIRED"] },
-    },
+    where,
     include: {
       seller: {
         include: {
@@ -37,6 +72,12 @@ export default async function OrdersPage() {
             },
           },
         },
+      },
+      claims: {
+        where: { status: { in: ["REQUESTED", "APPROVED", "REJECTED", "COMPLETED"] } },
+        select: { status: true, type: true, reason: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
       },
     },
     orderBy: {
@@ -104,18 +145,36 @@ export default async function OrdersPage() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   return (
     <Container>
       <div className="py-6 pb-24">
-        <h1 className="text-[24px] font-bold text-black mb-6">주문 내역</h1>
+        <h1 className="text-[24px] font-bold text-black mb-4">주문 / 배송 조회</h1>
+
+        {/* 상태 필터 탭 */}
+        <div className="-mx-1 mb-4 flex gap-1 overflow-x-auto pb-1">
+          {STATUS_FILTERS.map((f) => {
+            const href =
+              f.value === "all"
+                ? "/orders"
+                : f.value === "claims"
+                  ? "/orders?claims=1"
+                  : `/orders?status=${f.value}`;
+            const active = activeFilter === f.value;
+            return (
+              <Link
+                key={f.value}
+                href={href}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                  active
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {f.label}
+              </Link>
+            );
+          })}
+        </div>
 
         {orders.length === 0 ? (
           <div className="py-16 text-center">
@@ -162,10 +221,23 @@ export default async function OrdersPage() {
                     <div className="flex justify-between text-[14px]">
                       <span className="text-gray-600">주문일</span>
                       <span className="text-gray-700">
-                        {formatDate(order.createdAt)}
+                        {formatKstDate(order.createdAt)}
                       </span>
                     </div>
                   </div>
+
+                  {order.claims[0] && (
+                    <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-800">
+                      {order.claims[0].type === "REFUND" ? "환불" : "교환"} 신청 ·{" "}
+                      {order.claims[0].status === "REQUESTED"
+                        ? "셀러 검토 대기"
+                        : order.claims[0].status === "APPROVED"
+                          ? "승인됨 (회수/교환 처리 대기)"
+                          : order.claims[0].status === "REJECTED"
+                            ? "반려됨"
+                            : "처리 완료"}
+                    </div>
+                  )}
 
                   <Link
                     href={`/orders/${order.id}`}

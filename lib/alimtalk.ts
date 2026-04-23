@@ -92,6 +92,7 @@ export async function sendOrderStatusAlimtalk(
   status: OrderStatus,
   context: OrderAlimtalkContext,
 ): Promise<void> {
+  const startedAt = Date.now();
   try {
     const userId = getBizmUserId();
     const profileKey = getSenderProfileKey();
@@ -100,18 +101,35 @@ export async function sendOrderStatusAlimtalk(
     const msg = buildOrderStatusMessage(status, context);
 
     if (!userId || !profileKey || !templateId) {
+      console.warn("[alimtalk] Skipped — missing config", {
+        orderId: context.orderId,
+        status,
+        hasUserId: Boolean(userId),
+        hasProfileKey: Boolean(profileKey),
+        hasTemplateId: Boolean(templateId),
+        templateEnvVar: `BIZM_TEMPLATE_ORDER_${status}`,
+      });
       return;
     }
 
     if (!phn || !msg) {
-      console.warn("[alimtalk] Skipped order status message", {
+      console.warn("[alimtalk] Skipped — missing phone or message", {
         orderId: context.orderId,
         status,
         hasPhone: Boolean(phn),
         hasMessage: Boolean(msg),
+        rawPhone: context.buyerPhone,
       });
       return;
     }
+
+    console.log("[alimtalk] Sending request", {
+      orderId: context.orderId,
+      status,
+      phn,
+      templateId,
+      apiBase: BIZM_API_BASE,
+    });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -146,30 +164,38 @@ export async function sendOrderStatusAlimtalk(
       }
 
       const result = Array.isArray(parsed) ? parsed[0] : null;
+      const elapsedMs = Date.now() - startedAt;
 
       if (!response.ok || result?.code !== "success") {
         console.error("[alimtalk] Send failed", {
           orderId: context.orderId,
           status,
           httpStatus: response.status,
+          elapsedMs,
           result,
-          raw,
+          raw: raw.slice(0, 500),
         });
         return;
       }
 
-      console.log("[alimtalk] Sent", {
+      console.log("[alimtalk] Sent successfully", {
         orderId: context.orderId,
         status,
         msgid: result.data?.msgid ?? null,
+        elapsedMs,
       });
     } finally {
       clearTimeout(timeout);
     }
   } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const isAbort = error instanceof Error && error.name === "AbortError";
     console.error("[alimtalk] Unexpected error", {
       orderId: context.orderId,
       status,
-    }, error);
+      elapsedMs,
+      isAbort,
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 }

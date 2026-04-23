@@ -270,7 +270,7 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(user.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </td>
                   </tr>
                 ))}

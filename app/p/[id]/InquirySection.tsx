@@ -119,7 +119,7 @@ export default function InquirySection({ productId }: { productId: string }) {
                     </span>
                     <span className="text-[12px] text-gray-300">·</span>
                     <span className="text-[12px] text-gray-400">
-                      {new Date(inquiry.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(inquiry.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </span>
                     {inquiry.isMine && !inquiry.answer && (
                       <>
@@ -148,7 +148,7 @@ export default function InquirySection({ productId }: { productId: string }) {
                     </p>
                     {inquiry.answeredAt && (
                       <span className="text-[12px] text-gray-400 mt-1 block">
-                        {new Date(inquiry.answeredAt).toLocaleDateString("ko-KR")}
+                        {new Date(inquiry.answeredAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                       </span>
                     )}
                   </div>

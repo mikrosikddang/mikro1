@@ -206,7 +206,7 @@ export default function MyCouponsPage() {
                     )}
                     {uc.expiresAt && (
                       <p>
-                        유효기간: ~{new Date(uc.expiresAt).toLocaleDateString("ko-KR")}
+                        유효기간: ~{new Date(uc.expiresAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                       </p>
                     )}
                   </div>

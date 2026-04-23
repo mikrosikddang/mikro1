@@ -244,7 +244,7 @@ export default function AdminSellersPage() {
                     {seller.user.email || seller.user.phone || "연락처 없음"}
                   </p>
                   <p className="mt-1 text-xs text-gray-400">
-                    신청일: {new Date(seller.createdAt).toLocaleDateString("ko-KR")}
+                    신청일: {new Date(seller.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
                 <span
@@ -377,7 +377,7 @@ export default function AdminSellersPage() {
                         ) : null}
                         <p className="mt-2 text-xs text-gray-400">
                           {action.admin.name || action.admin.email || action.admin.id} ·{" "}
-                          {new Date(action.createdAt).toLocaleString("ko-KR")}
+                          {new Date(action.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                         </p>
                       </div>
                     ))

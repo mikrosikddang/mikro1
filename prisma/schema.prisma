@@ -343,6 +343,7 @@ model Order {
   shipment     Shipment?
   attribution  OrderAttribution?
   commission   OrderCommission?
+  claims       OrderClaim[]
 
   @@index([buyerId])
   @@index([sellerId])
@@ -397,6 +398,55 @@ model Shipment {
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+enum OrderClaimType {
+  REFUND   // 환불
+  EXCHANGE // 교환
+}
+
+enum OrderClaimReason {
+  CHANGED_MIND      // 단순변심 (왕복배송비 구매자 부담, 자동승인)
+  DEFECT            // 상품 하자
+  WRONG_ITEM        // 오배송
+  DAMAGED_DELIVERY  // 배송 중 파손
+  OTHER             // 기타
+}
+
+enum OrderClaimStatus {
+  REQUESTED   // 신청
+  APPROVED    // 셀러 승인 (또는 단순변심 자동 승인)
+  REJECTED    // 셀러 반려
+  COMPLETED   // 처리 완료 (환불/교환 완료)
+  CANCELLED   // 사용자 취소
+}
+
+model OrderClaim {
+  id        String           @id @default(cuid())
+  orderId   String
+  order     Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  type      OrderClaimType
+  reason    OrderClaimReason
+  status    OrderClaimStatus @default(REQUESTED)
+
+  message       String? // 사용자 사유 메시지
+  photoUrls     String[] @default([]) // 하자/오배송 증빙 사진
+  sellerResponse String? // 셀러 응답/반려 사유
+
+  // 단순변심 등 구매자 부담 비용 (왕복배송비 환불액 차감)
+  buyerBurdenKrw Int @default(0)
+  // 실제 환불 금액 (totalPayKrw - buyerBurdenKrw)
+  refundAmountKrw Int @default(0)
+
+  decidedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model OrderAuditLog {

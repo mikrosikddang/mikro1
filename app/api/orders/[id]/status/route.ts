@@ -231,9 +231,9 @@ export async function PATCH(
       };
     });
 
-    // Send notifications after successful transition (fire-and-forget)
+    // 알림톡은 반드시 await — Lambda 환경에서 fire-and-forget은 외부 호출이 중간에 끊김
     if (result.ok && !result.alreadyDone && result.order) {
-      notifyOrderStatusChange(
+      await notifyOrderStatusChange(
         result.order.id,
         result.order.orderNo,
         result.order.buyerId,

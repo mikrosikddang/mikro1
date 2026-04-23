@@ -2,7 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Container from "@/components/Container";
 import OrderActions from "@/components/OrderActions";
-import { formatKrw } from "@/lib/format";
+import OrderClaimButton from "@/components/OrderClaimButton";
+import OrderClaimList from "@/components/OrderClaimList";
+import { formatKrw, formatKstDateTime } from "@/lib/format";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
@@ -45,6 +47,7 @@ export default async function OrderDetailPage({ params }: Props) {
           sellerProfile: { select: { shopName: true } },
         },
       },
+      claims: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -82,6 +85,15 @@ export default async function OrderDetailPage({ params }: Props) {
   const statusLabel = getStatusLabel(order.status);
   const statusColor = getStatusColor(order.status);
 
+  const claimEligibleStatuses = ["PAID", "SHIPPED", "COMPLETED"] as const;
+  const hasActiveClaim = order.claims.some(
+    (c) => c.status === "REQUESTED" || c.status === "APPROVED",
+  );
+  const canRequestClaim =
+    isBuyer &&
+    (claimEligibleStatuses as readonly string[]).includes(order.status) &&
+    !hasActiveClaim;
+
   return (
     <Container>
       <ScrollToTop />
@@ -93,14 +105,7 @@ export default async function OrderDetailPage({ params }: Props) {
             주문번호: {order.orderNo}
           </p>
           <p className="text-[14px] text-gray-500">
-            주문일시:{" "}
-            {new Date(order.createdAt).toLocaleString("ko-KR", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            주문일시: {formatKstDateTime(order.createdAt)}
           </p>
         </div>
 
@@ -115,7 +120,7 @@ export default async function OrderDetailPage({ params }: Props) {
         </div>
 
         {/* Action buttons */}
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <OrderActions
             orderId={order.id}
             currentStatus={order.status}
@@ -123,7 +128,24 @@ export default async function OrderDetailPage({ params }: Props) {
             isBuyer={isBuyer}
             isSeller={isSeller}
           />
+          {canRequestClaim && (
+            <OrderClaimButton
+              orderId={order.id}
+              totalPayKrw={order.totalPayKrw}
+              hasActiveClaim={false}
+            />
+          )}
         </div>
+
+        {order.claims.length > 0 && (
+          <div className="mb-6">
+            <OrderClaimList
+              claims={order.claims}
+              isBuyer={isBuyer}
+              isSeller={isSeller}
+            />
+          </div>
+        )}
 
         {/* Seller info */}
         <div className="mb-6">

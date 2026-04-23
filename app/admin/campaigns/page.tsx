@@ -218,7 +218,7 @@ export default async function AdminCampaignsPage({ searchParams }: Props) {
                       recentActionMap[campaign.id].admin.email ||
                       recentActionMap[campaign.id].admin.id}{" "}
                     ·{" "}
-                    {new Date(recentActionMap[campaign.id].createdAt).toLocaleString("ko-KR")}
+                    {new Date(recentActionMap[campaign.id].createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
               ) : null}

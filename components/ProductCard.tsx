@@ -234,29 +234,36 @@ export default function ProductCard({
         <div className="flex items-start justify-between gap-3">
           {/* Left: title + price */}
           <Link href={`/p/${id}`} className="flex-1 min-w-0">
-            <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
-              {title}
-            </h3>
-            {!archive && (
-              <div className="mt-1">
-                {hasDiscount ? (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
-                  <span className="text-[16px] font-semibold text-black tabular-nums">
-                    {displayPrice.toLocaleString()}원
-                  </span>
-                  <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
-                    {priceKrw.toLocaleString()}원
-                  </span>
+            {archive ? (
+              <p className="text-[14px] leading-snug line-clamp-3">
+                <span className="font-semibold text-black">{shopName}</span>{" "}
+                <span className="font-normal text-gray-800">{title}</span>
+              </p>
+            ) : (
+              <>
+                <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
+                  {title}
+                </h3>
+                <div className="mt-1">
+                  {hasDiscount ? (
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
+                      <span className="text-[16px] font-semibold text-black tabular-nums">
+                        {displayPrice.toLocaleString()}원
+                      </span>
+                      <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
+                        {priceKrw.toLocaleString()}원
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="text-[16px] font-semibold text-black tabular-nums">
+                        {priceKrw.toLocaleString()}원
+                      </span>
+                    </div>
+                  )}
                 </div>
-                ) : (
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-[16px] font-semibold text-black tabular-nums">
-                      {priceKrw.toLocaleString()}원
-                    </span>
-                  </div>
-                )}
-              </div>
+              </>
             )}
           </Link>
 

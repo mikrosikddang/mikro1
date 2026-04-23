@@ -93,7 +93,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
                 </span>
               </div>
               <span className="text-[12px] text-gray-400">
-                {new Date(review.createdAt).toLocaleDateString("ko-KR")}
+                {new Date(review.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
               </span>
             </div>
             {review.content && (

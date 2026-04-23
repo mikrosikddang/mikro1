@@ -141,7 +141,7 @@ export default function SellerOrdersPage() {
                 {/* Footer */}
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                   <p className="text-[12px] text-gray-400">
-                    {new Date(order.createdAt).toLocaleDateString("ko-KR")}
+                    {new Date(order.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                   <p className="text-[15px] font-bold text-black">
                     {order.totalPayKrw.toLocaleString("ko-KR")}원

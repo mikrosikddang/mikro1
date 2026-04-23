@@ -145,7 +145,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-gray-900">주문 상세</h1>
           <p className="mt-1 text-sm text-gray-500">
-            주문번호 {order.orderNo} · {new Date(order.createdAt).toLocaleString("ko-KR")}
+            주문번호 {order.orderNo} · {new Date(order.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -332,7 +332,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                   </p>
                   <p className="mt-1 text-gray-600">{log.reason}</p>
                   <p className="mt-2 text-xs text-gray-400">
-                    admin {log.adminId} · {new Date(log.createdAt).toLocaleString("ko-KR")}
+                    admin {log.adminId} · {new Date(log.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
               ))

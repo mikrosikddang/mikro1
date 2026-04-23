@@ -131,12 +131,16 @@ export async function POST(request: Request) {
           include: { sellerProfile: true },
         });
 
-        const shippingFeeKrw = seller?.sellerProfile?.shippingFeeKrw || 3000;
-        const freeShippingThreshold = seller?.sellerProfile?.freeShippingThreshold || 50000;
+        const shippingFeeKrw = seller?.sellerProfile?.shippingFeeKrw ?? 3000;
+        const freeShippingThreshold = seller?.sellerProfile?.freeShippingThreshold ?? 50000;
 
-        // Calculate shipping fee
+        // shippingFeeKrw=0 → 항상 무료. freeShippingThreshold=0 → 무료 기준 비활성
         let calculatedShippingFee = shippingFeeKrw;
-        if (totalAmountKrw >= freeShippingThreshold) {
+        if (
+          shippingFeeKrw > 0 &&
+          freeShippingThreshold > 0 &&
+          totalAmountKrw >= freeShippingThreshold
+        ) {
           calculatedShippingFee = 0;
         }
 

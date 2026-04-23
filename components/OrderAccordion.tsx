@@ -89,7 +89,7 @@ export default function OrderAccordion({ roomId }: OrderAccordionProps) {
                       {formatKrw(order.totalPayKrw)}
                     </span>
                     <span className="text-[11px] text-gray-400">
-                      {new Date(order.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(order.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </span>
                   </div>
                 </Link>
