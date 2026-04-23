@@ -5,12 +5,13 @@
  * Cancel: POST /v1/payments/{paymentKey}/cancel
  */
 
-const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY ?? "";
+import { getTossSecretKey } from "@/lib/tossConfig";
+
 const TOSS_API_BASE = "https://api.tosspayments.com/v1";
 
-function authHeader(): string {
-  // Toss uses Basic auth with secretKey as username, empty password
-  const encoded = Buffer.from(`${TOSS_SECRET_KEY}:`).toString("base64");
+async function authHeader(): Promise<string> {
+  const secretKey = await getTossSecretKey();
+  const encoded = Buffer.from(`${secretKey}:`).toString("base64");
   return `Basic ${encoded}`;
 }
 
@@ -31,9 +32,10 @@ export async function cancelPayment(
   paymentKey: string,
   cancelReason: string,
 ): Promise<TossCancelResult> {
-  if (!TOSS_SECRET_KEY) {
+  const secretKey = await getTossSecretKey();
+  if (!secretKey) {
     console.warn(
-      "[toss] TOSS_SECRET_KEY not set — skipping cancel API call for paymentKey:",
+      "[toss] Secret key not configured for current Toss mode — skipping cancel API call for paymentKey:",
       paymentKey,
     );
     return {
@@ -49,7 +51,7 @@ export async function cancelPayment(
       {
         method: "POST",
         headers: {
-          Authorization: authHeader(),
+          Authorization: await authHeader(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ cancelReason }),

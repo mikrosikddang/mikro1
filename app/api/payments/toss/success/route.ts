@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCanonicalOrigin } from "@/lib/siteUrl";
+import { getTossSecretKey } from "@/lib/tossConfig";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,11 @@ export async function GET(req: NextRequest) {
   const baseUrl = getCanonicalOrigin();
 
   try {
-    // 토스 결제 승인 API 호출
-    const secretKey = process.env.TOSS_SECRET_KEY!;
+    const secretKey = await getTossSecretKey();
+    if (!secretKey) {
+      console.error("[toss/success] Secret key not configured for current Toss mode");
+      return NextResponse.redirect(`${baseUrl}/checkout?error=payment_not_configured`);
+    }
     const encoded = Buffer.from(`${secretKey}:`).toString("base64");
 
     const confirmRes = await fetch("https://api.tosspayments.com/v1/payments/confirm", {

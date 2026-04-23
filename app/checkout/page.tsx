@@ -421,9 +421,17 @@ export default function CheckoutPage() {
     }
   };
 
-  const requestTossPayment = (ids: string[]) => {
+  const requestTossPayment = async (ids: string[]) => {
     try {
-      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      const configRes = await fetch("/api/payments/config", { cache: "no-store" });
+      if (!configRes.ok) {
+        setError("결제 설정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      const { clientKey } = (await configRes.json()) as {
+        mode: "live" | "test";
+        clientKey: string;
+      };
       if (!clientKey) {
         setError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
         return;
