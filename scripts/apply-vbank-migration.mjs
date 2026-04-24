@@ -21,10 +21,17 @@ async function main() {
   await client.connect();
   try {
     // ALTER TYPE ... ADD VALUE 는 트랜잭션 내에서 사용 불가 → autocommit 으로 분리 실행
-    const statements = sql
+    // 주의: 라인 단위 주석(--)을 먼저 제거한 뒤 ; 로 분리해야 한다.
+    // 그렇지 않으면 첫 statement 가 "-- AlterEnum\nALTER TYPE ..." 형태가 되어
+    // startsWith("--") 필터에 걸려 통째로 스킵되는 사고가 발생함.
+    const stripped = sql
+      .split("\n")
+      .map((line) => line.replace(/--.*$/, ""))
+      .join("\n");
+    const statements = stripped
       .split(/;\s*\n/)
       .map((s) => s.trim())
-      .filter((s) => s && !s.startsWith("--"));
+      .filter((s) => s.length > 0);
     for (const stmt of statements) {
       await client.query(stmt);
     }

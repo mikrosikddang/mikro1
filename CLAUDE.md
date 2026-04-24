@@ -17,6 +17,14 @@
    - Amplify 빌드 환경이 npm 10 이라 npm 11 로 만든 lockfile 은 `npm ci` 가 거부할 수 있다.
    - 의존성 추가/삭제 시 `nvm use` 후 `npm install` 또는 `npx npm@10 install` 로 lock 재생성.
    - 커밋 전 `rm -rf node_modules && npm ci` 로 사전 검증 권장.
+9. **마이그레이션 정합성 검증 필수.**
+   - `_prisma_migrations` 에 row 가 있어도 실제 DDL 이 적용되지 않은 "거짓 적용" 사고가 가능하다.
+   - 마이그레이션 적용/배포 직후에는 반드시 실제 컬럼/enum/테이블 존재 여부를 확인한다.
+     - 점검 도구: `node ./scripts/check-schema-integrity.mjs`
+   - 수동 apply 스크립트는 SQL 의 `--` 라인 단위 주석을 statement 분리 전에 제거할 것.
+     `;` split 후 `startsWith("--")` 필터를 그대로 쓰면 첫 statement 가 통째로 스킵되는 사고가 난다 (vbank 사고 사례).
+   - **사고 사례 (vbank):** `apply-vbank-migration.mjs` 의 split 버그로 `ALTER TYPE`/`ALTER TABLE` 이 모두 스킵되었지만 `_prisma_migrations` 에는 적용 표시가 들어감.
+     결과: Prisma client 가 vbank 컬럼을 RETURNING 절에 포함시키면서 `Payment.create` 가 "column does not exist" 로 실패 → "주문 생성 중 오류" 500.
 
 ---
 
