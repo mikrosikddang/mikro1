@@ -15,7 +15,12 @@ export const runtime = "nodejs";
  * 수익자(beneficiary)별 지급 대상(PAYABLE) OrderCommission 합계 목록 + 기존 Payout 내역.
  */
 export async function GET() {
-  requireAdmin(await getSession());
+  try {
+    requireAdmin(await getSession());
+  } catch (e) {
+    if (e instanceof NextResponse) return e;
+    throw e;
+  }
 
   // 수익자별 집계 (PAYABLE + payoutId IS NULL)
   const payableRows = await prisma.orderCommission.groupBy({
@@ -91,7 +96,13 @@ type CreatePayoutBody = {
  * 특정 수익자의 PAYABLE 수수료를 전부 합산해 토스 지급대행 요청.
  */
 export async function POST(req: NextRequest) {
-  const session = requireAdmin(await getSession());
+  let session;
+  try {
+    session = requireAdmin(await getSession());
+  } catch (e) {
+    if (e instanceof NextResponse) return e;
+    throw e;
+  }
   const body = (await req.json().catch(() => ({}))) as CreatePayoutBody;
 
   if (!body.beneficiaryUserId) {

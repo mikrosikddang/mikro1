@@ -15,7 +15,12 @@ interface RouteContext {
  * 이미 등록되어 있으면 { ok:false, code:"ALREADY_REGISTERED" } 반환.
  */
 export async function POST(_req: NextRequest, context: RouteContext) {
-  requireAdmin(await getSession());
+  try {
+    requireAdmin(await getSession());
+  } catch (e) {
+    if (e instanceof NextResponse) return e;
+    throw e;
+  }
   const { id } = await context.params;
 
   const result = await syncSellerToTossPayouts(id);
