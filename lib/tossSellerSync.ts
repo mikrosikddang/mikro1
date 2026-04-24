@@ -10,12 +10,22 @@
  * 지급대행 계약 미활성 상태에서는 토스가 4xx 로 거부하므로 graceful fallback.
  */
 
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
   registerTossSeller,
   type TossSellerBusinessType,
 } from "@/lib/tossPayouts";
 import { bankNameToCode } from "@/lib/bankCodes";
+
+/**
+ * Toss v2 의 refSellerId 는 최대 20자.
+ * 우리 SellerProfile.id 는 cuid (25자) 이므로 SHA-256 해시 hex 첫 20자로 매핑.
+ * 결정론적이라 동일 profile → 동일 refSellerId.
+ */
+function buildRefSellerId(profileId: string): string {
+  return crypto.createHash("sha256").update(profileId).digest("hex").slice(0, 20);
+}
 
 export type TossSellerSyncResult =
   | { ok: true; tossSellerId: string; status: string | null }
@@ -78,7 +88,7 @@ export async function syncSellerToTossPayouts(
 
   try {
     const response = await registerTossSeller({
-      refSellerId: profile.id,
+      refSellerId: buildRefSellerId(profile.id),
       businessType,
       ...(isBusiness
         ? {

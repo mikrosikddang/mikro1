@@ -33,14 +33,25 @@ export const dynamic = "force-dynamic";
 type TossWebhookBody = {
   eventType?: string;
   createdAt?: string;
+  // 결제(PAYMENT_STATUS_CHANGED) 등은 data 키를 사용
   data?: {
     paymentKey?: string;
     orderId?: string;
     status?: string;
-    // payout.changed / seller.changed 에서도 data 로 감싸서 옴
     id?: string;
     refPayoutId?: string;
     refSellerId?: string;
+    failure?: { code: string; message: string };
+    error?: { code: string; message: string };
+  };
+  // 지급대행 v2 (payout.changed, seller.changed) 는 entityBody 키를 사용
+  entityType?: string;
+  entityBody?: {
+    id?: string;
+    refPayoutId?: string;
+    refSellerId?: string;
+    status?: string;
+    error?: { code: string; message: string };
     failure?: { code: string; message: string };
   };
   // DEPOSIT_CALLBACK 본문은 data 객체로 감싸지 않고 루트에 그대로 옴
@@ -77,6 +88,46 @@ function verifySignature(rawBody: string, signatureHeader: string | null): boole
   }
 }
 
+/**
+ * 지급대행 v2 webhook (payout.changed, seller.changed) 전용 서명 검증.
+ * 헤더:
+ *   tosspayments-webhook-signature: v1:<base64>,v1:<base64>
+ *   tosspayments-webhook-transmission-time: <ISO timestamp>
+ * 알고리즘:
+ *   HMAC-SHA256(`{rawBody}:{transmissionTime}`, securityKey) → base64
+ *   둘 중 하나의 v1 값과 일치하면 OK (보안키 회전 대응)
+ */
+function verifyPayoutsWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  transmissionTime: string | null,
+): boolean {
+  const securityKeyHex = (process.env.TOSS_PAYOUT_SECURITY_KEY ?? "").trim();
+  if (!securityKeyHex) return true; // 미설정 시 소프트 패스
+  if (!signatureHeader || !transmissionTime) return false;
+
+  const key = Buffer.from(securityKeyHex, "hex");
+  const expected = crypto
+    .createHmac("sha256", key)
+    .update(`${rawBody}:${transmissionTime}`)
+    .digest("base64");
+
+  const candidates = signatureHeader
+    .split(",")
+    .map((s) => s.trim().replace(/^v1:/, ""))
+    .filter(Boolean);
+
+  return candidates.some((cand) => {
+    try {
+      const a = Buffer.from(expected);
+      const b = Buffer.from(cand);
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
+  });
+}
+
 async function fetchTossPayment(paymentKey: string): Promise<TossPayment | null> {
   const secretKey = await getTossSecretKey();
   if (!secretKey) return null;
@@ -102,17 +153,30 @@ async function fetchTossPayment(paymentKey: string): Promise<TossPayment | null>
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("toss-signature");
-
-  if (!verifySignature(rawBody, signature)) {
-    console.warn("[toss/webhook] signature verification failed");
-    return NextResponse.json({ ok: false, code: "INVALID_SIGNATURE" }, { status: 401 });
-  }
+  const payoutsSignature = req.headers.get("tosspayments-webhook-signature");
+  const transmissionTime = req.headers.get("tosspayments-webhook-transmission-time");
 
   let body: TossWebhookBody;
   try {
     body = JSON.parse(rawBody) as TossWebhookBody;
   } catch {
     return NextResponse.json({ ok: false, code: "INVALID_JSON" }, { status: 400 });
+  }
+
+  const isPayoutsEvent =
+    body.eventType === "payout.changed" || body.eventType === "seller.changed";
+
+  // 서명 검증: 지급대행은 v2 전용 헤더, 그 외는 일반 서명
+  if (isPayoutsEvent) {
+    if (!verifyPayoutsWebhookSignature(rawBody, payoutsSignature, transmissionTime)) {
+      console.warn("[toss/webhook] payouts signature verification failed");
+      return NextResponse.json({ ok: false, code: "INVALID_SIGNATURE" }, { status: 401 });
+    }
+  } else {
+    if (!verifySignature(rawBody, signature)) {
+      console.warn("[toss/webhook] signature verification failed");
+      return NextResponse.json({ ok: false, code: "INVALID_SIGNATURE" }, { status: 401 });
+    }
   }
 
   const { eventType, data } = body;
@@ -197,11 +261,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, code: "UNHANDLED_DEPOSIT_STATUS" });
   }
 
-  /* ---- payout.changed: 지급대행 상태 변경 ---- */
+  /* ---- payout.changed: 지급대행 상태 변경 (v2 envelope: entityBody) ---- */
   if (eventType === "payout.changed") {
-    const tossPayoutId = body.data?.id;
-    const refPayoutId = body.data?.refPayoutId;
-    const status = body.data?.status;
+    // v2 는 entityBody, 구버전 호환을 위해 data 도 fallback
+    const payoutBody = body.entityBody ?? body.data ?? {};
+    const tossPayoutId = payoutBody.id;
+    const refPayoutId = payoutBody.refPayoutId;
+    const status = payoutBody.status;
     if (!tossPayoutId && !refPayoutId) {
       console.warn("[toss/webhook] payout.changed missing id", body);
       return NextResponse.json({ ok: true, code: "IGNORED" });
@@ -225,12 +291,13 @@ export async function POST(req: NextRequest) {
       metadata: unknown;
     } = {
       status: nextStatus,
-      metadata: body.data,
+      metadata: payoutBody as unknown,
     };
     if (nextStatus === "COMPLETED") updateData.completedAt = new Date();
     if (nextStatus === "CANCELLED") updateData.cancelledAt = new Date();
     if (nextStatus === "FAILED") {
-      updateData.failureReason = body.data?.failure?.message ?? "UNKNOWN";
+      updateData.failureReason =
+        payoutBody.error?.message ?? payoutBody.failure?.message ?? "UNKNOWN";
     }
 
     await prisma.$transaction(async (tx) => {
@@ -262,11 +329,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, code: "PAYOUT_UPDATED", status: nextStatus });
   }
 
-  /* ---- seller.changed: 셀러 KYC 상태 변경 ---- */
+  /* ---- seller.changed: 셀러 KYC 상태 변경 (v2 envelope: entityBody) ---- */
   if (eventType === "seller.changed") {
-    const tossSellerId = body.data?.id;
-    const refSellerId = body.data?.refSellerId;
-    const status = body.data?.status;
+    const sellerBody = body.entityBody ?? body.data ?? {};
+    const tossSellerId = sellerBody.id;
+    const refSellerId = sellerBody.refSellerId;
+    const status = sellerBody.status;
     if (!tossSellerId && !refSellerId) {
       console.warn("[toss/webhook] seller.changed missing id", body);
       return NextResponse.json({ ok: true, code: "IGNORED" });

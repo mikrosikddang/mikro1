@@ -18,7 +18,8 @@ export default function PayoutRequestButton({
 
   const handleRequest = async () => {
     const ok = confirm(
-      `${formatKrw(amountKrw)}을 지급대행 요청하시겠습니까?\n\n요청 후 토스페이먼츠 정산 스케줄에 따라 자동 송금됩니다.`,
+      `${formatKrw(amountKrw)}을 토스 지급대행으로 즉시 요청하시겠습니까?\n\n` +
+        `EXPRESS(바로지급)는 영업일 08:00~15:00 사이에만 처리됩니다.`,
     );
     if (!ok) return;
 
@@ -29,7 +30,7 @@ export default function PayoutRequestButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           beneficiaryUserId,
-          scheduleType: "SCHEDULED",
+          scheduleType: "EXPRESS",
         }),
       });
       const data = await res.json();

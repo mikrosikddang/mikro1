@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { requireAdmin } from "@/lib/roleGuards";
 import { createAdminActionLog } from "@/lib/adminActionLog";
 import {
-  requestTossPayout,
+  requestSingleTossPayout,
   mapTossPayoutStatus,
 } from "@/lib/tossPayouts";
 
@@ -87,7 +87,8 @@ export async function GET() {
 
 type CreatePayoutBody = {
   beneficiaryUserId: string;
-  scheduleType?: "SCHEDULED" | "EXPRESS"; // 기본 SCHEDULED
+  scheduleType?: "SCHEDULED" | "EXPRESS"; // 기본 EXPRESS (영업일 08~15시)
+  payoutDate?: string; // SCHEDULED 일 때 yyyy-MM-dd
   description?: string;
 };
 
@@ -108,7 +109,13 @@ export async function POST(req: NextRequest) {
   if (!body.beneficiaryUserId) {
     return NextResponse.json({ error: "beneficiaryUserId required" }, { status: 400 });
   }
-  const scheduleType = body.scheduleType ?? "SCHEDULED";
+  const scheduleType = body.scheduleType ?? "EXPRESS";
+  if (scheduleType === "SCHEDULED" && !body.payoutDate) {
+    return NextResponse.json(
+      { error: "PAYOUT_DATE_REQUIRED", message: "예약 지급은 payoutDate (yyyy-MM-dd) 가 필요합니다." },
+      { status: 400 },
+    );
+  }
 
   // 수익자 조회 + tossSellerId 확인
   const user = await prisma.user.findUnique({
@@ -172,10 +179,11 @@ export async function POST(req: NextRequest) {
 
   // 토스 지급 요청
   try {
-    const tossRes = await requestTossPayout({
+    const tossRes = await requestSingleTossPayout({
       refPayoutId: payout.id,
       destination: tossSellerId,
       scheduleType,
+      ...(scheduleType === "SCHEDULED" ? { payoutDate: body.payoutDate! } : {}),
       amount: { currency: "KRW", value: totalAmount },
       transactionDescription:
         body.description ?? `미크로 정산 ${new Date().toISOString().slice(0, 10)}`,
@@ -190,7 +198,7 @@ export async function POST(req: NextRequest) {
       data: {
         tossPayoutId: tossRes.id,
         status: mapTossPayoutStatus(tossRes.status),
-        scheduledAt: tossRes.scheduledAt ? new Date(tossRes.scheduledAt) : null,
+        scheduledAt: tossRes.payoutDate ? new Date(`${tossRes.payoutDate}T00:00:00+09:00`) : null,
         metadata: JSON.parse(JSON.stringify(tossRes)),
       },
     });
