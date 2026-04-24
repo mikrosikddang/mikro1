@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getCanonicalOrigin } from "@/lib/siteUrl";
 import { getTossSecretKey } from "@/lib/tossConfig";
 import { notifyOrderStatusChange } from "@/lib/notifications";
+import {
+  promoteVbankWaitingToPaid,
+  markVbankCancelledOrExpired,
+} from "@/lib/orderConfirm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +37,12 @@ type TossWebhookBody = {
     orderId?: string;
     status?: string;
   };
+  // DEPOSIT_CALLBACK 본문은 data 객체로 감싸지 않고 루트에 그대로 옴
+  paymentKey?: string;
+  orderId?: string;
+  status?: string;
+  secret?: string;
+  transactionKey?: string;
 };
 
 type TossPayment = {
@@ -100,10 +110,86 @@ export async function POST(req: NextRequest) {
   }
 
   const { eventType, data } = body;
-  const paymentKey = data?.paymentKey;
-  const orderId = data?.orderId;
+  const paymentKey = data?.paymentKey ?? body.paymentKey;
+  const orderId = data?.orderId ?? body.orderId;
 
   console.log("[toss/webhook] received", { eventType, orderId, paymentKey });
+
+  /* ---- DEPOSIT_CALLBACK: 가상계좌 입금/입금취소 ---- */
+  if (eventType === "DEPOSIT_CALLBACK") {
+    const status = body.status; // "DONE" or "CANCELED"
+    const secret = body.secret;
+    if (!paymentKey || !orderId || !secret || !status) {
+      console.warn("[toss/webhook] DEPOSIT_CALLBACK missing fields", body);
+      return NextResponse.json({ ok: true, code: "IGNORED" });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { paymentKey },
+      select: { vbankSecret: true, orderId: true },
+    });
+    if (!payment) {
+      console.warn("[toss/webhook] DEPOSIT_CALLBACK payment not found", { paymentKey });
+      return NextResponse.json({ ok: true, code: "PAYMENT_NOT_FOUND" });
+    }
+    if (payment.orderId !== orderId) {
+      console.warn("[toss/webhook] DEPOSIT_CALLBACK orderId mismatch", {
+        paymentKey,
+        webhook: orderId,
+        db: payment.orderId,
+      });
+      return NextResponse.json({ ok: false, code: "ORDER_MISMATCH" }, { status: 400 });
+    }
+    if (payment.vbankSecret !== secret) {
+      console.warn("[toss/webhook] DEPOSIT_CALLBACK secret mismatch", {
+        paymentKey,
+      });
+      return NextResponse.json({ ok: false, code: "SECRET_MISMATCH" }, { status: 401 });
+    }
+
+    if (status === "DONE") {
+      const result = await promoteVbankWaitingToPaid(orderId);
+      if (result.ok && result.code === "PAID") {
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: { id: true, orderNo: true, buyerId: true, sellerId: true },
+        });
+        if (order) {
+          await notifyOrderStatusChange(
+            order.id,
+            order.orderNo,
+            order.buyerId,
+            order.sellerId,
+            "PAID",
+          );
+        }
+        return NextResponse.json({ ok: true, code: "PAID" });
+      }
+      console.error("[toss/webhook] vbank promote failed", { orderId, result });
+      return NextResponse.json({ ok: true, code: "PROMOTE_FAILED", result });
+    }
+
+    if (status === "CANCELED") {
+      await markVbankCancelledOrExpired(orderId, "CANCELED");
+      // 알림톡: 결제 취소 — 기존 CANCELLED 알림 활용
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, orderNo: true, buyerId: true, sellerId: true },
+      });
+      if (order) {
+        await notifyOrderStatusChange(
+          order.id,
+          order.orderNo,
+          order.buyerId,
+          order.sellerId,
+          "CANCELLED",
+        );
+      }
+      return NextResponse.json({ ok: true, code: "DEPOSIT_CANCELED" });
+    }
+
+    return NextResponse.json({ ok: true, code: "UNHANDLED_DEPOSIT_STATUS" });
+  }
 
   if (!paymentKey || !orderId) {
     // 받긴 했으니 200 리턴 (Toss 재시도 방지), 내부 로그만 경고

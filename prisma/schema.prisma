@@ -50,6 +50,7 @@ enum CommissionSettlementStatus {
 
 enum OrderStatus {
   PENDING
+  WAITING_DEPOSIT
   PAID
   SHIPPED
   COMPLETED
@@ -382,6 +383,14 @@ model Payment {
   amountKrw   Int
   mode        String?       @db.VarChar(8) // "live" | "test" — 결제 시작 시점 모드 고정
   rawResponse Json?
+
+  // 가상계좌 전용 필드
+  vbankBank        String?   @db.VarChar(40)  // 은행명
+  vbankCode        String?   @db.VarChar(10)  // 은행 코드
+  vbankNumber      String?   @db.VarChar(40)  // 발급된 가상계좌 번호
+  vbankHolder      String?   @db.VarChar(60)  // 예금주
+  vbankDueDate     DateTime?                  // 입금 기한
+  vbankSecret      String?   @db.VarChar(64)  // DEPOSIT_CALLBACK 검증용 secret
 
   approvedAt  DateTime?
   createdAt   DateTime @default(now())

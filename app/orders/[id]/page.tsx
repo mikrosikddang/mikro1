@@ -4,6 +4,7 @@ import Container from "@/components/Container";
 import OrderActions from "@/components/OrderActions";
 import OrderClaimButton from "@/components/OrderClaimButton";
 import OrderClaimList from "@/components/OrderClaimList";
+import VbankDepositCard from "@/components/VbankDepositCard";
 import { formatKrw, formatKstDateTime } from "@/lib/format";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +49,7 @@ export default async function OrderDetailPage({ params }: Props) {
         },
       },
       claims: { orderBy: { createdAt: "desc" } },
+      payment: true,
     },
   });
 
@@ -118,6 +120,17 @@ export default async function OrderDetailPage({ params }: Props) {
             </span>
           </div>
         </div>
+
+        {/* 가상계좌 입금 안내 */}
+        {order.status === "WAITING_DEPOSIT" && order.payment?.vbankNumber && (
+          <VbankDepositCard
+            bank={order.payment.vbankBank}
+            accountNumber={order.payment.vbankNumber}
+            holder={order.payment.vbankHolder}
+            amountKrw={order.payment.amountKrw}
+            dueDate={order.payment.vbankDueDate}
+          />
+        )}
 
         {/* Action buttons */}
         <div className="mb-6 space-y-3">

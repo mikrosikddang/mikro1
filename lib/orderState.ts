@@ -29,7 +29,8 @@ import { OrderStatus } from "@prisma/client";
  * - EXPIRED -> (no transitions, terminal state)
  */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ["PAID", "CANCELLED"],
+  PENDING: ["PAID", "WAITING_DEPOSIT", "CANCELLED"],
+  WAITING_DEPOSIT: ["PAID", "CANCELLED", "EXPIRED"],
   PAID: ["SHIPPED", "REFUND_REQUESTED"],
   SHIPPED: ["COMPLETED", "REFUND_REQUESTED"],
   REFUND_REQUESTED: ["RETURN_STARTED"],
@@ -87,6 +88,7 @@ export class OrderTransitionError extends Error {
 export function getStatusLabel(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
     PENDING: "결제 대기",
+    WAITING_DEPOSIT: "입금 대기",
     PAID: "결제 완료",
     SHIPPED: "배송중",
     COMPLETED: "거래 완료",
@@ -107,6 +109,7 @@ export function getStatusLabel(status: OrderStatus): string {
 export function getStatusColor(status: OrderStatus): string {
   const colors: Record<OrderStatus, string> = {
     PENDING: "bg-gray-100 text-gray-700",
+    WAITING_DEPOSIT: "bg-amber-100 text-amber-700",
     PAID: "bg-blue-100 text-blue-700",
     SHIPPED: "bg-purple-100 text-purple-700",
     COMPLETED: "bg-green-100 text-green-700",

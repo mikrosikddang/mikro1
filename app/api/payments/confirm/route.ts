@@ -32,6 +32,15 @@ type ConfirmBody = {
   orderId: string;
   paymentKey: string;
   amount?: number;
+  method?: string;
+  virtualAccount?: {
+    bank: string | null;
+    bankCode: string | null;
+    accountNumber: string | null;
+    customerName: string | null;
+    dueDate: string | null;
+    secret: string | null;
+  } | null;
 };
 
 /* ---------- helpers ---------- */
@@ -60,7 +69,8 @@ export async function POST(req: NextRequest) {
     return json({ ok: false, code: "INVALID_JSON", message: "요청 본문이 올바르지 않습니다" }, 400);
   }
 
-  const { orderId, paymentKey, amount } = body;
+  const { orderId, paymentKey, amount, method, virtualAccount } = body;
+  const isVirtualAccount = Boolean(virtualAccount?.accountNumber);
 
   if (!orderId || !paymentKey) {
     return json(
@@ -109,6 +119,15 @@ export async function POST(req: NextRequest) {
     return json({ ok: true, code: "ALREADY_PAID", orderId });
   }
 
+  // 가상계좌 입금 대기 상태에서 동일 paymentKey 로 재호출 → idempotent 성공
+  if (
+    order.status === OrderStatus.WAITING_DEPOSIT &&
+    isVirtualAccount &&
+    order.payment?.paymentKey === paymentKey
+  ) {
+    return json({ ok: true, code: "ALREADY_WAITING_DEPOSIT", orderId });
+  }
+
   if (order.status !== OrderStatus.PENDING) {
     return json(
       {
@@ -134,11 +153,66 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // 결제 시점 모드 고정 (차후 취소/환불 시 이 모드의 Secret Key 로 요청)
+  const tossMode = await getTossMode();
+
+  /* ---- 가상계좌 분기: 입금 대기 상태로만 기록, 재고 차감 X, PAID 승격 X ---- */
+  if (isVirtualAccount && virtualAccount) {
+    const dueDate = virtualAccount.dueDate
+      ? new Date(virtualAccount.dueDate)
+      : null;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.WAITING_DEPOSIT },
+        });
+        const baseData = {
+          paymentKey,
+          status: PaymentStatus.READY,
+          method: method ?? "가상계좌",
+          mode: tossMode,
+          vbankBank: virtualAccount.bank,
+          vbankCode: virtualAccount.bankCode,
+          vbankNumber: virtualAccount.accountNumber,
+          vbankHolder: virtualAccount.customerName,
+          vbankDueDate: dueDate,
+          vbankSecret: virtualAccount.secret,
+        };
+        if (order.payment) {
+          await tx.payment.update({
+            where: { id: order.payment.id },
+            data: baseData,
+          });
+        } else {
+          await tx.payment.create({
+            data: {
+              ...baseData,
+              orderId,
+              amountKrw: order.totalPayKrw,
+            },
+          });
+        }
+      });
+    } catch (err) {
+      if (isPrismaUniqueError(err)) {
+        return json(
+          { ok: false, code: "PAYMENT_KEY_ALREADY_USED", message: "이미 처리된 결제입니다." },
+          409,
+        );
+      }
+      console.error("[payments/confirm] vbank txn failed:", err);
+      return json(
+        { ok: false, code: "INTERNAL_ERROR", message: "가상계좌 발급 정보를 저장하지 못했습니다" },
+        500,
+      );
+    }
+    return json({ ok: true, code: "WAITING_DEPOSIT", orderId });
+  }
+
   /* ---- PART C: transaction — stock deduction + status update ---- */
   let stockFailed = false;
   let failedProductId: string | null = null;
-  // 결제 시점 모드 고정 (차후 취소/환불 시 이 모드의 Secret Key 로 요청)
-  const tossMode = await getTossMode();
 
   try {
     await prisma.$transaction(async (tx) => {
