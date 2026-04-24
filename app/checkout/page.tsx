@@ -99,10 +99,14 @@ export default function CheckoutPage() {
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [checkoutAttemptId, setCheckoutAttemptId] = useState<string | null>(null);
   const [widgetReady, setWidgetReady] = useState(false);
+  const [agreementReady, setAgreementReady] = useState(false);
   const [widgetError, setWidgetError] = useState<string | null>(null);
   const paymentWidgetRef = useRef<PaymentWidgetInstance | null>(null);
   const paymentMethodWidgetRef = useRef<ReturnType<
     PaymentWidgetInstance["renderPaymentMethods"]
+  > | null>(null);
+  const agreementWidgetRef = useRef<ReturnType<
+    PaymentWidgetInstance["renderAgreement"]
   > | null>(null);
   const customerKeyRef = useRef<string | null>(null);
 
@@ -164,16 +168,30 @@ export default function CheckoutPage() {
         if (aborted) return;
         paymentWidgetRef.current = widget;
 
-        paymentMethodWidgetRef.current = widget.renderPaymentMethods(
+        const methodWidget = widget.renderPaymentMethods(
           "#toss-payment-methods",
           { value: totalPay },
           { variantKey: "DEFAULT" },
         );
-        widget.renderAgreement("#toss-payment-agreement", {
+        paymentMethodWidgetRef.current = methodWidget;
+
+        const agreementWidget = widget.renderAgreement("#toss-payment-agreement", {
           variantKey: "AGREEMENT",
         });
+        agreementWidgetRef.current = agreementWidget;
 
-        setWidgetReady(true);
+        // 토스 공식 가이드: renderPaymentMethods 의 ready 이벤트가 실제 mount 완료 시점.
+        // 이 이벤트 전에 requestPayment() 를 호출하면
+        // "결제 UI가 아직 렌더링되지 않았습니다" alert 가 뜬다.
+        methodWidget.on("ready", () => {
+          if (aborted) return;
+          setWidgetReady(true);
+        });
+        // 약관 위젯도 동일 패턴. 약관 mount 가 안 끝났으면 동의 status 조회가 비정상.
+        agreementWidget.on("ready", () => {
+          if (aborted) return;
+          setAgreementReady(true);
+        });
       } catch (err) {
         console.error("[checkout] payment widget load failed:", err);
         setWidgetError(
@@ -516,10 +534,26 @@ export default function CheckoutPage() {
   const requestTossPayment = async (ids: string[]) => {
     try {
       const widget = paymentWidgetRef.current;
-      if (!widget) {
-        setError("결제 모듈이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+      const methodWidget = paymentMethodWidgetRef.current;
+      const agreementWidget = agreementWidgetRef.current;
+      if (!widget || !methodWidget || !widgetReady) {
+        setError("결제수단을 불러오는 중입니다. 잠시만 기다려주세요.");
         setProcessingPayment(false);
         return;
+      }
+
+      // 약관 동의 검증: 위젯 자체에서도 검증하지만, 우리 쪽에서 한 번 더 친절한 안내.
+      if (agreementWidget && agreementReady) {
+        try {
+          const status = await agreementWidget.getAgreementStatus();
+          if (!status.agreedRequiredTerms) {
+            setError("결제 진행을 위해 필수 약관에 동의해주세요.");
+            setProcessingPayment(false);
+            return;
+          }
+        } catch {
+          // status 조회 실패 시 토스 SDK 의 자체 검증에 위임
+        }
       }
 
       const firstItem = sellerGroups[0]?.items[0];
@@ -936,14 +970,25 @@ export default function CheckoutPage() {
           <div id="toss-payment-agreement" />
         </div>
 
-        {/* Payment button */}
+        {/* Payment button.
+            widgetReady + agreementReady 가 둘 다 true 가 될 때까지 비활성화.
+            (토스 가이드: 결제 UI 렌더 완료 전 requestPayment() 호출 시 alert 발생) */}
         <button
           type="button"
           onClick={handleCreateOrders}
-          disabled={processingPayment || !selectedAddress || !widgetReady}
+          disabled={
+            processingPayment ||
+            !selectedAddress ||
+            !widgetReady ||
+            !agreementReady
+          }
           className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
-          {processingPayment ? "처리 중..." : "결제하기"}
+          {processingPayment
+            ? "처리 중..."
+            : !widgetReady || !agreementReady
+              ? "결제수단 불러오는 중..."
+              : "결제하기"}
         </button>
 
         {/* Address Form Modal */}
