@@ -13,6 +13,10 @@
 5. **모든 변경은 역할별 검증:** FE/BE 구현 → QA 테스트 → SV 통합 보고.
 6. **기존에 동작하던 기능을 깨뜨리지 않는다.** 보안/성능 개선 시 반드시 기존 기능 회귀 테스트 포함.
 7. **tsc --noEmit 체크는 커밋/푸시 시에만 수행.**
+8. **Node/npm 버전 일치.** 로컬 개발은 `.nvmrc`(node 22.18.0) + npm 10.x 를 사용한다.
+   - Amplify 빌드 환경이 npm 10 이라 npm 11 로 만든 lockfile 은 `npm ci` 가 거부할 수 있다.
+   - 의존성 추가/삭제 시 `nvm use` 후 `npm install` 또는 `npx npm@10 install` 로 lock 재생성.
+   - 커밋 전 `rm -rf node_modules && npm ci` 로 사전 검증 권장.
 
 ---
 
