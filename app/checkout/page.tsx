@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  loadPaymentWidget,
+  type PaymentWidgetInstance,
+} from "@tosspayments/payment-widget-sdk";
 import Container from "@/components/Container";
 import { formatKrw } from "@/lib/format";
 import AddressForm from "@/components/AddressForm";
@@ -94,7 +98,13 @@ export default function CheckoutPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [checkoutAttemptId, setCheckoutAttemptId] = useState<string | null>(null);
-  const [tossReady, setTossReady] = useState(false);
+  const [widgetReady, setWidgetReady] = useState(false);
+  const [widgetError, setWidgetError] = useState<string | null>(null);
+  const paymentWidgetRef = useRef<PaymentWidgetInstance | null>(null);
+  const paymentMethodWidgetRef = useRef<ReturnType<
+    PaymentWidgetInstance["renderPaymentMethods"]
+  > | null>(null);
+  const customerKeyRef = useRef<string | null>(null);
 
   // Coupon state
   const [showCouponSheet, setShowCouponSheet] = useState(false);
@@ -102,6 +112,11 @@ export default function CheckoutPage() {
   const [selectedCoupon, setSelectedCoupon] = useState<AvailableCoupon | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponLoading, setCouponLoading] = useState(false);
+
+  // 총액 계산 (위젯 초기화/금액 갱신 effect 가 의존하므로 hooks 위에서 산출)
+  const totalAmount = sellerGroups.reduce((sum, g) => sum + g.subtotal, 0);
+  const totalShipping = sellerGroups.reduce((sum, g) => sum + g.shippingFee, 0);
+  const totalPay = totalAmount - couponDiscount + totalShipping;
 
   useEffect(() => {
     if (directOrderId) {
@@ -111,15 +126,83 @@ export default function CheckoutPage() {
     }
   }, [directOrderId]);
 
-  // Load Toss Payments SDK
+  // 결제위젯 초기화 — clientKey + 최초 결제수단 렌더 (총액 0원 이상이면)
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://js.tosspayments.com/v1/payment";
-    script.async = true;
-    script.onload = () => setTossReady(true);
-    document.head.appendChild(script);
-    return () => { document.head.removeChild(script); };
-  }, []);
+    if (loading) return;
+    if (paymentWidgetRef.current) return;
+    if (totalPay <= 0) return;
+
+    let aborted = false;
+
+    (async () => {
+      try {
+        const configRes = await fetch("/api/payments/config", { cache: "no-store" });
+        if (!configRes.ok) {
+          setWidgetError("결제 설정을 불러오지 못했습니다.");
+          return;
+        }
+        const { clientKey } = (await configRes.json()) as {
+          mode: "live" | "test";
+          clientKey: string;
+        };
+        if (!clientKey) {
+          setWidgetError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
+          return;
+        }
+
+        // customerKey: 동일 사용자 내에서 안정적인 식별자.
+        // 우리 쪽 buyerId 를 그대로 쓰면 가장 안전하나, 이 페이지에서 직접 알 수 없으므로
+        // sessionStorage 기반 1회용 키를 사용 (위젯은 결제 1회분 식별만 필요).
+        let storedKey = sessionStorage.getItem("toss.customerKey");
+        if (!storedKey) {
+          storedKey = `mikro_${crypto.randomUUID()}`;
+          sessionStorage.setItem("toss.customerKey", storedKey);
+        }
+        customerKeyRef.current = storedKey;
+
+        const widget = await loadPaymentWidget(clientKey, storedKey);
+        if (aborted) return;
+        paymentWidgetRef.current = widget;
+
+        paymentMethodWidgetRef.current = widget.renderPaymentMethods(
+          "#toss-payment-methods",
+          { value: totalPay },
+          { variantKey: "DEFAULT" },
+        );
+        widget.renderAgreement("#toss-payment-agreement", {
+          variantKey: "AGREEMENT",
+        });
+
+        setWidgetReady(true);
+      } catch (err) {
+        console.error("[checkout] payment widget load failed:", err);
+        setWidgetError(
+          err instanceof Error
+            ? err.message
+            : "결제 모듈 로드에 실패했습니다.",
+        );
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+    // totalPay 가 처음 0보다 커지는 시점에만 한 번 초기화. 이후 금액은 updateAmount 로 갱신.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // 쿠폰 적용 등으로 총액이 변경되면 위젯에 반영
+  useEffect(() => {
+    if (!widgetReady) return;
+    if (!paymentMethodWidgetRef.current) return;
+    if (totalPay <= 0) return;
+    try {
+      paymentMethodWidgetRef.current.updateAmount(totalPay);
+    } catch (err) {
+      console.warn("[checkout] updateAmount failed:", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPay, widgetReady]);
 
   const loadDirectOrder = async (orderId: string) => {
     try {
@@ -432,58 +515,51 @@ export default function CheckoutPage() {
 
   const requestTossPayment = async (ids: string[]) => {
     try {
-      const configRes = await fetch("/api/payments/config", { cache: "no-store" });
-      if (!configRes.ok) {
-        setError("결제 설정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      const widget = paymentWidgetRef.current;
+      if (!widget) {
+        setError("결제 모듈이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        setProcessingPayment(false);
         return;
       }
-      const { clientKey } = (await configRes.json()) as {
-        mode: "live" | "test";
-        clientKey: string;
-      };
-      if (!clientKey) {
-        setError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
-        return;
-      }
-
-      if (!(window as any).TossPayments) {
-        setError("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-
-      const tossPayments = (window as any).TossPayments(clientKey);
 
       const firstItem = sellerGroups[0]?.items[0];
       const firstProductName = firstItem?.variant.product.title || "상품";
       const totalItems = items.length;
-      const orderName = totalItems > 1
-        ? `${firstProductName} 외 ${totalItems - 1}건`
-        : firstProductName;
+      const orderName =
+        totalItems > 1
+          ? `${firstProductName} 외 ${totalItems - 1}건`
+          : firstProductName;
 
-      tossPayments.requestPayment("카드", {
-        amount: totalPay,
-        orderId: ids[0],
-        orderName,
-        customerName: selectedAddress?.name || "고객",
-        successUrl: buildCanonicalUrl(`/api/payments/toss/success?orderIds=${ids.join(",")}`),
-        failUrl: buildCanonicalUrl(`/api/payments/toss/fail?orderIds=${ids.join(",")}`),
-      }).catch((err: any) => {
-        if (err.code === "USER_CANCEL") {
+      try {
+        await widget.requestPayment({
+          orderId: ids[0],
+          orderName,
+          customerName: selectedAddress?.name || "고객",
+          customerMobilePhone: selectedAddress?.phone?.replace(/-/g, "") || undefined,
+          successUrl: buildCanonicalUrl(
+            `/api/payments/toss/success?orderIds=${ids.join(",")}`,
+          ),
+          failUrl: buildCanonicalUrl(
+            `/api/payments/toss/fail?orderIds=${ids.join(",")}`,
+          ),
+        });
+        // requestPayment 가 성공하면 토스가 successUrl 로 리다이렉트하므로 여기까진 안 옴.
+      } catch (err: unknown) {
+        const e = err as { code?: string; message?: string };
+        if (e.code === "USER_CANCEL" || e.code === "PAY_PROCESS_CANCELED") {
           setError("결제가 취소되었습니다.");
+        } else if (e.code === "INVALID_REQUEST") {
+          setError("결제 정보가 올바르지 않습니다. 페이지를 새로고침 후 다시 시도해주세요.");
         } else {
-          setError(err.message || "결제 처리 중 오류가 발생했습니다.");
+          setError(e.message || "결제 처리 중 오류가 발생했습니다.");
         }
         setProcessingPayment(false);
-      });
-    } catch (err: any) {
-      setError(err.message || "결제 모듈 초기화에 실패했습니다.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "결제 모듈 초기화에 실패했습니다.");
       setProcessingPayment(false);
     }
   };
-
-  const totalAmount = sellerGroups.reduce((sum, g) => sum + g.subtotal, 0);
-  const totalShipping = sellerGroups.reduce((sum, g) => sum + g.shippingFee, 0);
-  const totalPay = totalAmount - couponDiscount + totalShipping;
 
   const handleOpenCouponSheet = async () => {
     setShowCouponSheet(true);
@@ -832,11 +908,39 @@ export default function CheckoutPage() {
           </p>
         </div>
 
+        {/* 결제수단 선택 (토스 결제위젯) */}
+        <div className="mb-4">
+          <h2 className="text-[16px] font-bold text-black mb-3">결제수단</h2>
+          {widgetError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-600">
+              {widgetError}
+            </div>
+          ) : (
+            <>
+              <div
+                id="toss-payment-methods"
+                className="rounded-xl bg-white"
+                style={{ minHeight: 200 }}
+              />
+              {!widgetReady && (
+                <p className="mt-2 text-center text-[13px] text-gray-500">
+                  결제수단을 불러오는 중...
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* 약관 동의 (토스 결제위젯) */}
+        <div className="mb-6">
+          <div id="toss-payment-agreement" />
+        </div>
+
         {/* Payment button */}
         <button
           type="button"
           onClick={handleCreateOrders}
-          disabled={processingPayment || !selectedAddress || !tossReady}
+          disabled={processingPayment || !selectedAddress || !widgetReady}
           className="w-full h-[56px] bg-black text-white rounded-xl text-[18px] font-bold disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
           {processingPayment ? "처리 중..." : "결제하기"}
