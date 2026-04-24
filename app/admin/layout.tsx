@@ -48,6 +48,9 @@ export default async function AdminLayout({
               <Link href="/admin/payment" className="hover:underline">
                 결제 설정
               </Link>
+              <Link href="/admin/payouts" className="hover:underline">
+                정산(지급대행)
+              </Link>
             </nav>
           </div>
           <div className="text-xs bg-red-800 px-2 py-1 rounded">

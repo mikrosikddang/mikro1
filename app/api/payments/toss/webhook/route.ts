@@ -9,6 +9,7 @@ import {
   promoteVbankWaitingToPaid,
   markVbankCancelledOrExpired,
 } from "@/lib/orderConfirm";
+import { mapTossPayoutStatus } from "@/lib/tossPayouts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ type TossWebhookBody = {
     paymentKey?: string;
     orderId?: string;
     status?: string;
+    // payout.changed / seller.changed 에서도 data 로 감싸서 옴
+    id?: string;
+    refPayoutId?: string;
+    refSellerId?: string;
+    failure?: { code: string; message: string };
   };
   // DEPOSIT_CALLBACK 본문은 data 객체로 감싸지 않고 루트에 그대로 옴
   paymentKey?: string;
@@ -189,6 +195,106 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, code: "UNHANDLED_DEPOSIT_STATUS" });
+  }
+
+  /* ---- payout.changed: 지급대행 상태 변경 ---- */
+  if (eventType === "payout.changed") {
+    const tossPayoutId = body.data?.id;
+    const refPayoutId = body.data?.refPayoutId;
+    const status = body.data?.status;
+    if (!tossPayoutId && !refPayoutId) {
+      console.warn("[toss/webhook] payout.changed missing id", body);
+      return NextResponse.json({ ok: true, code: "IGNORED" });
+    }
+
+    const payout = tossPayoutId
+      ? await prisma.payout.findUnique({ where: { tossPayoutId } })
+      : await prisma.payout.findUnique({ where: { id: refPayoutId! } });
+
+    if (!payout) {
+      console.warn("[toss/webhook] payout.changed not found", { tossPayoutId, refPayoutId });
+      return NextResponse.json({ ok: true, code: "PAYOUT_NOT_FOUND" });
+    }
+
+    const nextStatus = mapTossPayoutStatus(status);
+    const updateData: {
+      status: typeof nextStatus;
+      completedAt?: Date | null;
+      cancelledAt?: Date | null;
+      failureReason?: string | null;
+      metadata: unknown;
+    } = {
+      status: nextStatus,
+      metadata: body.data,
+    };
+    if (nextStatus === "COMPLETED") updateData.completedAt = new Date();
+    if (nextStatus === "CANCELLED") updateData.cancelledAt = new Date();
+    if (nextStatus === "FAILED") {
+      updateData.failureReason = body.data?.failure?.message ?? "UNKNOWN";
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payout.update({
+        where: { id: payout.id },
+        data: updateData as never,
+      });
+
+      // 완료 시 → 연결된 OrderCommission 전부 SETTLED 로 승격
+      if (nextStatus === "COMPLETED") {
+        await tx.orderCommission.updateMany({
+          where: { payoutId: payout.id },
+          data: { status: "SETTLED", settledAt: new Date() },
+        });
+      }
+      // 실패/취소 시 → OrderCommission 을 PAYABLE 로 복구, payoutId 제거
+      if (nextStatus === "FAILED" || nextStatus === "CANCELLED") {
+        await tx.orderCommission.updateMany({
+          where: { payoutId: payout.id },
+          data: { status: "PAYABLE", payoutId: null },
+        });
+      }
+    });
+
+    console.log("[toss/webhook] payout.changed processed", {
+      payoutId: payout.id,
+      status: nextStatus,
+    });
+    return NextResponse.json({ ok: true, code: "PAYOUT_UPDATED", status: nextStatus });
+  }
+
+  /* ---- seller.changed: 셀러 KYC 상태 변경 ---- */
+  if (eventType === "seller.changed") {
+    const tossSellerId = body.data?.id;
+    const refSellerId = body.data?.refSellerId;
+    const status = body.data?.status;
+    if (!tossSellerId && !refSellerId) {
+      console.warn("[toss/webhook] seller.changed missing id", body);
+      return NextResponse.json({ ok: true, code: "IGNORED" });
+    }
+
+    const profile = tossSellerId
+      ? await prisma.sellerProfile.findUnique({ where: { tossSellerId } })
+      : await prisma.sellerProfile.findUnique({ where: { id: refSellerId! } });
+
+    if (!profile) {
+      console.warn("[toss/webhook] seller.changed not found", { tossSellerId, refSellerId });
+      return NextResponse.json({ ok: true, code: "SELLER_NOT_FOUND" });
+    }
+
+    await prisma.sellerProfile.update({
+      where: { id: profile.id },
+      data: {
+        tossSellerStatus: status ?? null,
+        // tossSellerId 가 비어있었으면 이번 이벤트로 채워넣기
+        ...(tossSellerId && !profile.tossSellerId ? { tossSellerId } : {}),
+      },
+    });
+
+    console.log("[toss/webhook] seller.changed processed", {
+      profileId: profile.id,
+      status,
+    });
+    return NextResponse.json({ ok: true, code: "SELLER_UPDATED", status });
   }
 
   if (!paymentKey || !orderId) {

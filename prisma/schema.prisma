@@ -125,6 +125,7 @@ model User {
   referralVisits  CampaignVisit[]   @relation("CampaignVisitSeller")
   referredOrders  OrderAttribution[] @relation("OrderAttributionReferrer")
   commissionOrders OrderCommission[] @relation("OrderCommissionBeneficiary")
+  payouts         Payout[]          @relation("PayoutBeneficiary")
   adminActionLogs AdminActionLog[]  @relation("AdminActionLogActor")
 }
 
@@ -217,6 +218,11 @@ model SellerProfile {
 
   shippingFeeKrw        Int @default(3000)
   freeShippingThreshold Int @default(50000)
+
+  // 토스 지급대행(Payouts) — 셀러 ID / KYC 상태
+  tossSellerId      String?  @unique @db.VarChar(80) // Toss 에 등록된 셀러 ID
+  tossSellerStatus  String?  @db.VarChar(40)         // KYC_WAITING | APPROVED | KYC_REJECTED 등
+  tossSellerRegisteredAt DateTime?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -685,11 +691,50 @@ model OrderCommission {
   status             CommissionSettlementStatus @default(PENDING)
   payableAt          DateTime?
   settledAt          DateTime?
+  payoutId           String?
+  payout             Payout?                    @relation(fields: [payoutId], references: [id], onDelete: SetNull)
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
 
   @@index([beneficiaryUserId, status])
   @@index([campaignId, status])
+  @@index([payoutId])
+}
+
+/// 토스페이먼츠 지급대행(Payouts) 요청 단위.
+/// 한 번의 지급 = 한 명의 beneficiary 에게 합산 금액 송금.
+/// OrderCommission 여러 건을 묶어 payoutId 로 연결.
+model Payout {
+  id                String   @id @default(cuid())
+  beneficiaryUserId String
+  beneficiaryUser   User     @relation("PayoutBeneficiary", fields: [beneficiaryUserId], references: [id], onDelete: Cascade)
+
+  tossPayoutId      String?  @unique @db.VarChar(80)  // Toss 에 등록된 payoutId
+  amountKrw         Int
+  status            PayoutStatus @default(REQUESTED)
+  failureReason     String?  @db.Text
+  metadata          Json?    // 요청/응답 raw 보관
+
+  requestedAt       DateTime @default(now())
+  scheduledAt       DateTime?  // 토스가 예약한 지급 시각
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+
+  commissions       OrderCommission[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([beneficiaryUserId, status])
+  @@index([status, requestedAt])
+}
+
+enum PayoutStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 model UserCoupon {

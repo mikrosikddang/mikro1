@@ -7,6 +7,7 @@ export const ADMIN_ENTITY_TYPES = [
   "PRODUCT",
   "COUPON",
   "APP_SETTING",
+  "PAYOUT",
 ] as const;
 
 export type AdminEntityType = (typeof ADMIN_ENTITY_TYPES)[number];

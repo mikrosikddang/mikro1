@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { requireAdmin } from "@/lib/roleGuards";
 import { createAdminActionLog } from "@/lib/adminActionLog";
+import { syncSellerToTossPayouts } from "@/lib/tossSellerSync";
 
 export const runtime = "nodejs";
 
@@ -83,7 +84,18 @@ export async function POST(
       return { ok: true, sellerProfile: updatedProfile };
     });
 
-    return NextResponse.json(result);
+    // 트랜잭션 외부에서 토스 지급대행 셀러 등록 시도 (네트워크 호출 → 실패해도 승인은 성공)
+    // 지급대행 계약 미활성 상태거나 필수 정보 누락이면 skip.
+    let tossSync: Awaited<ReturnType<typeof syncSellerToTossPayouts>> | null = null;
+    if (!result.alreadyApproved && result.sellerProfile) {
+      try {
+        tossSync = await syncSellerToTossPayouts(result.sellerProfile.id);
+      } catch (syncErr) {
+        console.error("[approve] tossSellerSync threw:", syncErr);
+      }
+    }
+
+    return NextResponse.json({ ...result, tossSync });
   } catch (error: any) {
     if (error instanceof NextResponse) {
       return error;
