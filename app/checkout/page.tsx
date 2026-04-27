@@ -180,18 +180,29 @@ export default function CheckoutPage() {
         });
         agreementWidgetRef.current = agreementWidget;
 
-        // 토스 공식 가이드: renderPaymentMethods 의 ready 이벤트가 실제 mount 완료 시점.
-        // 이 이벤트 전에 requestPayment() 를 호출하면
-        // "결제 UI가 아직 렌더링되지 않았습니다" alert 가 뜬다.
-        methodWidget.on("ready", () => {
+        // 토스 결제위젯 SDK 의 ready 이벤트가 발화되지 않는 경우가 있어
+        // (SDK 버전/네트워크 환경에 따라) 양방향으로 처리한다:
+        //   1) ready 이벤트 발화 시 즉시 ready 상태로 마킹
+        //   2) 발화되지 않더라도 일정 시간 후 강제 ready 처리 (fallback)
+        try {
+          methodWidget.on?.("ready", () => {
+            if (aborted) return;
+            setWidgetReady(true);
+          });
+          agreementWidget.on?.("ready", () => {
+            if (aborted) return;
+            setAgreementReady(true);
+          });
+        } catch {
+          // .on 미지원 SDK — 무시하고 fallback 타이머에 의존
+        }
+        // fallback: 결제수단/약관 위젯은 이미 DOM 에 mount 됐으므로
+        // 1.5초 후에도 ready 이벤트가 오지 않으면 강제 활성화한다.
+        setTimeout(() => {
           if (aborted) return;
           setWidgetReady(true);
-        });
-        // 약관 위젯도 동일 패턴. 약관 mount 가 안 끝났으면 동의 status 조회가 비정상.
-        agreementWidget.on("ready", () => {
-          if (aborted) return;
           setAgreementReady(true);
-        });
+        }, 1500);
       } catch (err) {
         console.error("[checkout] payment widget load failed:", err);
         setWidgetError(
