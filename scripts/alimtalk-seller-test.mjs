@@ -28,7 +28,8 @@ const TESTS = [
   {
     label: "①새 주문 접수",
     tmplId: "mikro_seller_order_new_v1",
-    msg: `[미크로] 새 주문이 접수되었습니다.
+    title: "새 주문이 접수되었습니다",
+    msg: `[미크로] 대표님 새 주문이 접수되었습니다.
 
 주문번호: TEST-NEW-0001
 주문자: 테스터
@@ -41,20 +42,20 @@ const TESTS = [
   },
   {
     label: "②주문 취소",
-    tmplId: "mikro_seller_order_cancelled_v1",
+    tmplId: "mikro_seller_order_cancel_v1",
+    title: "주문 취소 알림",
     msg: `[미크로] 주문이 취소되었습니다.
 
 주문번호: TEST-CANC-0001
 주문자: 테스터
 상품: 미크로 테스트 상품
-사유: 단순 변심
-
-재고가 자동 복구되었습니다.`,
+사유: 단순 변심`,
     button: { name: "주문 확인하기", type: "WL", url_mobile: `${SITE}/seller/orders`, url_pc: `${SITE}/seller/orders` },
   },
   {
     label: "③교환·환불 요청 접수",
     tmplId: "mikro_seller_claim_new_v1",
+    title: "교환·환불 요청",
     msg: `[미크로] 교환·환불 요청이 접수되었습니다.
 
 주문번호: TEST-CLAIM-0001
@@ -67,10 +68,11 @@ const TESTS = [
   {
     label: "④정산 가능 안내",
     tmplId: "mikro_seller_payout_ready_v1",
+    title: "정산 안내",
     msg: `[미크로] 정산 가능 금액이 발생했습니다.
 
 정산가능액: 320,000원
-정산주기: 매주 금요일
+정산주기: 매월 25일
 
 판매자 센터에서 정산 내역을 확인하실 수 있습니다.`,
     button: { name: "정산 확인하기", type: "WL", url_mobile: `${SITE}/seller/settlements`, url_pc: `${SITE}/seller/settlements` },
@@ -96,6 +98,7 @@ for (const t of TESTS) {
             phn,
             profile: profileKey,
             tmplId: t.tmplId,
+            title: t.title,
             msg: t.msg,
             reserveDt: "00000000000000",
             button1: t.button,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OrderClaimReason, OrderClaimType, OrderClaimStatus, OrderStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifySellerClaimCreated } from "@/lib/notifications";
 
 /**
  * 클레임(환불/교환) 정책
@@ -179,6 +179,15 @@ export async function POST(
       `/seller/orders/${orderId}`,
     );
   }
+
+  // 셀러용 알림톡 (강조표기형 mikro_seller_claim_new_v1)
+  await notifySellerClaimCreated({
+    orderId: order.id,
+    orderNo: order.orderNo,
+    sellerId: order.sellerId,
+    claimType: type === OrderClaimType.REFUND ? "환불" : "교환",
+    reason: reasonLabel(reason),
+  });
 
   return NextResponse.json(claim, { status: 201 });
 }
