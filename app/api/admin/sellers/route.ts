@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { SellerApprovalStatus } from "@prisma/client";
 import { requireAdmin } from "@/lib/roleGuards";
+import { buildRefSellerId } from "@/lib/tossSellerSync";
 
 export const runtime = "nodejs";
 
@@ -87,6 +88,9 @@ export async function GET(request: NextRequest) {
       sellers: sellers.map((seller) => ({
         ...seller,
         recentActions: logMap[seller.id] ?? [],
+        // 토스 지급대행에 등록할 때 우리가 사용하는 결정론적 식별자.
+        // (SellerProfile.id 의 SHA-256 hex 첫 20자)
+        refSellerId: buildRefSellerId(seller.id),
       })),
     });
   } catch (error) {

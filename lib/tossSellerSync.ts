@@ -22,8 +22,10 @@ import { bankNameToCode } from "@/lib/bankCodes";
  * Toss v2 의 refSellerId 는 최대 20자.
  * 우리 SellerProfile.id 는 cuid (25자) 이므로 SHA-256 해시 hex 첫 20자로 매핑.
  * 결정론적이라 동일 profile → 동일 refSellerId.
+ *
+ * 어드민 화면에서도 토스 콘솔과 대조하기 위해 동일 함수가 필요하므로 export.
  */
-function buildRefSellerId(profileId: string): string {
+export function buildRefSellerId(profileId: string): string {
   return crypto.createHash("sha256").update(profileId).digest("hex").slice(0, 20);
 }
 

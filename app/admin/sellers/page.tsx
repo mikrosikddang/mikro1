@@ -34,6 +34,30 @@ interface SellerProfile {
   complianceReviewPending: boolean;
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectedReason: string | null;
+
+  // 사업자/세무 정보
+  isBusinessSeller?: boolean;
+  taxType?: string | null;
+  bizName?: string | null;
+  bizOwnerName?: string | null;
+  bizRegNo?: string | null;
+  bizRegImageUrl?: string | null;
+  mailOrderReportImageUrl?: string | null;
+  passbookImageUrl?: string | null;
+
+  // 정산 정보
+  settlementBank?: string | null;
+  settlementAccountNo?: string | null;
+  settlementAccountHolder?: string | null;
+  settlementPhone?: string | null;
+  settlementEmail?: string | null;
+
+  // 토스 지급대행
+  tossSellerId?: string | null;
+  tossSellerStatus?: string | null;
+  tossSellerRegisteredAt?: string | null;
+  refSellerId?: string;
+
   user: {
     id: string;
     email: string | null;
@@ -316,6 +340,168 @@ export default function AdminSellersPage() {
                     {seller.storeSlug ? `/` + seller.storeSlug : "-"}
                   </p>
                 </div>
+              </div>
+
+              {/* 사업자/정산 정보 + 첨부 (정산 등록 검토용) */}
+              <div className="mb-4 space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-sm font-semibold text-gray-900">사업자 / 정산 정보</p>
+                <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+                  <div>
+                    <p className="text-gray-500">분류</p>
+                    <p className="font-medium text-gray-900">
+                      {seller.isBusinessSeller === false
+                        ? "개인"
+                        : seller.taxType === "GENERAL_CORP"
+                          ? "사업자(일반/법인)"
+                          : seller.taxType === "SIMPLIFIED"
+                            ? "사업자(간이)"
+                            : "사업자"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">상호명</p>
+                    <p className="font-medium text-gray-900">{seller.bizName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">대표자명</p>
+                    <p className="font-medium text-gray-900">{seller.bizOwnerName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">사업자번호</p>
+                    <p className="font-medium text-gray-900">{seller.bizRegNo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">정산 은행</p>
+                    <p className="font-medium text-gray-900">{seller.settlementBank || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">정산 계좌</p>
+                    <p className="font-medium text-gray-900">
+                      {seller.settlementAccountNo || "-"}
+                      {seller.settlementAccountHolder ? ` (${seller.settlementAccountHolder})` : ""}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">정산 휴대폰</p>
+                    <p className="font-medium text-gray-900">{seller.settlementPhone || "-"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-gray-500">정산 이메일</p>
+                    <p className="font-medium text-gray-900">{seller.settlementEmail || "-"}</p>
+                  </div>
+                </div>
+
+                {/* 첨부 이미지 (사업자등록증 / 통신판매업증 / 통장사본) */}
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-gray-500">첨부 서류</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {[
+                      { label: "사업자등록증", url: seller.bizRegImageUrl },
+                      { label: "통신판매업 신고증", url: seller.mailOrderReportImageUrl },
+                      { label: "통장 사본", url: seller.passbookImageUrl },
+                    ].map((doc) => (
+                      <div
+                        key={doc.label}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <p className="mb-2 text-xs font-medium text-gray-600">{doc.label}</p>
+                        {doc.url ? (
+                          <div className="space-y-2">
+                            {/* 이미지 미리보기 (PDF 등 비-이미지면 깨지지만 클릭 시 새창) */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={doc.url}
+                              alt={doc.label}
+                              className="h-32 w-full rounded border border-gray-200 bg-white object-contain"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-xs font-medium text-blue-600 underline"
+                            >
+                              새창에서 열기 ↗
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400">미첨부</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 토스 지급대행 셀러 등록 정보 */}
+              <div className="mb-4 space-y-2 rounded-xl border border-gray-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900">토스 지급대행 등록 상태</p>
+                  {seller.tossSellerId ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-800">
+                      등록됨
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-700">
+                      미등록
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <p className="text-gray-500">refSellerId (우리 시스템 식별자)</p>
+                    <p className="break-all font-mono text-xs text-gray-900">
+                      {seller.refSellerId || "-"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      토스 콘솔에서 셀러 매칭 시 이 값을 사용 (SellerProfile.id 의 SHA-256 첫 20자).
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">tossSellerId (토스 발급)</p>
+                    <p className="break-all font-mono text-xs text-gray-900">
+                      {seller.tossSellerId || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">상태</p>
+                    <p className="font-medium text-gray-900">
+                      {seller.tossSellerStatus || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">등록 시각</p>
+                    <p className="font-medium text-gray-900">
+                      {seller.tossSellerRegisteredAt
+                        ? new Date(seller.tossSellerRegisteredAt).toLocaleString("ko-KR", {
+                            timeZone: "Asia/Seoul",
+                          })
+                        : "-"}
+                    </p>
+                  </div>
+                </div>
+                {!seller.tossSellerId && seller.status === "APPROVED" ? (
+                  <button
+                    onClick={async () => {
+                      const res = await fetch(
+                        `/api/admin/sellers/${seller.id}/toss-sync`,
+                        { method: "POST" },
+                      );
+                      const data = await res.json().catch(() => null);
+                      if (!res.ok) {
+                        alert(data?.error || "토스 등록 동기화에 실패했습니다");
+                      } else {
+                        alert("토스 등록 동기화 요청 완료");
+                        await loadSellers();
+                      }
+                    }}
+                    className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    토스 등록 재시도
+                  </button>
+                ) : null}
               </div>
 
               <div className="mb-4 flex flex-wrap gap-2">
