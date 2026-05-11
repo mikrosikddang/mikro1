@@ -117,11 +117,11 @@ export default function OrderClaimButton({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/40 p-0 sm:items-center sm:p-4"
           onClick={() => !submitting && setOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+            className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">

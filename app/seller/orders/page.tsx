@@ -5,10 +5,10 @@
  * Shows incoming orders for the seller with status filters
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getStatusLabel, getStatusColor } from "@/lib/orderState";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderClaim, OrderStatus } from "@prisma/client";
 
 interface OrderItem {
   product: {
@@ -25,6 +25,7 @@ interface Order {
   totalPayKrw: number;
   createdAt: string;
   items: OrderItem[];
+  claims?: OrderClaim[];
   buyer: { name: string } | null;
 }
 
@@ -42,13 +43,12 @@ const STATUS_FILTERS = [
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("status");
+  });
 
-  useEffect(() => {
-    loadOrders();
-  }, [selectedStatus]);
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
       const url = selectedStatus
@@ -70,7 +70,13 @@ export default function SellerOrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    // 필터 변경 시 서버 주문 목록을 다시 동기화하는 효과.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadOrders();
+  }, [loadOrders]);
 
   return (
     <div className="pb-20">
@@ -111,6 +117,7 @@ export default function SellerOrdersPage() {
               itemCount > 1
                 ? `${firstItem.product.title} 외 ${itemCount - 1}건`
                 : firstItem.product.title;
+            const activeClaim = order.claims?.[0];
 
             return (
               <Link
@@ -137,6 +144,19 @@ export default function SellerOrdersPage() {
                     {getStatusLabel(order.status)}
                   </span>
                 </div>
+                {activeClaim && (
+                  <div className="mb-2 rounded-lg border border-orange-100 bg-orange-50 px-2.5 py-2">
+                    <p className="text-[12px] font-medium text-orange-800">
+                      {activeClaim.type === "REFUND" ? "환불" : "교환"} 요청 ·{" "}
+                      {activeClaim.status === "APPROVED" ? "승인됨" : "검토 필요"}
+                    </p>
+                    {activeClaim.message ? (
+                      <p className="mt-0.5 line-clamp-1 text-[12px] text-orange-700">
+                        {activeClaim.message}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Footer */}
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">

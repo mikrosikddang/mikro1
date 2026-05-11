@@ -9,6 +9,7 @@ interface Props {
   claims: OrderClaim[];
   isBuyer: boolean;
   isSeller: boolean;
+  onChanged?: () => void | Promise<void>;
 }
 
 const TYPE_LABEL: Record<string, string> = { REFUND: "환불", EXCHANGE: "교환" };
@@ -34,7 +35,7 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-600",
 };
 
-export default function OrderClaimList({ claims, isBuyer, isSeller }: Props) {
+export default function OrderClaimList({ claims, isBuyer, isSeller, onChanged }: Props) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +55,11 @@ export default function OrderClaimList({ claims, isBuyer, isSeller }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "처리에 실패했습니다");
-      router.refresh();
+      if (onChanged) {
+        await onChanged();
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "처리에 실패했습니다");
     } finally {

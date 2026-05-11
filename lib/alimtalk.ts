@@ -322,12 +322,16 @@ function buildSellerMessage(ctx: SellerAlimtalkContext): string {
   }
 }
 
-function buildSellerButton(kind: SellerAlimtalkKind): {
+function buildSellerButton(kind: SellerAlimtalkKind, orderId?: string): {
   name: string;
   type: "WL";
   url_mobile: string;
   url_pc: string;
 } {
+  const orderUrl = orderId
+    ? `${SITE_BASE}/seller/orders/${orderId}${kind === "CLAIM_NEW" ? "#claims" : ""}`
+    : `${SITE_BASE}/seller/orders`;
+
   if (kind === "PAYOUT_READY") {
     return {
       name: "정산 확인하기",
@@ -340,15 +344,15 @@ function buildSellerButton(kind: SellerAlimtalkKind): {
     return {
       name: "요청 처리하기",
       type: "WL",
-      url_mobile: `${SITE_BASE}/seller/orders`,
-      url_pc: `${SITE_BASE}/seller/orders`,
+      url_mobile: orderUrl,
+      url_pc: orderUrl,
     };
   }
   return {
     name: "주문 확인하기",
     type: "WL",
-    url_mobile: `${SITE_BASE}/seller/orders`,
-    url_pc: `${SITE_BASE}/seller/orders`,
+    url_mobile: orderUrl,
+    url_pc: orderUrl,
   };
 }
 
@@ -367,7 +371,7 @@ export async function sendSellerOrderAlimtalk(ctx: SellerAlimtalkContext): Promi
     const title = SELLER_TEMPLATE_TITLES[ctx.kind];
     const phn = toBizmPhone(ctx.sellerPhone);
     const msg = buildSellerMessage(ctx);
-    const button1 = buildSellerButton(ctx.kind);
+    const button1 = buildSellerButton(ctx.kind, ctxDesc.orderId);
 
     if (!userId || !profileKey || !tmplId) {
       console.warn("[seller-alimtalk] Skipped — missing config", {

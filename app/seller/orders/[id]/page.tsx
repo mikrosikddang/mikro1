@@ -5,10 +5,11 @@
  * Shows order details, buyer shipping info, and status actions
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStatusLabel, getStatusColor, canTransition } from "@/lib/orderState";
-import type { OrderStatus } from "@prisma/client";
+import OrderClaimList from "@/components/OrderClaimList";
+import type { OrderClaim, OrderStatus } from "@prisma/client";
 
 interface OrderBuyer {
   id: string;
@@ -47,6 +48,7 @@ interface Order {
   buyer: OrderBuyer | null;
   createdAt: string;
   items: OrderItem[];
+  claims: OrderClaim[];
 }
 
 export default function SellerOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,13 +64,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     Promise.resolve(params).then((p) => setOrderId(p.id));
   }, [params]);
 
-  useEffect(() => {
-    if (orderId) {
-      loadOrder();
-    }
-  }, [orderId]);
-
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     if (!orderId) return;
 
     setLoading(true);
@@ -89,7 +85,15 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, router]);
+
+  useEffect(() => {
+    if (orderId) {
+      // 초기/ID 변경 시 서버 데이터를 동기화하는 효과.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadOrder();
+    }
+  }, [orderId, loadOrder]);
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order) return;
@@ -154,11 +158,15 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     );
   }
 
-  const canShip = canTransition(order.status, "SHIPPED");
-  const canComplete = canTransition(order.status, "COMPLETED");
-  const canAcceptReturn = canTransition(order.status, "RETURN_STARTED");
-  const canApproveRefund = canTransition(order.status, "REFUNDED");
-  const canRejectReturn = canTransition(order.status, "RETURN_REJECTED");
+  const hasActiveClaim = order.claims?.some(
+    (claim) => claim.status === "REQUESTED" || claim.status === "APPROVED",
+  );
+  const canUseOrderStatusActions = !hasActiveClaim;
+  const canShip = canUseOrderStatusActions && canTransition(order.status, "SHIPPED");
+  const canComplete = canUseOrderStatusActions && canTransition(order.status, "COMPLETED");
+  const canAcceptReturn = canUseOrderStatusActions && canTransition(order.status, "RETURN_STARTED");
+  const canApproveRefund = canUseOrderStatusActions && canTransition(order.status, "REFUNDED");
+  const canRejectReturn = canUseOrderStatusActions && canTransition(order.status, "RETURN_REJECTED");
 
   return (
     <div className="pb-20">
@@ -216,6 +224,17 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
             </svg>
             구매자에게 메시지
           </button>
+        </div>
+      )}
+
+      {order.claims?.length > 0 && (
+        <div id="claims" className="mb-6">
+          <OrderClaimList
+            claims={order.claims}
+            isBuyer={false}
+            isSeller
+            onChanged={loadOrder}
+          />
         </div>
       )}
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { OrderClaimStatus } from "@prisma/client";
+import { OrderClaimStatus, OrderClaimType, OrderStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifyOrderStatusChange } from "@/lib/notifications";
 
 /**
  * PATCH /api/claims/[id]
@@ -46,8 +46,15 @@ export async function PATCH(
         select: {
           id: true,
           orderNo: true,
+          status: true,
           buyerId: true,
           sellerId: true,
+          items: {
+            select: {
+              quantity: true,
+              variantId: true,
+            },
+          },
         },
       },
     },
@@ -101,18 +108,72 @@ export async function PATCH(
   }
 
   const now = new Date();
-  const updated = await prisma.orderClaim.update({
-    where: { id: claimId },
-    data: {
-      status: nextStatus,
-      sellerResponse: sellerResponse || claim.sellerResponse,
-      decidedAt:
-        nextStatus === OrderClaimStatus.APPROVED || nextStatus === OrderClaimStatus.REJECTED
-          ? now
-          : claim.decidedAt,
-      completedAt: nextStatus === OrderClaimStatus.COMPLETED ? now : claim.completedAt,
-    },
-  });
+  const shouldRefundOrder =
+    nextStatus === OrderClaimStatus.COMPLETED && claim.type === OrderClaimType.REFUND;
+
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+      const expectedStatus =
+        nextStatus === OrderClaimStatus.COMPLETED
+          ? OrderClaimStatus.APPROVED
+          : OrderClaimStatus.REQUESTED;
+
+      const updateResult = await tx.orderClaim.updateMany({
+        where: { id: claimId, status: expectedStatus },
+        data: {
+          status: nextStatus,
+          sellerResponse: sellerResponse || claim.sellerResponse,
+          decidedAt:
+            nextStatus === OrderClaimStatus.APPROVED || nextStatus === OrderClaimStatus.REJECTED
+              ? now
+              : claim.decidedAt,
+          completedAt: nextStatus === OrderClaimStatus.COMPLETED ? now : claim.completedAt,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new Error("CLAIM_CONFLICT");
+      }
+
+      if (shouldRefundOrder) {
+        const orderUpdate = await tx.order.updateMany({
+          where: {
+            id: claim.order.id,
+            status: { not: OrderStatus.REFUNDED },
+          },
+          data: { status: OrderStatus.REFUNDED },
+        });
+
+        if (orderUpdate.count === 0) {
+          return tx.orderClaim.findUniqueOrThrow({
+            where: { id: claimId },
+          });
+        }
+
+        for (const item of claim.order.items) {
+          if (!item.variantId) continue;
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+
+      const updatedClaim = await tx.orderClaim.findUniqueOrThrow({
+        where: { id: claimId },
+      });
+      return updatedClaim;
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "CLAIM_CONFLICT") {
+      return NextResponse.json(
+        { error: "이미 처리되었거나 상태가 변경된 신청입니다" },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   // 알림
   switch (nextStatus) {
@@ -152,6 +213,16 @@ export async function PATCH(
         `/seller/orders/${claim.order.id}`,
       );
       break;
+  }
+
+  if (shouldRefundOrder) {
+    await notifyOrderStatusChange(
+      claim.order.id,
+      claim.order.orderNo,
+      claim.order.buyerId,
+      claim.order.sellerId,
+      OrderStatus.REFUNDED,
+    );
   }
 
   return NextResponse.json(updated);

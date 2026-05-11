@@ -36,7 +36,13 @@ export default async function SellerDashboardPage() {
     }),
     // Refund/return requests (REFUND_REQUESTED + RETURN_STARTED)
     prisma.order.count({
-      where: { sellerId, status: { in: ["REFUND_REQUESTED", "RETURN_STARTED"] } },
+      where: {
+        sellerId,
+        OR: [
+          { status: { in: ["REFUND_REQUESTED", "RETURN_STARTED"] } },
+          { claims: { some: { status: { in: ["REQUESTED", "APPROVED"] } } } },
+        ],
+      },
     }),
     // Currently shipping (SHIPPED orders)
     prisma.order.count({
@@ -61,6 +67,11 @@ export default async function SellerDashboardPage() {
           include: {
             product: { select: { title: true } },
           },
+        },
+        claims: {
+          where: { status: { in: ["REQUESTED", "APPROVED"] } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
         },
       },
     }),
@@ -142,6 +153,11 @@ export default async function SellerDashboardPage() {
       case "RETURN_STARTED": return "검수 처리 →";
       default: return null;
     }
+  };
+
+  const getOrderActionHintWithClaims = (order: { status: string; claims?: unknown[] }) => {
+    if (order.claims && order.claims.length > 0) return "요청 처리 →";
+    return getOrderActionHint(order.status);
   };
 
   return (
@@ -308,9 +324,9 @@ export default async function SellerDashboardPage() {
                   <p className="text-[13px] font-bold text-black">
                     {formatKrw(order.totalPayKrw)}
                   </p>
-                  {getOrderActionHint(order.status) && (
+                  {getOrderActionHintWithClaims(order) && (
                     <p className="text-[12px] text-blue-600 font-medium">
-                      {getOrderActionHint(order.status)}
+                      {getOrderActionHintWithClaims(order)}
                     </p>
                   )}
                 </div>

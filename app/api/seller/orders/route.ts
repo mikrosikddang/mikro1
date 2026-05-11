@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OrderStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { requireSeller } from "@/lib/roleGuards";
@@ -40,15 +41,32 @@ export async function GET(request: Request) {
     });
 
     // Build query conditions — always exclude PENDING and EXPIRED
-    const where: any = {
+    const where: Prisma.OrderWhereInput = {
       sellerId: session.userId, // Only seller's own orders
-      status: status && status !== "PENDING" && status !== "EXPIRED" ? status : { notIn: ["PENDING", "EXPIRED"] as const },
       ...(cursor && {
         createdAt: {
           lt: new Date(cursor),
         },
       }),
     };
+
+    const validOrderStatus = Object.values(OrderStatus).includes(status as OrderStatus)
+      ? (status as OrderStatus)
+      : null;
+
+    if (validOrderStatus === OrderStatus.REFUND_REQUESTED) {
+      where.OR = [
+        { status: { in: ["REFUND_REQUESTED", "RETURN_STARTED"] as const } },
+        { claims: { some: { status: { in: ["REQUESTED", "APPROVED"] as const } } } },
+      ];
+    } else {
+      where.status =
+        validOrderStatus &&
+        validOrderStatus !== OrderStatus.PENDING &&
+        validOrderStatus !== OrderStatus.EXPIRED
+          ? validOrderStatus
+          : { notIn: ["PENDING", "EXPIRED"] as const };
+    }
 
     // Fetch orders with pagination
     const orders = await prisma.order.findMany({
@@ -78,6 +96,13 @@ export async function GET(request: Request) {
               },
             },
           },
+        },
+        claims: {
+          where: {
+            status: { in: ["REQUESTED", "APPROVED"] },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 3,
         },
       },
     });

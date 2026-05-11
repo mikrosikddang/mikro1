@@ -116,7 +116,7 @@ export async function POST(
     );
   }
 
-  // 이미 진행 중인 클레임이 있는지 확인
+  // 이미 진행 중인 클레임이 있는지 1차 확인 (빠른 응답용)
   const existing = await prisma.orderClaim.findFirst({
     where: {
       orderId,
@@ -136,19 +136,46 @@ export async function POST(
   const refundAmountKrw = Math.max(0, order.totalPayKrw - buyerBurdenKrw);
 
   const now = new Date();
-  const claim = await prisma.orderClaim.create({
-    data: {
-      orderId,
-      type,
-      reason,
-      status: isAutoApprove ? OrderClaimStatus.APPROVED : OrderClaimStatus.REQUESTED,
-      message: message || null,
-      photoUrls,
-      buyerBurdenKrw,
-      refundAmountKrw,
-      decidedAt: isAutoApprove ? now : null,
-    },
-  });
+  let claim;
+  try {
+    claim = await prisma.$transaction(async (tx) => {
+      // 같은 주문에 대한 동시 신청을 DB 트랜잭션 레벨에서 직렬화한다.
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+
+      const activeClaim = await tx.orderClaim.findFirst({
+        where: {
+          orderId,
+          status: { in: [OrderClaimStatus.REQUESTED, OrderClaimStatus.APPROVED] },
+        },
+        select: { id: true },
+      });
+      if (activeClaim) {
+        throw new Error("ACTIVE_CLAIM_EXISTS");
+      }
+
+      return tx.orderClaim.create({
+        data: {
+          orderId,
+          type,
+          reason,
+          status: isAutoApprove ? OrderClaimStatus.APPROVED : OrderClaimStatus.REQUESTED,
+          message: message || null,
+          photoUrls,
+          buyerBurdenKrw,
+          refundAmountKrw,
+          decidedAt: isAutoApprove ? now : null,
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ACTIVE_CLAIM_EXISTS") {
+      return NextResponse.json(
+        { error: "이미 진행 중인 환불/교환 신청이 있습니다" },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   // 알림 생성
   if (isAutoApprove) {

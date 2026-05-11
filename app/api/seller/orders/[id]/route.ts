@@ -41,6 +41,15 @@ export async function GET(request: Request, { params }: Props) {
         },
         payment: true,
         shipment: true,
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        claims: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 

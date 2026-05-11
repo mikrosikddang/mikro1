@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isCustomer, isSeller, isAdmin } from "@/lib/auth";
 import { OrderStatus } from "@prisma/client";
-import { canTransition, assertTransition, OrderTransitionError } from "@/lib/orderState";
+import { assertTransition, OrderTransitionError } from "@/lib/orderState";
 import { notifyOrderStatusChange } from "@/lib/notifications";
 
 export const runtime = "nodejs";
@@ -78,6 +78,10 @@ export async function PATCH(
 
     // 2. Execute transition in transaction with optimistic concurrency control
     const result = await prisma.$transaction(async (tx) => {
+      // 클레임 생성 API와 동일한 주문 row lock을 사용해
+      // "클레임 생성"과 "주문 상태 직접 변경"의 동시성 순서를 직렬화한다.
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`;
+
       // Load order with current status
       const order = await tx.order.findUnique({
         where: { id },
@@ -86,6 +90,12 @@ export async function PATCH(
             include: {
               variant: true,
             },
+          },
+          claims: {
+            where: {
+              status: { in: ["REQUESTED", "APPROVED"] },
+            },
+            select: { id: true },
           },
         },
       });
@@ -116,6 +126,10 @@ export async function PATCH(
       // 4. Check if already in target state (idempotent)
       if (order.status === body.to) {
         return { ok: true, order, alreadyDone: true };
+      }
+
+      if (order.claims.length > 0) {
+        throw new Error("ACTIVE_CLAIM_EXISTS");
       }
 
       // 5. Validate state transition
@@ -243,29 +257,38 @@ export async function PATCH(
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    if (error.message.includes("ORDER_NOT_FOUND")) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (message.includes("ORDER_NOT_FOUND")) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (error.message.includes("FORBIDDEN")) {
+    if (message.includes("FORBIDDEN")) {
       return NextResponse.json(
-        { error: error.message.replace("FORBIDDEN: ", "") },
+        { error: message.replace("FORBIDDEN: ", "") },
         { status: 403 }
       );
     }
 
-    if (error.message.includes("INVALID_TRANSITION")) {
+    if (message.includes("INVALID_TRANSITION")) {
       return NextResponse.json(
-        { error: error.message.replace("INVALID_TRANSITION: ", "") },
+        { error: message.replace("INVALID_TRANSITION: ", "") },
         { status: 400 }
       );
     }
 
-    if (error.message.includes("CONFLICT")) {
+    if (message.includes("CONFLICT")) {
       return NextResponse.json(
-        { error: error.message.replace("CONFLICT: ", "") },
+        { error: message.replace("CONFLICT: ", "") },
         { status: 409 }
+      );
+    }
+
+    if (message.includes("ACTIVE_CLAIM_EXISTS")) {
+      return NextResponse.json(
+        { error: "진행 중인 환불/교환 신청이 있어 주문 상태를 직접 변경할 수 없습니다" },
+        { status: 409 },
       );
     }
 
