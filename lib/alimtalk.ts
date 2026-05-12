@@ -1,5 +1,6 @@
 import { OrderStatus } from "@prisma/client";
 import { normalizePhone } from "@/lib/socialAuth";
+import { buildNaverDeliveryTrackingUrl } from "@/lib/shipping";
 
 const BIZM_API_BASE = process.env.BIZM_API_BASE?.trim() || "https://alimtalk-api.bizmsg.kr";
 
@@ -85,6 +86,31 @@ function buildOrderStatusMessage(status: OrderStatus, context: OrderAlimtalkCont
   }
 }
 
+function buildOrderStatusButtons(status: OrderStatus, context: OrderAlimtalkContext) {
+  if (status === OrderStatus.SHIPPED && context.courier && context.trackingNo) {
+    const trackingUrl = buildNaverDeliveryTrackingUrl(context.courier, context.trackingNo);
+    return {
+      button1: {
+        name: "배송조회",
+        type: "WL",
+        url_mobile: trackingUrl,
+        url_pc: trackingUrl,
+      },
+      button2: {
+        name: "채널 추가",
+        type: "AC",
+      },
+    };
+  }
+
+  return {
+    button1: {
+      name: "채널 추가",
+      type: "AC",
+    },
+  };
+}
+
 export async function sendOrderStatusAlimtalk(
   status: OrderStatus,
   context: OrderAlimtalkContext,
@@ -96,6 +122,7 @@ export async function sendOrderStatusAlimtalk(
     const templateId = getTemplateId(status);
     const phn = toBizmPhone(context.buyerPhone);
     const msg = buildOrderStatusMessage(status, context);
+    const buttons = buildOrderStatusButtons(status, context);
 
     if (!userId || !profileKey || !templateId) {
       console.warn("[alimtalk] Skipped — missing config", {
@@ -145,10 +172,7 @@ export async function sendOrderStatusAlimtalk(
             tmplId: templateId,
             msg,
             reserveDt: "00000000000000",
-            button1: {
-              name: "채널 추가",
-              type: "AC",
-            },
+            ...buttons,
           },
         ]),
         signal: controller.signal,

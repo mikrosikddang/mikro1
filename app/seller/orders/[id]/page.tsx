@@ -5,11 +5,12 @@
  * Shows order details, buyer shipping info, and status actions
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getStatusLabel, getStatusColor, canTransition } from "@/lib/orderState";
 import OrderClaimList from "@/components/OrderClaimList";
 import type { OrderClaim, OrderStatus } from "@prisma/client";
+import { COURIER_OPTIONS, buildNaverDeliveryTrackingUrl } from "@/lib/shipping";
 
 interface OrderBuyer {
   id: string;
@@ -31,6 +32,13 @@ interface OrderItem {
   unitPriceKrw: number;
 }
 
+interface Shipment {
+  id: string;
+  courier: string | null;
+  trackingNo: string | null;
+  shippedAt: string | null;
+}
+
 interface Order {
   id: string;
   orderNo: string;
@@ -46,6 +54,7 @@ interface Order {
   shipToMemo: string | null;
   buyerId: string;
   buyer: OrderBuyer | null;
+  shipment: Shipment | null;
   createdAt: string;
   items: OrderItem[];
   claims: OrderClaim[];
@@ -55,6 +64,10 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [shipmentFormOpen, setShipmentFormOpen] = useState(false);
+  const [shipmentCourier, setShipmentCourier] = useState<string>(COURIER_OPTIONS[0].label);
+  const [shipmentTrackingNo, setShipmentTrackingNo] = useState("");
+  const [shipmentLoading, setShipmentLoading] = useState(false);
   const router = useRouter();
 
   // Unwrap params
@@ -78,6 +91,8 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
 
       const data = await res.json();
       setOrder(data);
+      if (data.shipment?.courier) setShipmentCourier(data.shipment.courier);
+      if (data.shipment?.trackingNo) setShipmentTrackingNo(data.shipment.trackingNo);
     } catch (error) {
       console.error("Error loading order:", error);
       alert("주문을 불러올 수 없습니다.");
@@ -150,6 +165,45 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     }
   };
 
+  const handleShipmentSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+
+    const confirmed = confirm(
+      order.status === "PAID"
+        ? "송장 등록 후 주문이 배송중으로 변경되고 구매자에게 배송 시작 알림톡이 발송됩니다.\n\n계속하시겠습니까?"
+        : "송장 정보를 수정하시겠습니까?\n\n수정만 저장되며 알림톡은 자동 재발송되지 않습니다.",
+    );
+    if (!confirmed) return;
+
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/seller/orders/${order.id}/shipment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courier: shipmentCourier,
+          trackingNo: shipmentTrackingNo,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "송장 저장에 실패했습니다.");
+        return;
+      }
+
+      setShipmentFormOpen(false);
+      await loadOrder();
+      alert(data.notified ? "배송 처리가 완료되었습니다." : "송장 정보가 수정되었습니다.");
+    } catch (error) {
+      console.error("Error saving shipment:", error);
+      alert("송장 저장 중 오류가 발생했습니다.");
+    } finally {
+      setShipmentLoading(false);
+    }
+  };
+
   if (loading || !order) {
     return (
       <div className="py-20 text-center text-gray-400 text-sm">
@@ -162,7 +216,8 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     (claim) => claim.status === "REQUESTED" || claim.status === "APPROVED",
   );
   const canUseOrderStatusActions = !hasActiveClaim;
-  const canShip = canUseOrderStatusActions && canTransition(order.status, "SHIPPED");
+  const canManageShipment =
+    canUseOrderStatusActions && (order.status === "PAID" || order.status === "SHIPPED");
   const canComplete = canUseOrderStatusActions && canTransition(order.status, "COMPLETED");
   const canAcceptReturn = canUseOrderStatusActions && canTransition(order.status, "RETURN_STARTED");
   const canApproveRefund = canUseOrderStatusActions && canTransition(order.status, "REFUNDED");
@@ -331,14 +386,87 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
 
       {/* Status actions */}
       <div className="space-y-2">
-        {canShip && (
-          <button
-            onClick={() => handleStatusChange("SHIPPED")}
-            disabled={actionLoading}
-            className="w-full h-12 bg-black text-white rounded-xl text-[15px] font-bold active:bg-gray-800 transition-colors disabled:opacity-50"
-          >
-            {actionLoading ? "처리 중..." : "발송 처리"}
-          </button>
+        {canManageShipment && (
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[15px] font-bold text-black">배송 관리</h2>
+                {order.shipment?.courier && order.shipment.trackingNo ? (
+                  <div className="mt-1 space-y-0.5 text-[13px] text-gray-600">
+                    <p>
+                      {order.shipment.courier} · {order.shipment.trackingNo}
+                    </p>
+                    <a
+                      href={buildNaverDeliveryTrackingUrl(
+                        order.shipment.courier,
+                        order.shipment.trackingNo,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-blue-600"
+                    >
+                      배송조회 열기
+                    </a>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[13px] text-gray-500">
+                    송장 등록 시 구매자에게 배송 시작 알림톡이 발송됩니다.
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShipmentFormOpen((prev) => !prev)}
+                className="h-9 shrink-0 rounded-lg border border-gray-200 px-3 text-[13px] font-semibold text-gray-900 active:bg-gray-50"
+              >
+                {order.shipment ? "송장 수정" : "송장 입력"}
+              </button>
+            </div>
+
+            {shipmentFormOpen && (
+              <form onSubmit={handleShipmentSubmit} className="space-y-3 border-t border-gray-100 pt-3">
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-gray-500">
+                    택배사
+                  </label>
+                  <select
+                    value={shipmentCourier}
+                    onChange={(e) => setShipmentCourier(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-[14px] text-gray-900 focus:border-gray-400 focus:outline-none"
+                  >
+                    {COURIER_OPTIONS.map((courier) => (
+                      <option key={courier.code} value={courier.label}>
+                        {courier.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-gray-500">
+                    송장번호
+                  </label>
+                  <input
+                    value={shipmentTrackingNo}
+                    onChange={(e) => setShipmentTrackingNo(e.target.value)}
+                    placeholder="숫자와 문자만 입력"
+                    inputMode="text"
+                    className="h-11 w-full rounded-xl border border-gray-200 px-3 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={shipmentLoading}
+                  className="h-11 w-full rounded-xl bg-black text-[14px] font-bold text-white transition-colors active:bg-gray-800 disabled:opacity-50"
+                >
+                  {shipmentLoading
+                    ? "저장 중..."
+                    : order.status === "PAID"
+                      ? "입력 완료 · 배송 시작"
+                      : "송장 정보 저장"}
+                </button>
+              </form>
+            )}
+          </div>
         )}
         {canComplete && (
           <button

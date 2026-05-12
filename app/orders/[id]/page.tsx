@@ -12,6 +12,7 @@ import { getStatusLabel, getStatusColor } from "@/lib/orderState";
 import ReviewButton from "./ReviewButton";
 import ChatButton from "./ChatButton";
 import ScrollToTop from "@/components/ScrollToTop";
+import { buildNaverDeliveryTrackingUrl } from "@/lib/shipping";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -50,6 +51,7 @@ export default async function OrderDetailPage({ params }: Props) {
       },
       claims: { orderBy: { createdAt: "desc" } },
       payment: true,
+      shipment: true,
     },
   });
 
@@ -75,7 +77,7 @@ export default async function OrderDetailPage({ params }: Props) {
   if (order.status === "COMPLETED" && isBuyer) {
     const existingReviews = await prisma.review.findMany({
       where: {
-        orderItemId: { in: order.items.map((i: any) => i.id) },
+        orderItemId: { in: order.items.map((i) => i.id) },
         userId: session.userId,
       },
       select: { orderItemId: true },
@@ -183,7 +185,7 @@ export default async function OrderDetailPage({ params }: Props) {
         <div className="mb-6">
           <h2 className="text-[16px] font-bold text-black mb-3">주문 상품</h2>
           <div className="space-y-3">
-            {order.items.map((item: any) => {
+            {order.items.map((item) => {
               const imageUrl = item.product.images[0]?.url || "/placeholder.png";
               const optionLabel =
                 item.variant?.color && item.variant.color !== "FREE"
@@ -285,6 +287,31 @@ export default async function OrderDetailPage({ params }: Props) {
                   <span className="font-medium text-black">{order.shipToMemo}</span>
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {order.shipment?.courier && order.shipment.trackingNo && (
+          <div className="mb-6">
+            <h2 className="text-[16px] font-bold text-black mb-3">배송 조회</h2>
+            <div className="rounded-xl border border-gray-100 bg-white p-4 text-[14px]">
+              <p className="font-medium text-black">
+                {order.shipment.courier} · {order.shipment.trackingNo}
+              </p>
+              <a
+                href={buildNaverDeliveryTrackingUrl(
+                  order.shipment.courier,
+                  order.shipment.trackingNo,
+                )}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex h-10 items-center rounded-xl bg-black px-4 text-[13px] font-bold text-white"
+              >
+                네이버 배송조회
+              </a>
+              <p className="mt-2 text-[12px] leading-relaxed text-gray-500">
+                택배사 집화 이후 조회 정보가 반영되기까지 시간이 걸릴 수 있습니다.
+              </p>
             </div>
           </div>
         )}

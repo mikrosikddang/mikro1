@@ -26,7 +26,6 @@ interface RouteContext {
  *   - PENDING -> CANCELLED (cancel before payment)
  *   - PAID/SHIPPED -> REFUND_REQUESTED (request refund)
  * - SELLER can:
- *   - PAID -> SHIPPED (ship order)
  *   - SHIPPED -> COMPLETED (mark as completed)
  *   - REFUND_REQUESTED -> REFUNDED (approve refund + restore stock)
  * - ADMIN:
@@ -161,12 +160,15 @@ export async function PATCH(
           );
         }
       } else if (isSellerRole) {
-        // SELLER can: PAID -> SHIPPED, SHIPPED -> COMPLETED,
+        if (body.to === OrderStatus.SHIPPED) {
+          throw new Error("SHIPMENT_REQUIRED");
+        }
+
+        // SELLER can: SHIPPED -> COMPLETED,
         // REFUND_REQUESTED -> RETURN_STARTED (accept return),
         // RETURN_STARTED -> REFUNDED (inspection passed),
         // RETURN_STARTED -> RETURN_REJECTED (inspection failed)
         const allowedSellerTransitions: [OrderStatus, OrderStatus][] = [
-          [OrderStatus.PAID, OrderStatus.SHIPPED],
           [OrderStatus.SHIPPED, OrderStatus.COMPLETED],
           [OrderStatus.REFUND_REQUESTED, OrderStatus.RETURN_STARTED],
           [OrderStatus.RETURN_STARTED, OrderStatus.REFUNDED],
@@ -289,6 +291,13 @@ export async function PATCH(
       return NextResponse.json(
         { error: "진행 중인 환불/교환 신청이 있어 주문 상태를 직접 변경할 수 없습니다" },
         { status: 409 },
+      );
+    }
+
+    if (message.includes("SHIPMENT_REQUIRED")) {
+      return NextResponse.json(
+        { error: "배송 처리는 송장 입력 화면에서 진행해주세요" },
+        { status: 400 },
       );
     }
 

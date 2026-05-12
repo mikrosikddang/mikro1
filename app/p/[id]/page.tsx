@@ -20,10 +20,39 @@ import {
   getOwnerVisibleProductWhere,
 } from "@/lib/publicVisibility";
 import { isArchivePost } from "@/lib/productPostType";
+import ArchiveCaption from "./ArchiveCaption";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
 type Props = { params: Promise<{ id: string }> };
+
+function getArchiveCaptionBody(
+  descriptionJson: unknown,
+  legacyDescription?: string | null,
+) {
+  if (descriptionJson && typeof descriptionJson === "object") {
+    const rendered = renderDescriptionForCustomer(
+      descriptionJson as unknown as ProductDescription,
+    );
+
+    if (rendered.isV2) {
+      const textBlocks = rendered.blocks
+        .filter((block) => block.type === "text")
+        .map((block) => block.content.trim())
+        .filter(Boolean);
+
+      if (textBlocks.length > 0) {
+        return textBlocks.join("\n\n");
+      }
+    }
+
+    if (rendered.detail.trim()) {
+      return rendered.detail.trim();
+    }
+  }
+
+  return legacyDescription?.trim() ?? "";
+}
 
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
@@ -51,6 +80,9 @@ export default async function ProductDetailPage({ params }: Props) {
   const isSoldOut = totalStock <= 0;
   const isArchive = isArchivePost(product.postType);
   const isSelf = session ? session.userId === product.sellerId : false;
+  const archiveCaptionBody = isArchive
+    ? getArchiveCaptionBody(product.descriptionJson, product.description)
+    : "";
 
   // Split images by kind
   const allMainImages = product.images.filter((i) => i.kind === "MAIN");
@@ -101,36 +133,42 @@ export default async function ProductDetailPage({ params }: Props) {
 
       {/* Product info */}
       <div className="py-6">
-        {/* Seller name */}
-        <SellerNameText sellerId={product.sellerId} shopName={shopName} avatarUrl={product.seller.sellerProfile?.avatarUrl} />
+        {isArchive ? (
+          <ArchiveCaption title={product.title} body={archiveCaptionBody} />
+        ) : (
+          <>
+            {/* Seller name */}
+            <SellerNameText sellerId={product.sellerId} shopName={shopName} avatarUrl={product.seller.sellerProfile?.avatarUrl} />
 
-        {/* Product title + Price */}
-        <div className="mt-2 flex items-baseline justify-between gap-4">
-          <h1 className="flex-1 min-w-0 text-[18px] font-bold text-black tracking-tight leading-snug">
-            {product.title}
-          </h1>
-          <div className="shrink-0 text-right">
-            {isArchive ? null : product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
-              <>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">
-                    {Math.round((1 - product.salePriceKrw / product.priceKrw) * 100)}%
-                  </span>
+            {/* Product title + Price */}
+            <div className="mt-2 flex items-baseline justify-between gap-4">
+              <h1 className="flex-1 min-w-0 text-[18px] font-bold text-black tracking-tight leading-snug">
+                {product.title}
+              </h1>
+              <div className="shrink-0 text-right">
+                {product.salePriceKrw != null && product.salePriceKrw < product.priceKrw ? (
+                  <>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="bg-red-500 text-white rounded px-1.5 py-0.5 text-[12px] font-bold">
+                        {Math.round((1 - product.salePriceKrw / product.priceKrw) * 100)}%
+                      </span>
+                      <span className="text-[20px] font-bold text-black tracking-tight">
+                        {product.salePriceKrw.toLocaleString()}원
+                      </span>
+                    </div>
+                    <span className="text-[13px] text-gray-400 line-through">
+                      {product.priceKrw.toLocaleString()}원
+                    </span>
+                  </>
+                ) : (
                   <span className="text-[20px] font-bold text-black tracking-tight">
-                    {product.salePriceKrw.toLocaleString()}원
+                    {product.priceKrw.toLocaleString()}원
                   </span>
-                </div>
-                <span className="text-[13px] text-gray-400 line-through">
-                  {product.priceKrw.toLocaleString()}원
-                </span>
-              </>
-            ) : (
-              <span className="text-[20px] font-bold text-black tracking-tight">
-                {product.priceKrw.toLocaleString()}원
-              </span>
-            )}
-          </div>
-        </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Review Summary */}
         {!isArchive && <ReviewSummary productId={product.id} />}
@@ -159,7 +197,7 @@ export default async function ProductDetailPage({ params }: Props) {
         {!isArchive && <div className="border-t border-gray-100 my-6" />}
 
         {/* Description */}
-        {(() => {
+        {!isArchive && (() => {
           // Render structured description if available
           if (product.descriptionJson && typeof product.descriptionJson === "object") {
             const rendered = renderDescriptionForCustomer(
@@ -170,7 +208,7 @@ export default async function ProductDetailPage({ params }: Props) {
             if (!hasContent) return null;
 
             return (
-              <div className={`${isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"} space-y-5`}>
+              <div className="mt-6 space-y-5 border-t border-gray-100 pt-5">
                 {/* Spec Section */}
                 {rendered.spec.length > 0 && (
                   <div>
@@ -229,7 +267,7 @@ export default async function ProductDetailPage({ params }: Props) {
           // Fallback to legacy description
           if (product.description) {
             return (
-              <div className={isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"}>
+              <div className="mt-6 border-t border-gray-100 pt-5">
                 <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">
                   {product.description}
                 </p>
@@ -241,8 +279,8 @@ export default async function ProductDetailPage({ params }: Props) {
         })()}
 
         {/* Content images – stacked vertically (V1 only, V2 uses blocks) */}
-        {contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as unknown as ProductDescription).v !== 2) && (
-          <div className={`${isArchive ? "mt-4" : "mt-6 pt-5 border-t border-gray-100"} space-y-2`}>
+        {!isArchive && contentImages.length > 0 && (!product.descriptionJson || (product.descriptionJson as unknown as ProductDescription).v !== 2) && (
+          <div className="mt-6 space-y-2 border-t border-gray-100 pt-5">
             {contentImages.map((img) => (
               <div key={img.id} className="w-full rounded-lg overflow-hidden">
                 <img
