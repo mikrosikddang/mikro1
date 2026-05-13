@@ -134,7 +134,10 @@ export default async function ProductDetailPage({ params }: Props) {
       {/* Product info */}
       <div className="py-6">
         {isArchive ? (
-          <ArchiveCaption title={product.title} body={archiveCaptionBody} />
+          <div className="space-y-3">
+            <SellerNameText sellerId={product.sellerId} shopName={shopName} avatarUrl={product.seller.sellerProfile?.avatarUrl} />
+            <ArchiveCaption title={product.title} body={archiveCaptionBody} />
+          </div>
         ) : (
           <>
             {/* Seller name */}
