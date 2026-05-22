@@ -316,7 +316,7 @@ export default function ProductCard({
               className={`whitespace-pre-wrap text-[14px] leading-snug ${
                 archiveCaptionExpanded
                   ? ""
-                  : `line-clamp-2 ${archiveCaptionCanExpand ? "pr-[70px]" : ""}`
+                  : `line-clamp-2 ${archiveCaptionCanExpand ? "pr-[136px]" : ""}`
               }`}
             >
               <span className="font-semibold text-black">{shopName}</span>{" "}
@@ -328,7 +328,7 @@ export default function ProductCard({
               <button
                 type="button"
                 onClick={() => setArchiveCaptionExpanded(true)}
-                className="absolute bottom-0 right-0 bg-white pl-1 text-[14px] leading-snug text-gray-400"
+                className="absolute bottom-0 right-[72px] bg-white pl-1 text-[14px] leading-snug text-gray-400"
               >
                 ... 더보기
               </button>
