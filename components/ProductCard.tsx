@@ -59,7 +59,6 @@ export default function ProductCard({
     normalizedCaptionBody && normalizedCaptionBody !== normalizedTitle
       ? `${normalizedTitle}\n${normalizedCaptionBody}`
       : normalizedTitle;
-  const canOpenArchiveDetail = !archive || Boolean(normalizedCaptionBody);
 
   const session = useSession();
   // Wishlist state (customer mode only)
@@ -174,6 +173,8 @@ export default function ProductCard({
   // Hidden by user
   if (hidden) return null;
 
+  const canOpenDetail = !archive || archiveCaptionCanExpand;
+
   // Customer mode: Instagram feed style
   return (
     <article className="bg-white border-b border-gray-100">
@@ -247,72 +248,76 @@ export default function ProductCard({
       </div>
 
       {/* Image carousel */}
-      {canOpenArchiveDetail ? (
-        <Link href={`/p/${id}`} className="block">
-          <ImageCarousel images={images} aspect="4/5" />
-        </Link>
-      ) : (
-        <div className="block">
-          <ImageCarousel images={images} aspect="4/5" />
+      <div className="relative">
+        {canOpenDetail ? (
+          <Link href={`/p/${id}`} className="block">
+            <ImageCarousel images={images} aspect="4/5" />
+          </Link>
+        ) : (
+          <div className="block">
+            <ImageCarousel images={images} aspect="4/5" />
+          </div>
+        )}
+
+        {/* Feed actions */}
+        <div className="absolute right-2 bottom-2 z-10 flex items-center gap-2">
+          {/* Wishlist button */}
+          <button
+            type="button"
+            onClick={handleWishlistToggle}
+            aria-label={wishlisted ? "관심목록에서 제거" : "관심목록에 추가"}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur active:scale-90 transition-transform"
+          >
+            <svg
+              className={`w-5.5 h-5.5 ${wishlisted ? "text-red-500" : "text-gray-700"}`}
+              fill={wishlisted ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={wishlisted ? 0 : 1.7}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </button>
+
+          {/* Share button */}
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="공유"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur active:scale-90 transition-transform"
+          >
+            <svg
+              className="w-5.5 h-5.5 text-gray-700"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.7}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"
+              />
+            </svg>
+          </button>
         </div>
-      )}
-
-      {/* Feed actions */}
-      <div className="flex items-center gap-1 px-2 pt-2">
-        {/* Wishlist button */}
-        <button
-          type="button"
-          onClick={handleWishlistToggle}
-          aria-label={wishlisted ? "관심목록에서 제거" : "관심목록에 추가"}
-          className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
-        >
-          <svg
-            className={`w-6 h-6 ${wishlisted ? "text-red-500" : "text-gray-400"}`}
-            fill={wishlisted ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth={wishlisted ? 0 : 1.5}
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
-
-        {/* Share button */}
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label="공유"
-          className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
-        >
-          <svg
-            className="w-6 h-6 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"
-            />
-          </svg>
-        </button>
       </div>
 
       {/* Product info below image */}
-      <div className="px-3 pb-2.5">
+      <div className="px-3 py-2.5">
         {/* Title + price */}
         {archive ? (
           <div className="relative">
             <p
               ref={archiveCaptionRef}
               className={`whitespace-pre-wrap text-[14px] leading-snug ${
-                archiveCaptionExpanded ? "" : "line-clamp-2 pr-[72px]"
+                archiveCaptionExpanded
+                  ? ""
+                  : `line-clamp-2 ${archiveCaptionCanExpand ? "pr-[72px]" : ""}`
               }`}
             >
               <span className="font-semibold text-black">{shopName}</span>{" "}
