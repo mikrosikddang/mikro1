@@ -10,7 +10,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProductGridTile from "./ProductGridTile";
+import { getArchiveCaptionBody } from "@/lib/archiveCaption";
 import { getHomeFeedViewMode } from "@/lib/uiPrefs";
+import { isArchivePost } from "@/lib/productPostType";
 
 interface Product {
   id: string;
@@ -18,6 +20,8 @@ interface Product {
   priceKrw: number;
   salePriceKrw?: number | null;
   postType?: "SALE" | "ARCHIVE";
+  description?: string | null;
+  descriptionJson?: unknown;
   imageUrl: string | null;
 }
 
@@ -406,6 +410,15 @@ export default function ProductGrid({
                 postType={product.postType}
                 imageUrl={product.imageUrl || undefined}
                 viewMode={viewMode}
+                detailEnabled={
+                  !isArchivePost(product.postType) ||
+                  Boolean(
+                    getArchiveCaptionBody(
+                      product.descriptionJson,
+                      product.description,
+                    ),
+                  )
+                }
               />
             ))}
           </div>

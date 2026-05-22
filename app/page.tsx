@@ -9,6 +9,7 @@ import {
   getSubCategories,
   type CategoryMain,
 } from "@/lib/categories";
+import { buildActiveCategoryTree } from "@/lib/activeCategories";
 
 export const revalidate = 30; // ISR: 30초
 
@@ -47,15 +48,30 @@ export default async function HomePage({ searchParams }: Props) {
     hiddenIds = hidden.map((h) => h.productId);
   }
 
-  // 상품이 존재하는 categoryMain 목록 조회
+  // 상품/포스팅이 존재하는 카테고리 트리 조회
   const activeCats = await prisma.product.groupBy({
-    by: ['categoryMain'],
-    where: getCustomerVisibleProductWhere({ postType: "SALE" }),
+    by: ["categoryMain", "categoryMid", "categorySub"],
+    where: getCustomerVisibleProductWhere({
+      ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
+    }),
     _count: true,
   });
-  const activeMainCategories = activeCats
-    .filter(r => r._count > 0 && r.categoryMain)
-    .map(r => r.categoryMain!);
+  const activeCategoryTree = buildActiveCategoryTree(activeCats);
+  const activeMainCategories = MAIN_CATEGORIES.filter(
+    (mainCat) => activeCategoryTree[mainCat],
+  );
+  const activeMidCategories =
+    main && MAIN_CATEGORIES.includes(main as CategoryMain)
+      ? getMidCategories(main as CategoryMain).filter(
+          (midCat) => activeCategoryTree[main]?.[midCat],
+        )
+      : [];
+  const activeSubCategories =
+    main && mid && MAIN_CATEGORIES.includes(main as CategoryMain)
+      ? getSubCategories(main as CategoryMain, mid).filter((subCat) =>
+          activeCategoryTree[main]?.[mid]?.includes(subCat),
+        )
+      : [];
 
   const products = await prisma.product.findMany({
     where: getCustomerVisibleProductWhere({
@@ -170,7 +186,7 @@ export default async function HomePage({ searchParams }: Props) {
             >
               전체
             </Link>
-            {MAIN_CATEGORIES.filter(cat => activeMainCategories.includes(cat)).map((mainCat) => (
+            {activeMainCategories.map((mainCat) => (
               <Link
                 key={mainCat}
                 href={`/?main=${encodeURIComponent(mainCat)}`}
@@ -194,7 +210,7 @@ export default async function HomePage({ searchParams }: Props) {
               </svg>
               전체
             </Link>
-            {getMidCategories(main as CategoryMain).map((midCat) => (
+            {activeMidCategories.map((midCat) => (
               <Link
                 key={midCat}
                 href={`/?main=${encodeURIComponent(main)}&mid=${encodeURIComponent(midCat)}`}
@@ -218,7 +234,7 @@ export default async function HomePage({ searchParams }: Props) {
               </svg>
               {mid}
             </Link>
-            {getSubCategories(main as CategoryMain, mid).map((subCat) => (
+            {activeSubCategories.map((subCat) => (
               <Link
                 key={subCat}
                 href={`/?main=${encodeURIComponent(main)}&mid=${encodeURIComponent(mid)}&sub=${encodeURIComponent(subCat)}`}

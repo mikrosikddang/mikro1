@@ -87,6 +87,8 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
     priceKrw: p.priceKrw,
     salePriceKrw: p.salePriceKrw,
     postType: p.postType,
+    description: p.description,
+    descriptionJson: p.descriptionJson,
     imageUrl: p.images[0]?.url || null,
   }));
 

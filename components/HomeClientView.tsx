@@ -6,6 +6,7 @@ import { useSession } from "@/components/SessionProvider";
 import { checkWishlistDB } from "@/lib/wishlist";
 import ProductCard from "@/components/ProductCard";
 import HomeCarrotList from "@/components/HomeCarrotList";
+import { getArchiveCaptionBody } from "@/lib/archiveCaption";
 
 type Product = {
   id: string;
@@ -13,6 +14,8 @@ type Product = {
   priceKrw: number;
   salePriceKrw?: number | null;
   postType?: "SALE" | "ARCHIVE";
+  description?: string | null;
+  descriptionJson?: unknown;
   sellerId: string;
   createdAt: Date;
   images: { url: string }[];
@@ -210,6 +213,10 @@ export default function HomeClientView({ products }: HomeClientViewProps) {
           priceKrw={product.priceKrw}
           salePriceKrw={product.salePriceKrw}
           postType={product.postType}
+          captionBody={getArchiveCaptionBody(
+            product.descriptionJson,
+            product.description,
+          )}
           images={product.images.map((i) => ({ url: i.url }))}
           shopName={product.seller.sellerProfile?.shopName ?? "알수없음"}
           sellerId={product.sellerId}

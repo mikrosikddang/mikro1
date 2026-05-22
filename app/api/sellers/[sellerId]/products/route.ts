@@ -80,6 +80,8 @@ export async function GET(request: Request, { params }: Props) {
       priceKrw: p.priceKrw,
       salePriceKrw: p.salePriceKrw,
       postType: p.postType,
+      description: p.description,
+      descriptionJson: p.descriptionJson,
       imageUrl: p.images[0]?.url || null,
       createdAt: p.createdAt.toISOString(),
     }));

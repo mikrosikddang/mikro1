@@ -32,6 +32,8 @@ type ProductCardProps = {
   initialWishlisted?: boolean;
   /** Seller avatar image URL */
   avatarUrl?: string | null;
+  /** Archive post body rendered under the title in feed captions */
+  captionBody?: string | null;
 };
 
 export default function ProductCard({
@@ -45,11 +47,19 @@ export default function ProductCard({
   sellerId,
   initialWishlisted,
   avatarUrl,
+  captionBody,
 }: ProductCardProps) {
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
   const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
   const archive = isArchivePost(postType);
+  const normalizedTitle = title.trim();
+  const normalizedCaptionBody = captionBody?.trim() ?? "";
+  const archiveCaptionText =
+    normalizedCaptionBody && normalizedCaptionBody !== normalizedTitle
+      ? `${normalizedTitle}\n${normalizedCaptionBody}`
+      : normalizedTitle;
+  const canOpenArchiveDetail = !archive || Boolean(normalizedCaptionBody);
 
   const session = useSession();
   // Wishlist state (customer mode only)
@@ -58,6 +68,9 @@ export default function ProductCard({
   // Action sheet state (customer mode only)
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const archiveCaptionRef = useRef<HTMLParagraphElement>(null);
+  const [archiveCaptionExpanded, setArchiveCaptionExpanded] = useState(false);
+  const [archiveCaptionCanExpand, setArchiveCaptionCanExpand] = useState(false);
   // Profile edit sheet state (customer mode only, self only)
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   // Hidden state (feed hide)
@@ -87,6 +100,15 @@ export default function ProductCard({
       setWishlisted(initialWishlisted);
     }
   }, [initialWishlisted]);
+
+  useEffect(() => {
+    const el = archiveCaptionRef.current;
+    if (!archive || !el || archiveCaptionExpanded) {
+      return;
+    }
+
+    setArchiveCaptionCanExpand(el.scrollHeight > el.clientHeight + 1);
+  }, [archive, archiveCaptionText, archiveCaptionExpanded]);
 
   const handleWishlistToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -225,22 +247,46 @@ export default function ProductCard({
       </div>
 
       {/* Image carousel */}
-      <Link href={`/p/${id}`} className="block">
-        <ImageCarousel images={images} aspect="4/5" />
-      </Link>
+      {canOpenArchiveDetail ? (
+        <Link href={`/p/${id}`} className="block">
+          <ImageCarousel images={images} aspect="4/5" />
+        </Link>
+      ) : (
+        <div className="block">
+          <ImageCarousel images={images} aspect="4/5" />
+        </div>
+      )}
 
       {/* Product info below image */}
       <div className="px-3 py-2.5">
         <div className="flex items-start justify-between gap-3">
           {/* Left: title + price */}
-          <Link href={`/p/${id}`} className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
             {archive ? (
-              <p className="text-[14px] leading-snug line-clamp-3">
-                <span className="font-semibold text-black">{shopName}</span>{" "}
-                <span className="font-normal text-gray-800">{title}</span>
-              </p>
-            ) : (
               <>
+                <p
+                  ref={archiveCaptionRef}
+                  className={`whitespace-pre-wrap text-[14px] leading-snug ${
+                    archiveCaptionExpanded ? "" : "line-clamp-3"
+                  }`}
+                >
+                  <span className="font-semibold text-black">{shopName}</span>{" "}
+                  <span className="font-normal text-gray-800">
+                    {archiveCaptionText}
+                  </span>
+                </p>
+                {archiveCaptionCanExpand && !archiveCaptionExpanded && (
+                  <button
+                    type="button"
+                    onClick={() => setArchiveCaptionExpanded(true)}
+                    className="mt-0.5 text-[14px] leading-snug text-gray-400"
+                  >
+                    ... 더보기
+                  </button>
+                )}
+              </>
+            ) : (
+              <Link href={`/p/${id}`} className="block">
                 <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
                   {title}
                 </h3>
@@ -263,9 +309,9 @@ export default function ProductCard({
                     </div>
                   )}
                 </div>
-              </>
+              </Link>
             )}
-          </Link>
+          </div>
 
           {/* Right: wishlist + share buttons */}
           <div className="flex items-center gap-1 flex-shrink-0">

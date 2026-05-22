@@ -1,25 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPublicProductWhere } from "@/lib/publicVisibility";
+import { getSession } from "@/lib/auth";
+import { buildActiveCategoryTree } from "@/lib/activeCategories";
+import { getCustomerVisibleProductWhere } from "@/lib/publicVisibility";
 
 /**
  * GET /api/categories/active
- * 상품이 1개 이상 존재하는 categoryMain 목록 반환 (공개)
+ * 상품/포스팅이 1개 이상 존재하는 카테고리 트리 반환
  */
 export async function GET() {
   try {
+    const session = await getSession();
+    let hiddenIds: string[] = [];
+    if (session) {
+      const hidden = await prisma.hiddenProduct.findMany({
+        where: { userId: session.userId },
+        select: { productId: true },
+      });
+      hiddenIds = hidden.map((h) => h.productId);
+    }
+
     const result = await prisma.product.groupBy({
-      by: ["categoryMain"],
-      where: getPublicProductWhere(),
+      by: ["categoryMain", "categoryMid", "categorySub"],
+      where: getCustomerVisibleProductWhere({
+        ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
+      }),
       _count: true,
     });
 
-    const activeCategories = result
-      .filter((r) => r._count > 0)
-      .map((r) => r.categoryMain)
-      .filter(Boolean);
-
-    return NextResponse.json(activeCategories);
+    return NextResponse.json(buildActiveCategoryTree(result));
   } catch (error) {
     console.error("Error fetching active categories:", error);
     return NextResponse.json(

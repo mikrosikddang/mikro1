@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import ProductActionMenu from "@/components/ProductActionMenu";
+import { getArchiveCaptionBody } from "@/lib/archiveCaption";
 import { isArchivePost } from "@/lib/productPostType";
 
 type Product = {
@@ -12,6 +13,8 @@ type Product = {
   priceKrw: number;
   salePriceKrw?: number | null;
   postType?: "SALE" | "ARCHIVE";
+  description?: string | null;
+  descriptionJson?: unknown;
   sellerId: string;
   images: { url: string }[];
   seller: {
@@ -41,78 +44,88 @@ function CarrotListItem({ product }: { product: Product }) {
   const hasDiscount =
     product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
   const archive = isArchivePost(product.postType);
+  const canOpenDetail =
+    !archive ||
+    Boolean(getArchiveCaptionBody(product.descriptionJson, product.description));
   const discountRate = hasDiscount
     ? Math.round((1 - product.salePriceKrw! / product.priceKrw) * 100)
     : 0;
+  const content = (
+    <div className="flex gap-3.5 py-3.5 px-4 border-b border-gray-100 active:bg-gray-50 transition-colors">
+      {/* Thumbnail */}
+      <div className="relative flex-shrink-0 w-[110px] h-[110px] rounded-xl overflow-hidden bg-gray-100">
+        <Image
+          src={imageUrl}
+          alt={product.title}
+          fill
+          sizes="110px"
+          className="object-cover"
+        />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top row: title + options button */}
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="flex-1 text-[16px] font-medium text-gray-900 leading-snug line-clamp-2">
+            {product.title}
+          </h3>
+          <button
+            type="button"
+            onClick={handleOptionsClick}
+            className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            aria-label="옵션"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+              <circle cx="8" cy="3" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="8" cy="13" r="1.5" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Meta info */}
+        <p className="text-[13px] text-gray-500 mt-0.5">
+          {shopName}
+        </p>
+
+        {/* Bottom row: price */}
+        <div className="flex items-end justify-between mt-auto pt-1">
+          {!archive && (hasDiscount ? (
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[13px] font-bold text-red-500">
+                  {discountRate}%
+                </span>
+                <span className="text-[16px] font-semibold text-black tabular-nums">
+                  {product.salePriceKrw!.toLocaleString()}원
+                </span>
+              </div>
+              <span className="text-[12px] text-gray-400 line-through tabular-nums">
+                {product.priceKrw.toLocaleString()}원
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-[16px] font-semibold text-black tabular-nums">
+                {product.priceKrw.toLocaleString()}원
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      <Link href={`/p/${product.id}`} className="block">
-        <div className="flex gap-3.5 py-3.5 px-4 border-b border-gray-100 active:bg-gray-50 transition-colors">
-          {/* Thumbnail */}
-          <div className="relative flex-shrink-0 w-[110px] h-[110px] rounded-xl overflow-hidden bg-gray-100">
-            <Image
-              src={imageUrl}
-              alt={product.title}
-              fill
-              sizes="110px"
-              className="object-cover"
-            />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0 flex flex-col">
-            {/* Top row: title + options button */}
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <h3 className="flex-1 text-[16px] font-medium text-gray-900 leading-snug line-clamp-2">
-                {product.title}
-              </h3>
-              <button
-                type="button"
-                onClick={handleOptionsClick}
-                className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600"
-                aria-label="옵션"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                  <circle cx="8" cy="3" r="1.5" />
-                  <circle cx="8" cy="8" r="1.5" />
-                  <circle cx="8" cy="13" r="1.5" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Meta info */}
-            <p className="text-[13px] text-gray-500 mt-0.5">
-              {shopName}
-            </p>
-
-            {/* Bottom row: price */}
-            <div className="flex items-end justify-between mt-auto pt-1">
-              {!archive && (hasDiscount ? (
-                <div className="flex flex-col">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-[13px] font-bold text-red-500">
-                      {discountRate}%
-                    </span>
-                    <span className="text-[16px] font-semibold text-black tabular-nums">
-                      {product.salePriceKrw!.toLocaleString()}원
-                    </span>
-                  </div>
-                  <span className="text-[12px] text-gray-400 line-through tabular-nums">
-                    {product.priceKrw.toLocaleString()}원
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-[16px] font-semibold text-black tabular-nums">
-                    {product.priceKrw.toLocaleString()}원
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Link>
+      {canOpenDetail ? (
+        <Link href={`/p/${product.id}`} className="block">
+          {content}
+        </Link>
+      ) : (
+        <div className="block">{content}</div>
+      )}
 
       {/* Action Menu */}
       {menuOpen && (

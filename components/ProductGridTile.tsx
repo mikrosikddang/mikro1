@@ -16,6 +16,7 @@ export interface ProductGridTileProps {
   postType?: "SALE" | "ARCHIVE";
   imageUrl?: string;
   viewMode?: "list" | "feed";
+  detailEnabled?: boolean;
 }
 
 export default function ProductGridTile({
@@ -26,37 +27,46 @@ export default function ProductGridTile({
   postType,
   imageUrl,
   viewMode = "list",
+  detailEnabled = true,
 }: ProductGridTileProps) {
   const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
   const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
   const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
   const archive = isArchivePost(postType);
+
   // Feed mode: Instagram-style, image only, square
   if (viewMode === "feed") {
-    return (
+    const content = (
+      <div className="relative aspect-square bg-gray-100 overflow-hidden">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={title}
+            fill
+            sizes="(max-width: 420px) 50vw, 210px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+            No Image
+          </div>
+        )}
+      </div>
+    );
+
+    return detailEnabled ? (
       <Link href={`/p/${id}`} className="block">
-        <div className="relative aspect-square bg-gray-100 overflow-hidden">
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={title}
-              fill
-              sizes="(max-width: 420px) 50vw, 210px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
-              No Image
-            </div>
-          )}
-        </div>
+        {content}
       </Link>
+    ) : (
+      <div className="block">
+        {content}
+      </div>
     );
   }
 
-  // List mode: Brand commerce style with details
-  return (
-    <Link href={`/p/${id}`} className="block">
+  const content = (
+    <>
       {/* Image - 4:5 aspect ratio */}
       <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
         {imageUrl ? (
@@ -97,6 +107,17 @@ export default function ProductGridTile({
           {priceKrw.toLocaleString()}원
         </p>
       ))}
+    </>
+  );
+
+  // List mode: Brand commerce style with details
+  return detailEnabled ? (
+    <Link href={`/p/${id}`} className="block">
+      {content}
     </Link>
+  ) : (
+    <div className="block">
+      {content}
+    </div>
   );
 }

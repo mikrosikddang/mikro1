@@ -17,6 +17,7 @@ import MenuItem from "@/components/menu/MenuItem";
 import MenuSection from "@/components/menu/MenuSection";
 import CategoryPickerSheet from "@/components/CategoryPickerSheet";
 import { MAIN_CATEGORIES } from "@/lib/categories";
+import type { ActiveCategoryTree } from "@/lib/activeCategories";
 
 type DrawerProps = {
   open: boolean;
@@ -33,7 +34,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   const [categoryRoot, setCategoryRoot] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [activeCategoryTree, setActiveCategoryTree] = useState<ActiveCategoryTree>({});
   const [sellerApplyStatus, setSellerApplyStatus] = useState<
     "NONE" | "PENDING" | "REJECTED" | "APPROVED" | null
   >(null);
@@ -135,7 +136,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
   useEffect(() => {
     fetch('/api/categories/active')
       .then(res => res.json())
-      .then(data => setActiveCategories(data))
+      .then((data: ActiveCategoryTree) => setActiveCategoryTree(data))
       .catch(() => {});
   }, []);
 
@@ -284,7 +285,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
 
             {/* Browse Section */}
             <MenuSection title="둘러보기">
-              {MAIN_CATEGORIES.filter(cat => activeCategories.includes(cat)).map(cat => (
+              {MAIN_CATEGORIES.filter((cat) => activeCategoryTree[cat]).map(cat => (
                 <MenuItem key={cat} label={cat} showChevron onClick={() => openCategorySheet(cat)} isSubmenu />
               ))}
               <MenuItem label="브랜드 보기" href="/brands" showChevron isSubmenu />
@@ -398,6 +399,7 @@ export default function Drawer({ open, onClose }: DrawerProps) {
         initialMain={categoryRoot}
         initialMid={null}
         initialSub={null}
+        activeCategoryTree={activeCategoryTree}
         onChange={handleCategorySelect}
       />
     </>

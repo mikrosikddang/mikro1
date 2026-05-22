@@ -12,6 +12,12 @@ import {
   type CategoryMain,
   type RecentCategory,
 } from "@/lib/categories";
+import {
+  hasActiveMain,
+  hasActiveMid,
+  hasActiveSub,
+  type ActiveCategoryTree,
+} from "@/lib/activeCategories";
 
 type CategoryPickerSheetProps = {
   open: boolean;
@@ -26,6 +32,8 @@ type CategoryPickerSheetProps = {
   }) => void;
   /** sub 선택 시 자동으로 시트 닫기 (상품 등록용) */
   autoCloseOnSub?: boolean;
+  /** 브라우징에서만 빈 카테고리를 숨기기 위한 활성 카테고리 트리 */
+  activeCategoryTree?: ActiveCategoryTree;
 };
 
 export default function CategoryPickerSheet({
@@ -36,6 +44,7 @@ export default function CategoryPickerSheet({
   initialSub,
   onChange,
   autoCloseOnSub = false,
+  activeCategoryTree,
 }: CategoryPickerSheetProps) {
   const [selectedMain, setSelectedMain] = useState<string | null>(
     initialMain || null
@@ -61,9 +70,13 @@ export default function CategoryPickerSheet({
       setSelectedSub(initialSub || null);
       // Auto-expand mid categories when initialMain is provided
       setExpandedMid(initialMid || null);
-      setRecentCategories(getRecentCategories());
+      setRecentCategories(
+        getRecentCategories().filter((recent) =>
+          hasActiveSub(activeCategoryTree, recent.main, recent.mid, recent.sub),
+        ),
+      );
     }
-  }, [open, initialMain, initialMid, initialSub]);
+  }, [open, initialMain, initialMid, initialSub, activeCategoryTree]);
 
   // Main 카테고리 선택
   const handleMainSelect = (main: string) => {
@@ -123,6 +136,14 @@ export default function CategoryPickerSheet({
   };
 
   const breadcrumb = getCategoryBreadcrumb(selectedMain, selectedMid, selectedSub);
+  const mainCategories = MAIN_CATEGORIES.filter((main) =>
+    hasActiveMain(activeCategoryTree, main),
+  );
+  const midCategories = selectedMain
+    ? getMidCategories(selectedMain as CategoryMain).filter((mid) =>
+        hasActiveMid(activeCategoryTree, selectedMain, mid),
+      )
+    : [];
 
   return (
     <ActionSheet
@@ -173,7 +194,7 @@ export default function CategoryPickerSheet({
         <div className="mb-6">
           <h3 className="text-xs font-medium text-gray-500 mb-2">성별</h3>
           <div className="grid grid-cols-2 gap-2">
-            {MAIN_CATEGORIES.map((main) => (
+            {mainCategories.map((main) => (
               <button
                 key={main}
                 type="button"
@@ -197,11 +218,13 @@ export default function CategoryPickerSheet({
               카테고리
             </h3>
             <div className="space-y-1">
-              {getMidCategories(selectedMain as CategoryMain).map((mid) => {
+              {midCategories.map((mid) => {
                 const isExpanded = expandedMid === mid;
                 const subCategories = getSubCategories(
                   selectedMain as CategoryMain,
                   mid
+                ).filter((sub) =>
+                  hasActiveSub(activeCategoryTree, selectedMain, mid, sub),
                 );
 
                 return (
