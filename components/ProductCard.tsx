@@ -257,109 +257,105 @@ export default function ProductCard({
         </div>
       )}
 
+      {/* Feed actions */}
+      <div className="flex items-center gap-1 px-2 pt-2">
+        {/* Wishlist button */}
+        <button
+          type="button"
+          onClick={handleWishlistToggle}
+          aria-label={wishlisted ? "관심목록에서 제거" : "관심목록에 추가"}
+          className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
+        >
+          <svg
+            className={`w-6 h-6 ${wishlisted ? "text-red-500" : "text-gray-400"}`}
+            fill={wishlisted ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={wishlisted ? 0 : 1.5}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+            />
+          </svg>
+        </button>
+
+        {/* Share button */}
+        <button
+          type="button"
+          onClick={handleShare}
+          aria-label="공유"
+          className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
+        >
+          <svg
+            className="w-6 h-6 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"
+            />
+          </svg>
+        </button>
+      </div>
+
       {/* Product info below image */}
-      <div className="px-3 py-2.5">
-        <div className="flex items-start justify-between gap-3">
-          {/* Left: title + price */}
-          <div className="flex-1 min-w-0">
-            {archive ? (
-              <>
-                <p
-                  ref={archiveCaptionRef}
-                  className={`whitespace-pre-wrap text-[14px] leading-snug ${
-                    archiveCaptionExpanded ? "" : "line-clamp-3"
-                  }`}
-                >
-                  <span className="font-semibold text-black">{shopName}</span>{" "}
-                  <span className="font-normal text-gray-800">
-                    {archiveCaptionText}
-                  </span>
-                </p>
-                {archiveCaptionCanExpand && !archiveCaptionExpanded && (
-                  <button
-                    type="button"
-                    onClick={() => setArchiveCaptionExpanded(true)}
-                    className="mt-0.5 text-[14px] leading-snug text-gray-400"
-                  >
-                    ... 더보기
-                  </button>
-                )}
-              </>
-            ) : (
-              <Link href={`/p/${id}`} className="block">
-                <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
-                  {title}
-                </h3>
-                <div className="mt-1">
-                  {hasDiscount ? (
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
-                      <span className="text-[16px] font-semibold text-black tabular-nums">
-                        {displayPrice.toLocaleString()}원
-                      </span>
-                      <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
-                        {priceKrw.toLocaleString()}원
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline gap-0.5">
-                      <span className="text-[16px] font-semibold text-black tabular-nums">
-                        {priceKrw.toLocaleString()}원
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </Link>
+      <div className="px-3 pb-2.5">
+        {/* Title + price */}
+        {archive ? (
+          <div className="relative">
+            <p
+              ref={archiveCaptionRef}
+              className={`whitespace-pre-wrap text-[14px] leading-snug ${
+                archiveCaptionExpanded ? "" : "line-clamp-2 pr-[72px]"
+              }`}
+            >
+              <span className="font-semibold text-black">{shopName}</span>{" "}
+              <span className="font-normal text-gray-800">
+                {archiveCaptionText}
+              </span>
+            </p>
+            {archiveCaptionCanExpand && !archiveCaptionExpanded && (
+              <button
+                type="button"
+                onClick={() => setArchiveCaptionExpanded(true)}
+                className="absolute bottom-0 right-0 bg-white pl-1 text-[14px] leading-snug text-gray-400"
+              >
+                ... 더보기
+              </button>
             )}
           </div>
-
-          {/* Right: wishlist + share buttons */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Wishlist button */}
-            <button
-              type="button"
-              onClick={handleWishlistToggle}
-              aria-label={wishlisted ? "관심목록에서 제거" : "관심목록에 추가"}
-              className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
-            >
-              <svg
-                className={`w-6 h-6 ${wishlisted ? "text-red-500" : "text-gray-400"}`}
-                fill={wishlisted ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth={wishlisted ? 0 : 1.5}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-            </button>
-
-            {/* Share button */}
-            <button
-              type="button"
-              onClick={handleShare}
-              aria-label="공유"
-              className="w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
-            >
-              <svg
-                className="w-6 h-6 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        ) : (
+          <Link href={`/p/${id}`} className="block">
+            <h3 className="text-[15px] font-medium text-black leading-snug line-clamp-2">
+              {title}
+            </h3>
+            <div className="mt-1">
+              {hasDiscount ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
+                  <span className="text-[16px] font-semibold text-black tabular-nums">
+                    {displayPrice.toLocaleString()}원
+                  </span>
+                  <span className="text-[13px] text-gray-400 line-through tabular-nums ml-1">
+                    {priceKrw.toLocaleString()}원
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-[16px] font-semibold text-black tabular-nums">
+                    {priceKrw.toLocaleString()}원
+                  </span>
+                </div>
+              )}
+            </div>
+          </Link>
+        )}
       </div>
 
       {/* Profile Edit Sheet */}
