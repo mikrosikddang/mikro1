@@ -173,7 +173,6 @@ export default function ProductCard({
   // Hidden by user
   if (hidden) return null;
 
-  const canOpenDetail = !archive || archiveCaptionCanExpand;
   const feedActionButtons = (
     <div className="float-right ml-2 mb-1 flex h-8 items-center gap-1">
       {/* Wishlist button */}
@@ -295,15 +294,9 @@ export default function ProductCard({
       </div>
 
       {/* Image carousel */}
-      {canOpenDetail ? (
-        <Link href={`/p/${id}`} className="block">
-          <ImageCarousel images={images} aspect="4/5" />
-        </Link>
-      ) : (
-        <div className="block">
-          <ImageCarousel images={images} aspect="4/5" />
-        </div>
-      )}
+      <Link href={`/p/${id}`} className="block">
+        <ImageCarousel images={images} aspect="4/5" />
+      </Link>
 
       {/* Product info below image */}
       <div className="px-3 py-2.5">

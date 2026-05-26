@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import ProductActionMenu from "@/components/ProductActionMenu";
-import { getArchiveCaptionBody } from "@/lib/archiveCaption";
 import { isArchivePost } from "@/lib/productPostType";
 
 type Product = {
@@ -44,9 +43,6 @@ function CarrotListItem({ product }: { product: Product }) {
   const hasDiscount =
     product.salePriceKrw != null && product.salePriceKrw < product.priceKrw;
   const archive = isArchivePost(product.postType);
-  const canOpenDetail =
-    !archive ||
-    Boolean(getArchiveCaptionBody(product.descriptionJson, product.description));
   const discountRate = hasDiscount
     ? Math.round((1 - product.salePriceKrw! / product.priceKrw) * 100)
     : 0;
@@ -119,13 +115,9 @@ function CarrotListItem({ product }: { product: Product }) {
 
   return (
     <>
-      {canOpenDetail ? (
-        <Link href={`/p/${product.id}`} className="block">
-          {content}
-        </Link>
-      ) : (
-        <div className="block">{content}</div>
-      )}
+      <Link href={`/p/${product.id}`} className="block">
+        {content}
+      </Link>
 
       {/* Action Menu */}
       {menuOpen && (
