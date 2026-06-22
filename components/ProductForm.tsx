@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import type { VariantTree, ColorGroup, SizeRow } from "@/lib/variantTransform";
 import type { DescriptionBlock } from "@/lib/descriptionSchema";
@@ -98,7 +98,6 @@ type ProductDraft = {
   categoryMain?: string | null;
   categoryMid?: string | null;
   categorySub?: string | null;
-  detailText?: string;
   specMeasurements?: string;
   specModelInfo?: string;
   specMaterial?: string;
@@ -128,12 +127,6 @@ export default function ProductForm({
   const router = useRouter();
   const mainInputRef = useRef<HTMLInputElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
-  const initialPrimaryText =
-    initialValues?.descriptionJson?.v === 2 &&
-    Array.isArray(initialValues.descriptionJson.blocks) &&
-    initialValues.descriptionJson.blocks[0]?.type === "text"
-      ? initialValues.descriptionJson.blocks[0].content
-      : initialValues?.descriptionJson?.detail ?? initialValues?.description ?? "";
 
   const [mainImages, setMainImages] = useState<ImageSlot[]>(
     initialValues?.mainImages.map((img) => urlToSlot(img.url, img.colorKey)) ?? [],
@@ -180,19 +173,19 @@ export default function ProductForm({
   const [specMaterial, setSpecMaterial] = useState(initialValues?.descriptionJson?.spec?.material ?? "");
   const [specOrigin, setSpecOrigin] = useState(initialValues?.descriptionJson?.spec?.origin ?? "");
   const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
-  const [detailText, setDetailText] = useState(initialPrimaryText);
 
-  // V2 block editor state
+  // V2 block editor state — single source of truth for body (글+사진 자유 배치)
   const [descBlocks, setDescBlocks] = useState<(DescriptionBlock & { _id: string })[]>(() => {
-    if (initialValues?.descriptionJson?.v === 2 && Array.isArray(initialValues.descriptionJson.blocks)) {
-      const sourceBlocks =
-        initialValues.descriptionJson.blocks[0]?.type === "text"
-          ? initialValues.descriptionJson.blocks.slice(1)
-          : initialValues.descriptionJson.blocks;
-      return sourceBlocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
+    const dj = initialValues?.descriptionJson;
+    if (dj?.v === 2 && Array.isArray(dj.blocks)) {
+      return dj.blocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
     }
-    // Migrate from V1: keep main description in dedicated textarea and only move images
+    // Migrate from V1: seed legacy detail text as first text block, then images
     const blocks: (DescriptionBlock & { _id: string })[] = [];
+    const legacyDetail = dj?.detail ?? initialValues?.description ?? "";
+    if (legacyDetail.trim()) {
+      blocks.push({ _id: generateId(), type: "text", content: legacyDetail });
+    }
     if (initialValues?.contentImages?.length) {
       for (const url of initialValues.contentImages) {
         blocks.push({ _id: generateId(), type: "image", url });
@@ -201,6 +194,8 @@ export default function ProductForm({
     return blocks;
   });
   const blockImageInputRef = useRef<HTMLInputElement>(null);
+  // Where the next inserted block(s) go; null = append to end
+  const blockInsertIndexRef = useRef<number | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -233,7 +228,6 @@ export default function ProductForm({
         categoryMain,
         categoryMid,
         categorySub,
-        detailText,
         specMeasurements,
         specModelInfo,
         specMaterial,
@@ -253,7 +247,6 @@ export default function ProductForm({
     categoryMid,
     categorySub,
     descBlocks,
-    detailText,
     draftKey,
     mainImages,
     postType,
@@ -304,7 +297,6 @@ export default function ProductForm({
       setCategoryMain(d.categoryMain ?? null);
       setCategoryMid(d.categoryMid ?? null);
       setCategorySub(d.categorySub ?? null);
-      setDetailText(d.detailText ?? "");
       setSpecMeasurements(d.specMeasurements ?? "");
       setSpecModelInfo(d.specModelInfo ?? "");
       setSpecMaterial(d.specMaterial ?? "");
@@ -361,8 +353,43 @@ export default function ProductForm({
   }
 
   // ---- Block editor helpers ----
-  function addTextBlock() {
-    setDescBlocks((prev) => [...prev, { _id: generateId(), type: "text", content: "" }]);
+  // index === null/undefined → append; otherwise insert at that position
+  function addTextBlock(index?: number | null) {
+    setDescBlocks((prev) => {
+      const at = index == null ? prev.length : Math.max(0, Math.min(index, prev.length));
+      const next = [...prev];
+      next.splice(at, 0, { _id: generateId(), type: "text", content: "" });
+      return next;
+    });
+  }
+
+  function openBlockImagePicker(index?: number | null) {
+    blockInsertIndexRef.current = index ?? null;
+    blockImageInputRef.current?.click();
+  }
+
+  function renderInsertBar(index: number) {
+    const disabled = submitting || descBlocks.length >= MAX_CONTENT;
+    return (
+      <div className="flex items-center justify-center gap-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => addTextBlock(index)}
+          disabled={disabled}
+          className="px-3 py-1 rounded-full border border-dashed border-gray-300 text-[12px] text-gray-500 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-40"
+        >
+          + 글
+        </button>
+        <button
+          type="button"
+          onClick={() => openBlockImagePicker(index)}
+          disabled={disabled}
+          className="px-3 py-1 rounded-full border border-dashed border-gray-300 text-[12px] text-gray-500 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-40"
+        >
+          + 사진
+        </button>
+      </div>
+    );
   }
 
   function removeBlock(index: number) {
@@ -405,8 +432,21 @@ export default function ProductForm({
     e.target.value = "";
     setError(null);
 
+    // null = append; otherwise insert at this position and advance per uploaded image
+    let cursor = blockInsertIndexRef.current;
+    blockInsertIndexRef.current = null;
+
+    // Track block count locally so the MAX_CONTENT guard stays accurate across
+    // the async loop (closure descBlocks is stale once we start inserting).
+    let blockCount = descBlocks.length;
+    let hitLimit = false;
+
     for (const file of Array.from(files)) {
       if (!ALLOWED_TYPES.has(file.type)) continue;
+      if (blockCount >= MAX_CONTENT) {
+        hitLimit = true;
+        break;
+      }
       try {
         const resized = await resizeImage(file);
         const uploadContentType = resolveClientImageContentType(file, resized);
@@ -441,13 +481,26 @@ export default function ProductForm({
           continue;
         }
 
-        setDescBlocks((prev) => [
-          ...prev,
-          { _id: generateId(), type: "image", url: publicUrl },
-        ]);
+        const newBlock = { _id: generateId(), type: "image" as const, url: publicUrl };
+        if (cursor == null) {
+          setDescBlocks((prev) => [...prev, newBlock]);
+        } else {
+          const at = cursor;
+          setDescBlocks((prev) => {
+            const next = [...prev];
+            next.splice(Math.min(at, next.length), 0, newBlock);
+            return next;
+          });
+          cursor = at + 1;
+        }
+        blockCount += 1;
       } catch {
         setError("상세 이미지 업로드에 실패했습니다. 다시 시도해주세요.");
       }
+    }
+
+    if (hitLimit) {
+      setError(`상세 블록은 최대 ${MAX_CONTENT}개까지 추가할 수 있습니다.`);
     }
   }
 
@@ -819,12 +872,7 @@ export default function ProductForm({
       }
 
       // Build V2 blocks from block editor (images already uploaded)
-      const cleanBlocks: DescriptionBlock[] = [
-        ...(detailText.trim()
-          ? [{ type: "text" as const, content: detailText.trim() }]
-          : []),
-        ...descBlocks
-      ]
+      const cleanBlocks: DescriptionBlock[] = descBlocks
         .map((b) => {
           if (b.type === "text") return { type: "text" as const, content: b.content.trim() };
           if (b.type === "image") return { type: "image" as const, url: b.url, ...(b.caption ? { caption: b.caption } : {}) };
@@ -836,6 +884,13 @@ export default function ProductForm({
       const contentUrls = cleanBlocks
         .filter((b): b is Extract<DescriptionBlock, { type: "image" }> => b.type === "image")
         .map((b) => b.url);
+
+      // Derive legacy plain-text description from text blocks
+      const plainDescription = cleanBlocks
+        .filter((b): b is Extract<DescriptionBlock, { type: "text" }> => b.type === "text")
+        .map((b) => b.content)
+        .join("\n\n")
+        .trim();
 
       // Build structured description (V2)
       const descriptionJson = {
@@ -863,7 +918,7 @@ export default function ProductForm({
         categoryMain: categoryMain,
         categoryMid: categoryMid,
         categorySub: categorySub,
-        description: detailText.trim() || undefined,
+        description: plainDescription || undefined,
         descriptionJson,
         mainImages: mainImages.map((slot, i) => ({
           url: slot.publicUrl || mainUrls[i],
@@ -1055,93 +1110,93 @@ export default function ProductForm({
         </section>
       )}
 
-      {/* ===== Content Images ===== */}
       {/* ===== Description Block Editor (V2) ===== */}
       <section className="mb-6">
         <label className="block text-[14px] font-medium text-gray-700 mb-2">
-          상세 설명 블록
-          <span className="text-[12px] text-gray-400 ml-2 font-normal">사진과 글을 자유롭게 배치하세요</span>
+          상세 설명
+          <span className="text-[12px] text-gray-400 ml-2 font-normal">글과 사진을 원하는 위치에 배치하세요</span>
         </label>
 
-        <div className="space-y-3">
-          {descBlocks.map((block, i) => (
-            <div key={block._id} className="relative group rounded-xl border border-gray-200 bg-white overflow-hidden">
-              {/* Block controls */}
-              <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {i > 0 && (
-                  <button type="button" onClick={() => moveBlock(i, -1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-xs" disabled={submitting}>
-                    &#8593;
-                  </button>
-                )}
-                {i < descBlocks.length - 1 && (
-                  <button type="button" onClick={() => moveBlock(i, 1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-xs" disabled={submitting}>
-                    &#8595;
-                  </button>
-                )}
-                <button type="button" onClick={() => removeBlock(i)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-red-400 hover:bg-red-50 text-xs" disabled={submitting}>
-                  &#10005;
-                </button>
-              </div>
-              <div className="absolute top-2 left-2 z-10">
-                <span className="text-[11px] text-gray-400 bg-white/80 px-1.5 py-0.5 rounded">
-                  {block.type === "text" ? "글" : "사진"} {i + 1}
-                </span>
-              </div>
+        {descBlocks.length === 0 && (
+          <p className="mb-1 text-center text-[12px] text-gray-400">
+            아래 버튼으로 글과 사진을 추가해 설명을 작성하세요.
+          </p>
+        )}
 
-              {block.type === "text" ? (
-                <textarea
-                  value={block.content}
-                  onChange={(e) => updateBlockText(i, e.target.value)}
-                  placeholder="설명을 입력하세요"
-                  rows={4}
-                  className="w-full px-4 pt-8 pb-3 text-[14px] placeholder:text-gray-400 focus:outline-none resize-none border-none"
-                  disabled={submitting}
-                />
-              ) : (
-                <div className="pt-8 pb-3 px-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={block.url} alt={block.caption || `상세 이미지 ${i + 1}`} className="w-full rounded-lg object-contain max-h-[400px]" />
-                  <input
-                    type="text"
-                    value={block.caption || ""}
-                    onChange={(e) => updateBlockCaption(i, e.target.value)}
-                    placeholder="이미지 설명 (선택)"
-                    className="w-full mt-2 px-3 py-1.5 text-[13px] border border-gray-100 rounded-lg focus:outline-none focus:border-gray-300 placeholder:text-gray-300"
+        <div>
+          {/* Insert at the very top */}
+          {renderInsertBar(0)}
+
+          {descBlocks.map((block, i) => (
+            <Fragment key={block._id}>
+              <div className="relative rounded-xl border border-gray-200 bg-white overflow-hidden">
+                {/* Block controls (항상 표시 — 모바일 대응) */}
+                <div className="absolute top-2 right-2 z-10 flex gap-1">
+                  {i > 0 && (
+                    <button type="button" onClick={() => moveBlock(i, -1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:bg-gray-100 text-xs" disabled={submitting}>
+                      &#8593;
+                    </button>
+                  )}
+                  {i < descBlocks.length - 1 && (
+                    <button type="button" onClick={() => moveBlock(i, 1)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:bg-gray-100 text-xs" disabled={submitting}>
+                      &#8595;
+                    </button>
+                  )}
+                  <button type="button" onClick={() => removeBlock(i)} className="w-7 h-7 rounded-lg bg-white/90 border border-gray-200 flex items-center justify-center text-red-400 hover:bg-red-50 active:bg-red-100 text-xs" disabled={submitting}>
+                    &#10005;
+                  </button>
+                </div>
+                <div className="absolute top-2 left-2 z-10">
+                  <span className="text-[11px] text-gray-400 bg-white/80 px-1.5 py-0.5 rounded">
+                    {block.type === "text" ? "글" : "사진"} {i + 1}
+                  </span>
+                </div>
+
+                {block.type === "text" ? (
+                  <textarea
+                    value={block.content}
+                    onChange={(e) => updateBlockText(i, e.target.value)}
+                    placeholder="설명을 입력하세요"
+                    rows={4}
+                    className="w-full px-4 pt-10 pb-3 text-[14px] placeholder:text-gray-400 focus:outline-none resize-none border-none"
                     disabled={submitting}
                   />
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="pt-10 pb-3 px-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={block.url} alt={block.caption || `상세 이미지 ${i + 1}`} className="w-full rounded-lg object-contain max-h-[400px]" />
+                    <input
+                      type="text"
+                      value={block.caption || ""}
+                      onChange={(e) => updateBlockCaption(i, e.target.value)}
+                      placeholder="이미지 설명 (선택)"
+                      className="w-full mt-2 px-3 py-1.5 text-[13px] border border-gray-100 rounded-lg focus:outline-none focus:border-gray-300 placeholder:text-gray-300"
+                      disabled={submitting}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Insert after this block */}
+              {renderInsertBar(i + 1)}
+            </Fragment>
           ))}
         </div>
 
-        {/* Add block buttons */}
-        <div className="flex gap-2 mt-3">
-          <button
-            type="button"
-            onClick={addTextBlock}
-            className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-[13px] text-gray-500 hover:bg-gray-50 transition-colors"
-            disabled={submitting || descBlocks.length >= MAX_CONTENT}
-          >
-            + 글 추가
-          </button>
-          <button
-            type="button"
-            onClick={() => blockImageInputRef.current?.click()}
-            className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-[13px] text-gray-500 hover:bg-gray-50 transition-colors"
-            disabled={submitting || descBlocks.length >= MAX_CONTENT}
-          >
-            + 사진 추가
-          </button>
-          <input
-            ref={blockImageInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={handleBlockImagePick}
-            multiple
-          />
-        </div>
+        {descBlocks.length >= MAX_CONTENT && (
+          <p className="mt-1 text-center text-[12px] text-gray-400">
+            블록은 최대 {MAX_CONTENT}개까지 추가할 수 있습니다.
+          </p>
+        )}
+
+        <input
+          ref={blockImageInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={handleBlockImagePick}
+          multiple
+        />
       </section>
 
       {/* ===== Variants (Color Groups) ===== */}
@@ -1510,27 +1565,11 @@ export default function ProductForm({
         autoCloseOnSub
       />
 
-      {/* ===== Structured Description ===== */}
+      {/* ===== Spec (판매 게시물 전용) ===== */}
+      {!isArchiveMode && (
       <section className="mb-8 space-y-6">
-        <h3 className="text-[16px] font-bold text-gray-900">{isArchiveMode ? "설명" : "상품 설명"}</h3>
+        <h3 className="text-[16px] font-bold text-gray-900">상품 사양</h3>
 
-        <div className="space-y-2">
-          <label htmlFor="detailText" className="block text-[14px] font-medium text-gray-700">
-            상세 글
-          </label>
-          <textarea
-            id="detailText"
-            value={detailText}
-            onChange={(e) => setDetailText(e.target.value)}
-            placeholder={isArchiveMode ? "내용을 자유롭게 적어주세요." : "상품의 특징, 추천 포인트, 상태 등을 자유롭게 적어주세요."}
-            rows={6}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] placeholder:text-gray-400 focus:outline-none focus:border-black resize-none"
-            disabled={submitting}
-          />
-        </div>
-
-        {/* Section 2: Spec (판매 게시물 전용) */}
-        {!isArchiveMode && (
         <div className="p-4 bg-gray-50 rounded-xl space-y-3">
           <h4 className="text-[14px] font-medium text-gray-700 mb-2">사양 정보 <span className="text-[12px] font-normal text-gray-400">(선택)</span></h4>
           <div className="grid grid-cols-1 gap-3">
@@ -1576,9 +1615,8 @@ export default function ProductForm({
             />
           </div>
         </div>
-        )}
-
       </section>
+      )}
 
       {/* Error message */}
       {error && (
