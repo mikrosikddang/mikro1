@@ -470,6 +470,7 @@ export default function ProductForm({
     // the async loop (closure descBlocks is stale once we start inserting).
     let blockCount = descBlocks.length;
     let hitLimit = false;
+    dbg(`[2b] 현재 블록 ${blockCount}/${MAX_CONTENT}개 · 시작위치 ${cursor ?? "끝"}`);
 
     // Image candidate check (lenient): accept anything that looks like an image —
     // image/* MIME, empty type (some mobile pickers), or a known image extension
@@ -481,7 +482,11 @@ export default function ProductForm({
     // Pass 1: insert optimistic preview blocks immediately (objectURL + spinner)
     const pending: { id: string; file: File; preview: string }[] = [];
     const rejected: string[] = [];
-    for (const file of Array.from(files)) {
+    const fileArr = Array.from(files);
+    dbg(`[2c] 루프 시작 · ${fileArr.length}개 처리`);
+    try {
+    for (const file of fileArr) {
+      dbg(`[2d] 검사: ${file.name || "?"} type="${file.type}"`);
       if (!isImageCandidate(file)) {
         rejected.push(file.name || "알 수 없는 파일");
         dbg(`[3] 거절(비이미지): ${file.name || "?"} type="${file.type}"`);
@@ -489,6 +494,7 @@ export default function ProductForm({
       }
       if (blockCount >= MAX_CONTENT) {
         hitLimit = true;
+        dbg(`[3] 한도 초과로 중단 (${blockCount}/${MAX_CONTENT})`);
         break;
       }
       dbg(`[3] 후보 OK: ${file.name || "?"} type="${file.type}" size=${file.size}`);
@@ -509,6 +515,9 @@ export default function ProductForm({
       blockCount += 1;
       pending.push({ id, file, preview });
       dbg(`[4] 미리보기 블록 삽입됨 (현재 ${blockCount}개)`);
+    }
+    } catch (e1) {
+      dbg(`[Ex1] Pass1 예외: ${e1 instanceof Error ? e1.message : String(e1)}`);
     }
 
     if (rejected.length > 0) {
