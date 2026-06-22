@@ -21,6 +21,7 @@ import {
 } from "@/lib/publicVisibility";
 import { isArchivePost } from "@/lib/productPostType";
 import ArchiveCaption from "./ArchiveCaption";
+import LinkifiedText from "@/components/LinkifiedText";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -119,9 +120,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   <div className="space-y-4 pt-1">
                     {rendered.blocks.map((block, idx) =>
                       block.type === "text" ? (
-                        <p key={idx} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800">
-                          {block.content}
-                        </p>
+                        <LinkifiedText key={idx} text={block.content} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800" />
                       ) : (
                         <div key={idx} className="w-full overflow-hidden rounded-lg">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -140,7 +139,7 @@ export default async function ProductDetailPage({ params }: Props) {
               const text = (rendered?.detail || product.description || "").trim();
               if (!text) return null;
               return (
-                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800">{text}</p>
+                <LinkifiedText text={text} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800" />
               );
             })()}
           </div>
@@ -239,9 +238,7 @@ export default async function ProductDetailPage({ params }: Props) {
                     {rendered.blocks.map((block, idx) => (
                       <div key={idx}>
                         {block.type === "text" ? (
-                          <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
-                            {block.content}
-                          </p>
+                          <LinkifiedText text={block.content} className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap" />
                         ) : (
                           <div className="w-full rounded-lg overflow-hidden">
                             <img
@@ -264,9 +261,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 {!rendered.isV2 && rendered.detail && (
                   <div>
                     <h3 className="text-[14px] font-bold text-gray-900 mb-2">상세 설명</h3>
-                    <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {rendered.detail}
-                    </p>
+                    <LinkifiedText text={rendered.detail} className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap" />
                   </div>
                 )}
               </div>
@@ -277,9 +272,7 @@ export default async function ProductDetailPage({ params }: Props) {
           if (product.description) {
             return (
               <div className="mt-6 border-t border-gray-100 pt-5">
-                <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">
-                  {product.description}
-                </p>
+                <LinkifiedText text={product.description} className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap" />
               </div>
             );
           }

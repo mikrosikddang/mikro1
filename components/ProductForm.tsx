@@ -1219,7 +1219,7 @@ export default function ProductForm({
                   <textarea
                     value={block.content}
                     onChange={(e) => updateBlockText(i, e.target.value)}
-                    placeholder="설명을 입력하세요"
+                    placeholder="설명글이나 링크를 입력하세요."
                     rows={4}
                     className="w-full px-4 pt-10 pb-3 text-[14px] placeholder:text-gray-400 focus:outline-none resize-none border-none"
                     disabled={submitting}
