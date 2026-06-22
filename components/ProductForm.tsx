@@ -198,6 +198,13 @@ export default function ProductForm({
   // Where the next inserted block(s) go; null = append to end
   const blockInsertIndexRef = useRef<number | null>(null);
 
+  // TEMP DEBUG: visible on-screen trace of the photo-pick pipeline so we can
+  // see exactly where it stalls on a real device. Remove once the cause is fixed.
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const dbg = useCallback((msg: string) => {
+    setDebugLog((prev) => [...prev, msg].slice(-14));
+  }, []);
+
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isActive, setIsActive] = useState(initialIsActive ?? true);
@@ -370,6 +377,7 @@ export default function ProductForm({
 
   function openBlockImagePicker(index?: number | null) {
     blockInsertIndexRef.current = index ?? null;
+    dbg(`[1] +사진 클릭 (위치 ${index ?? "끝"}) · input ref=${blockImageInputRef.current ? "있음" : "없음!"}`);
     blockImageInputRef.current?.click();
   }
 
@@ -449,6 +457,7 @@ export default function ProductForm({
 
   async function handleBlockImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
+    dbg(`[2] onChange 진입 · files=${files ? `${files.length}개` : "null"}`);
     if (!files) return;
     e.target.value = "";
     setError(null);
@@ -475,12 +484,14 @@ export default function ProductForm({
     for (const file of Array.from(files)) {
       if (!isImageCandidate(file)) {
         rejected.push(file.name || "알 수 없는 파일");
+        dbg(`[3] 거절(비이미지): ${file.name || "?"} type="${file.type}"`);
         continue;
       }
       if (blockCount >= MAX_CONTENT) {
         hitLimit = true;
         break;
       }
+      dbg(`[3] 후보 OK: ${file.name || "?"} type="${file.type}" size=${file.size}`);
       const id = generateId();
       const preview = URL.createObjectURL(file);
       const newBlock = { _id: id, type: "image" as const, url: preview, _uploading: true };
@@ -497,6 +508,7 @@ export default function ProductForm({
       }
       blockCount += 1;
       pending.push({ id, file, preview });
+      dbg(`[4] 미리보기 블록 삽입됨 (현재 ${blockCount}개)`);
     }
 
     if (rejected.length > 0) {
@@ -509,7 +521,9 @@ export default function ProductForm({
     // Pass 2: upload each pending block; update by _id so index shifts don't matter
     for (const { id, file, preview } of pending) {
       try {
+        dbg(`[5] 업로드 시작: ${file.name || "?"}`);
         const resized = await resizeImage(file);
+        dbg(`[6] 리사이즈 OK (${resized.size}B, ${resized.type || "type없음"})`);
         const uploadContentType = resolveClientImageContentType(file, resized);
         const uploadSize = resized.size;
         const presignRes = await fetch("/api/uploads/presign", {
@@ -521,9 +535,11 @@ export default function ProductForm({
             fileSize: uploadSize,
           }),
         });
+        dbg(`[7] presign 응답 ${presignRes.status}`);
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
           updateBlockById(id, { _uploading: false, _failed: true });
+          dbg(`[7x] presign 실패 ${presignRes.status}: ${typeof data.error === "string" ? data.error : ""}`);
           setError(
             typeof data.error === "string"
               ? data.error
@@ -538,6 +554,7 @@ export default function ProductForm({
           headers: { "Content-Type": uploadContentType },
           body: resized,
         });
+        dbg(`[8] S3 PUT 응답 ${uploadRes.status}`);
         if (!uploadRes.ok) {
           updateBlockById(id, { _uploading: false, _failed: true });
           setError("상세 이미지를 저장하지 못했습니다. 다시 시도해주세요.");
@@ -546,9 +563,11 @@ export default function ProductForm({
 
         updateBlockById(id, { url: publicUrl, _uploading: false, _failed: false });
         try { URL.revokeObjectURL(preview); } catch { /* best-effort */ }
-      } catch {
+        dbg(`[9] 완료 ✓ ${file.name || "?"}`);
+      } catch (err) {
         // resize/decode failure — often an unsupported format (e.g. HEIC on Chrome)
         updateBlockById(id, { _uploading: false, _failed: true });
+        dbg(`[Ex] 예외: ${err instanceof Error ? err.message : String(err)}`);
         setError("이미지를 처리하지 못했습니다. HEIC 등 일부 형식은 지원되지 않을 수 있어요. 다른 사진으로 시도해주세요.");
       }
     }
@@ -1176,6 +1195,17 @@ export default function ProductForm({
           상세 설명
           <span className="text-[12px] text-gray-400 ml-2 font-normal">글과 사진을 원하는 위치에 배치하세요</span>
         </label>
+
+        {/* TEMP DEBUG: shows the photo-pick pipeline on screen. Remove after diagnosis. */}
+        {debugLog.length > 0 && (
+          <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-amber-800">사진 진단 로그</span>
+              <button type="button" onClick={() => setDebugLog([])} className="text-[11px] text-amber-700 underline">지우기</button>
+            </div>
+            <pre className="text-[11px] leading-snug text-amber-900 whitespace-pre-wrap break-all">{debugLog.join("\n")}</pre>
+          </div>
+        )}
 
         {descBlocks.length === 0 && (
           <p className="mb-1 text-center text-[12px] text-gray-400">
