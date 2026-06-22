@@ -457,9 +457,14 @@ export default function ProductForm({
 
   async function handleBlockImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
-    dbg(`[2] onChange 진입 · files=${files ? `${files.length}개` : "null"}`);
-    if (!files) return;
+    // Snapshot the FileList into a real array BEFORE clearing the input.
+    // e.target.files is a LIVE list tied to the input; setting value = "" empties
+    // it, so reading it after the reset (the previous order) saw 0 files and
+    // silently added nothing. This is why block-editor photos never worked.
+    const fileArr = Array.from(files ?? []);
+    dbg(`[2] onChange · files=${files ? files.length : "null"} · 스냅샷 ${fileArr.length}개`);
     e.target.value = "";
+    if (fileArr.length === 0) return;
     setError(null);
 
     // null = append; otherwise insert at this position and advance per uploaded image
@@ -482,7 +487,6 @@ export default function ProductForm({
     // Pass 1: insert optimistic preview blocks immediately (objectURL + spinner)
     const pending: { id: string; file: File; preview: string }[] = [];
     const rejected: string[] = [];
-    const fileArr = Array.from(files);
     dbg(`[2c] 루프 시작 · ${fileArr.length}개 처리`);
     try {
     for (const file of fileArr) {
