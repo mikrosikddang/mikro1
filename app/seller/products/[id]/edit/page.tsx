@@ -49,6 +49,7 @@ export default async function EditProductPage({ params }: Props) {
       color: v.color || "FREE",
       sizeLabel: v.sizeLabel,
       stock: v.stock,
+      priceAddonKrw: v.priceAddonKrw,
     })),
   };
 
