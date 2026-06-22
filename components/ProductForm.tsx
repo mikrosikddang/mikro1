@@ -462,10 +462,21 @@ export default function ProductForm({
     let blockCount = descBlocks.length;
     let hitLimit = false;
 
+    // Image candidate check (lenient): accept anything that looks like an image —
+    // image/* MIME, empty type (some mobile pickers), or a known image extension
+    // (covers iPhone HEIC/HEIF, avif, bmp). Non-images are rejected explicitly below.
+    const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i;
+    const isImageCandidate = (file: File) =>
+      file.type.startsWith("image/") || file.type === "" || IMAGE_EXTENSIONS.test(file.name);
+
     // Pass 1: insert optimistic preview blocks immediately (objectURL + spinner)
     const pending: { id: string; file: File; preview: string }[] = [];
+    const rejected: string[] = [];
     for (const file of Array.from(files)) {
-      if (!ALLOWED_TYPES.has(file.type)) continue;
+      if (!isImageCandidate(file)) {
+        rejected.push(file.name || "알 수 없는 파일");
+        continue;
+      }
       if (blockCount >= MAX_CONTENT) {
         hitLimit = true;
         break;
@@ -488,6 +499,9 @@ export default function ProductForm({
       pending.push({ id, file, preview });
     }
 
+    if (rejected.length > 0) {
+      setError(`이미지 파일만 올릴 수 있어요: ${rejected.join(", ")}`);
+    }
     if (hitLimit) {
       setError(`상세 블록은 최대 ${MAX_CONTENT}개까지 추가할 수 있습니다.`);
     }
@@ -533,8 +547,9 @@ export default function ProductForm({
         updateBlockById(id, { url: publicUrl, _uploading: false, _failed: false });
         try { URL.revokeObjectURL(preview); } catch { /* best-effort */ }
       } catch {
+        // resize/decode failure — often an unsupported format (e.g. HEIC on Chrome)
         updateBlockById(id, { _uploading: false, _failed: true });
-        setError("상세 이미지 업로드에 실패했습니다. 다시 시도해주세요.");
+        setError("이미지를 처리하지 못했습니다. HEIC 등 일부 형식은 지원되지 않을 수 있어요. 다른 사진으로 시도해주세요.");
       }
     }
   }
@@ -1248,7 +1263,7 @@ export default function ProductForm({
         <input
           ref={blockImageInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/*"
           className="hidden"
           onChange={handleBlockImagePick}
           multiple
