@@ -21,7 +21,6 @@ import {
 } from "@/lib/publicVisibility";
 import { isArchivePost } from "@/lib/productPostType";
 import ArchiveCaption from "./ArchiveCaption";
-import { getArchiveCaptionBody } from "@/lib/archiveCaption";
 
 export const revalidate = 30; // ISR: 30초 (getSession 사용으로 실제 동적 렌더링)
 
@@ -53,9 +52,6 @@ export default async function ProductDetailPage({ params }: Props) {
   const isSoldOut = totalStock <= 0;
   const isArchive = isArchivePost(product.postType);
   const isSelf = session ? session.userId === product.sellerId : false;
-  const archiveCaptionBody = isArchive
-    ? getArchiveCaptionBody(product.descriptionJson, product.description)
-    : "";
 
   // Split images by kind
   const allMainImages = product.images.filter((i) => i.kind === "MAIN");
@@ -109,7 +105,44 @@ export default async function ProductDetailPage({ params }: Props) {
         {isArchive ? (
           <div className="space-y-3">
             <SellerNameText sellerId={product.sellerId} shopName={shopName} avatarUrl={product.seller.sellerProfile?.avatarUrl} />
-            <ArchiveCaption title={product.title} body={archiveCaptionBody} />
+            <ArchiveCaption title={product.title} />
+            {(() => {
+              const dj = product.descriptionJson;
+              const rendered =
+                dj && typeof dj === "object"
+                  ? renderDescriptionForCustomer(dj as unknown as ProductDescription)
+                  : null;
+
+              // V2: render text + image blocks in the authored order (글/사진 사이사이)
+              if (rendered?.isV2 && rendered.blocks.length > 0) {
+                return (
+                  <div className="space-y-4 pt-1">
+                    {rendered.blocks.map((block, idx) =>
+                      block.type === "text" ? (
+                        <p key={idx} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800">
+                          {block.content}
+                        </p>
+                      ) : (
+                        <div key={idx} className="w-full overflow-hidden rounded-lg">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={block.url} alt={block.caption || ""} className="w-full h-auto" loading="lazy" />
+                          {block.caption && (
+                            <p className="mt-1 px-1 text-[12px] text-gray-400">{block.caption}</p>
+                          )}
+                        </div>
+                      ),
+                    )}
+                  </div>
+                );
+              }
+
+              // Legacy / text-only fallback
+              const text = (rendered?.detail || product.description || "").trim();
+              if (!text) return null;
+              return (
+                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800">{text}</p>
+              );
+            })()}
           </div>
         ) : (
           <>
