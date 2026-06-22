@@ -175,7 +175,8 @@ export default function ProductForm({
   const [specFit, setSpecFit] = useState(initialValues?.descriptionJson?.spec?.fit ?? "");
 
   // V2 block editor state — single source of truth for body (글+사진 자유 배치)
-  const [descBlocks, setDescBlocks] = useState<(DescriptionBlock & { _id: string })[]>(() => {
+  // _uploading/_failed are transient client-only flags for image upload feedback.
+  const [descBlocks, setDescBlocks] = useState<(DescriptionBlock & { _id: string; _uploading?: boolean; _failed?: boolean })[]>(() => {
     const dj = initialValues?.descriptionJson;
     if (dj?.v === 2 && Array.isArray(dj.blocks)) {
       return dj.blocks.map((b: DescriptionBlock) => ({ ...b, _id: generateId() }));
@@ -234,7 +235,11 @@ export default function ProductForm({
         specOrigin,
         specFit,
         variantTree,
-        descBlocks: descBlocks.map(({ _id, ...rest }) => rest),
+        // Persist only settled blocks; drop in-flight/failed images and their blob: previews,
+        // and strip transient client-only fields (_id/_uploading/_failed).
+        descBlocks: descBlocks
+          .filter((b) => !(b.type === "image" && (b._uploading || b._failed || b.url.startsWith("blob:"))))
+          .map(({ _id, _uploading, _failed, ...rest }) => rest),
         mainImageUrls: doneMainImages.map((s) => ({ url: s.publicUrl!, colorKey: s.colorKey })),
         contentImageUrls: doneContentImages.map((s) => s.publicUrl!),
       };
@@ -392,8 +397,24 @@ export default function ProductForm({
     );
   }
 
+  // Update an image block by its stable _id (safe against index shifts during async upload)
+  function updateBlockById(
+    id: string,
+    patch: Partial<DescriptionBlock & { _uploading?: boolean; _failed?: boolean }>,
+  ) {
+    setDescBlocks((prev) =>
+      prev.map((b) => (b._id === id ? ({ ...b, ...patch } as typeof b) : b)),
+    );
+  }
+
   function removeBlock(index: number) {
-    setDescBlocks((prev) => prev.filter((_, i) => i !== index));
+    setDescBlocks((prev) => {
+      const target = prev[index];
+      if (target?.type === "image" && target.url?.startsWith("blob:")) {
+        try { URL.revokeObjectURL(target.url); } catch { /* best-effort */ }
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function moveBlock(index: number, direction: -1 | 1) {
@@ -441,12 +462,38 @@ export default function ProductForm({
     let blockCount = descBlocks.length;
     let hitLimit = false;
 
+    // Pass 1: insert optimistic preview blocks immediately (objectURL + spinner)
+    const pending: { id: string; file: File; preview: string }[] = [];
     for (const file of Array.from(files)) {
       if (!ALLOWED_TYPES.has(file.type)) continue;
       if (blockCount >= MAX_CONTENT) {
         hitLimit = true;
         break;
       }
+      const id = generateId();
+      const preview = URL.createObjectURL(file);
+      const newBlock = { _id: id, type: "image" as const, url: preview, _uploading: true };
+      if (cursor == null) {
+        setDescBlocks((prev) => [...prev, newBlock]);
+      } else {
+        const at = cursor;
+        setDescBlocks((prev) => {
+          const next = [...prev];
+          next.splice(Math.min(at, next.length), 0, newBlock);
+          return next;
+        });
+        cursor = at + 1;
+      }
+      blockCount += 1;
+      pending.push({ id, file, preview });
+    }
+
+    if (hitLimit) {
+      setError(`상세 블록은 최대 ${MAX_CONTENT}개까지 추가할 수 있습니다.`);
+    }
+
+    // Pass 2: upload each pending block; update by _id so index shifts don't matter
+    for (const { id, file, preview } of pending) {
       try {
         const resized = await resizeImage(file);
         const uploadContentType = resolveClientImageContentType(file, resized);
@@ -462,6 +509,7 @@ export default function ProductForm({
         });
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
+          updateBlockById(id, { _uploading: false, _failed: true });
           setError(
             typeof data.error === "string"
               ? data.error
@@ -477,30 +525,17 @@ export default function ProductForm({
           body: resized,
         });
         if (!uploadRes.ok) {
+          updateBlockById(id, { _uploading: false, _failed: true });
           setError("상세 이미지를 저장하지 못했습니다. 다시 시도해주세요.");
           continue;
         }
 
-        const newBlock = { _id: generateId(), type: "image" as const, url: publicUrl };
-        if (cursor == null) {
-          setDescBlocks((prev) => [...prev, newBlock]);
-        } else {
-          const at = cursor;
-          setDescBlocks((prev) => {
-            const next = [...prev];
-            next.splice(Math.min(at, next.length), 0, newBlock);
-            return next;
-          });
-          cursor = at + 1;
-        }
-        blockCount += 1;
+        updateBlockById(id, { url: publicUrl, _uploading: false, _failed: false });
+        try { URL.revokeObjectURL(preview); } catch { /* best-effort */ }
       } catch {
+        updateBlockById(id, { _uploading: false, _failed: true });
         setError("상세 이미지 업로드에 실패했습니다. 다시 시도해주세요.");
       }
-    }
-
-    if (hitLimit) {
-      setError(`상세 블록은 최대 ${MAX_CONTENT}개까지 추가할 수 있습니다.`);
     }
   }
 
@@ -856,6 +891,12 @@ export default function ProductForm({
       return;
     }
 
+    // Block submit while detail images are still uploading
+    if (descBlocks.some((b) => b.type === "image" && b._uploading)) {
+      setError("이미지 업로드가 끝날 때까지 기다려주세요");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -871,11 +912,15 @@ export default function ProductForm({
         }
       }
 
-      // Build V2 blocks from block editor (images already uploaded)
+      // Build V2 blocks from block editor (images already uploaded).
+      // Safety: drop image blocks that failed or still hold a blob: preview URL.
       const cleanBlocks: DescriptionBlock[] = descBlocks
         .map((b) => {
           if (b.type === "text") return { type: "text" as const, content: b.content.trim() };
-          if (b.type === "image") return { type: "image" as const, url: b.url, ...(b.caption ? { caption: b.caption } : {}) };
+          if (b.type === "image") {
+            if (b._failed || b.url.startsWith("blob:")) return null;
+            return { type: "image" as const, url: b.url, ...(b.caption ? { caption: b.caption } : {}) };
+          }
           return null;
         })
         .filter((b): b is DescriptionBlock => b !== null && (b.type !== "text" || b.content !== ""));
@@ -1129,7 +1174,7 @@ export default function ProductForm({
 
           {descBlocks.map((block, i) => (
             <Fragment key={block._id}>
-              <div className="relative rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <div className={`relative rounded-xl border bg-white overflow-hidden ${block.type === "image" && block._failed ? "border-red-400" : "border-gray-200"}`}>
                 {/* Block controls (항상 표시 — 모바일 대응) */}
                 <div className="absolute top-2 right-2 z-10 flex gap-1">
                   {i > 0 && (
@@ -1163,8 +1208,19 @@ export default function ProductForm({
                   />
                 ) : (
                   <div className="pt-10 pb-3 px-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={block.url} alt={block.caption || `상세 이미지 ${i + 1}`} className="w-full rounded-lg object-contain max-h-[400px]" />
+                    <div className="relative w-full rounded-lg overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={block.url} alt={block.caption || `상세 이미지 ${i + 1}`} className="w-full rounded-lg object-contain max-h-[400px]" />
+                      {/* Uploading spinner overlay (메인 이미지 피커와 동일 패턴) */}
+                      {block._uploading && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    {block._failed && (
+                      <p className="mt-2 text-[12px] text-red-500">업로드 실패. 삭제 후 다시 시도하세요.</p>
+                    )}
                     <input
                       type="text"
                       value={block.caption || ""}
