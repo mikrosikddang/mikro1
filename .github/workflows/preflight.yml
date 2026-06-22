@@ -45,13 +45,13 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Build Check
+        # Build in production mode (next build default) to mirror the Amplify
+        # build. The previous NODE_ENV=development broke prerendering and made
+        # this step fail on every run ("Cannot read properties of undefined
+        # (reading 'length')" on /apply etc.). No DB is needed at build time;
+        # auth.ts falls back for missing secrets during build.
         run: npm run build
         env:
-          # 빌드는 development 모드로 수행 (프로덕션 체크 회피)
-          NODE_ENV: development
-          # DATABASE_URL 제거 - Prisma는 빌드 시 연결 시도 안 함
-          # COOKIE_SECRET 제거 - development 모드에서 fallback 사용
-          # AWS credentials - 빌드 시 필요 없음 (런타임만 필요)
           MVP_SELLER_ID: "ci-seller-id"
 
   # Production runtime validation (scheduled + manual)
