@@ -7,12 +7,14 @@ import { useSession } from "@/components/SessionProvider";
 type FollowButtonProps = {
   sellerId: string;
   size?: "sm" | "md";
+  variant?: "pill" | "block";
   className?: string;
 };
 
 export default function FollowButton({
   sellerId,
   size = "md",
+  variant = "pill",
   className = "",
 }: FollowButtonProps) {
   const router = useRouter();
@@ -110,6 +112,9 @@ export default function FollowButton({
 
   // 체킹 중일 때 placeholder
   if (checking) {
+    if (variant === "block") {
+      return <div className={`rounded-lg bg-gray-100 opacity-50 ${className}`} />;
+    }
     const sizeClasses =
       size === "sm"
         ? "h-8 px-3 text-[12px]"
@@ -119,6 +124,24 @@ export default function FollowButton({
       <div
         className={`${sizeClasses} rounded-full border border-gray-300 bg-gray-50 opacity-50 ${className}`}
       />
+    );
+  }
+
+  // Block variant: flat rounded-lg, matches sibling action buttons (프로필 편집/공유)
+  if (variant === "block") {
+    const blockStyle = following
+      ? "bg-gray-100 text-gray-700 active:bg-gray-200"
+      : "bg-black text-white active:bg-gray-800";
+
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        className={`rounded-lg text-[14px] font-medium transition-colors ${blockStyle} ${loading ? "opacity-60 cursor-wait" : ""} ${className}`}
+      >
+        {following ? "팔로잉" : "팔로우"}
+      </button>
     );
   }
 

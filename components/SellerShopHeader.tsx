@@ -6,12 +6,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { type SocialChannelType } from "@prisma/client";
 import { useSession } from "@/components/SessionProvider";
 import FollowButton from "@/components/FollowButton";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
-import { getHomeFeedViewMode, setHomeFeedViewMode, type HomeFeedViewMode } from "@/lib/uiPrefs";
 import { canAccessSellerFeatures, isCustomer } from "@/lib/roles";
 import { socialChannelLabel } from "@/lib/sellerTypes";
 import { buildCanonicalUrl } from "@/lib/siteUrl";
@@ -45,27 +44,6 @@ export default function SellerShopHeader({
 
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const [viewMode, setViewMode] = useState<HomeFeedViewMode>(() => {
-    if (typeof window === "undefined") return "feed";
-    return getHomeFeedViewMode();
-  });
-
-  useEffect(() => {
-    const handleViewModeChange = (event: CustomEvent<{ mode: HomeFeedViewMode }>) => {
-      setViewMode(event.detail.mode);
-    };
-    window.addEventListener("homeFeedViewModeChange", handleViewModeChange as EventListener);
-    return () => {
-      window.removeEventListener("homeFeedViewModeChange", handleViewModeChange as EventListener);
-    };
-  }, []);
-
-  const handleToggleViewMode = () => {
-    const nextMode: HomeFeedViewMode = viewMode === "feed" ? "carrot" : "feed";
-    setHomeFeedViewMode(nextMode);
-    setViewMode(nextMode);
-    window.dispatchEvent(new CustomEvent("homeFeedViewModeChange", { detail: { mode: nextMode } }));
-  };
 
   const handleShareProfile = async () => {
     const profileUrl = buildCanonicalUrl(`/${storeSlug}`);
@@ -152,21 +130,12 @@ export default function SellerShopHeader({
             </>
           ) : (
             <>
-              {/* Follow Button (non-self only) */}
-              <div className="flex-1">
-                <FollowButton sellerId={sellerId} size="md" className="w-full h-11" />
-              </div>
-              <button
-                type="button"
-                onClick={handleToggleViewMode}
-                className="flex-1 h-11 bg-gray-100 text-black rounded-lg text-[14px] font-medium active:bg-gray-200 transition-colors"
-              >
-                {viewMode === "feed" ? "리스트보기" : "피드보기"}
-              </button>
+              {/* Follow Button (non-self only) — 주 액션 (block variant) */}
+              <FollowButton sellerId={sellerId} variant="block" className="flex-1 h-11" />
               <button
                 type="button"
                 onClick={handleShareProfile}
-                className="flex-1 h-11 bg-black text-white rounded-lg text-[14px] font-medium active:bg-gray-800 transition-colors"
+                className="flex-1 h-11 bg-gray-100 text-black rounded-lg text-[14px] font-medium active:bg-gray-200 transition-colors"
               >
                 프로필공유
               </button>
