@@ -120,7 +120,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   <div className="space-y-4 pt-1">
                     {rendered.blocks.map((block, idx) =>
                       block.type === "text" ? (
-                        <LinkifiedText key={idx} text={block.content} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800" />
+                        <LinkifiedText key={idx} text={block.content} className="whitespace-pre-wrap text-[17px] leading-relaxed text-gray-900" />
                       ) : (
                         <div key={idx} className="w-full overflow-hidden rounded-lg">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -139,7 +139,7 @@ export default async function ProductDetailPage({ params }: Props) {
               const text = (rendered?.detail || product.description || "").trim();
               if (!text) return null;
               return (
-                <LinkifiedText text={text} className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800" />
+                <LinkifiedText text={text} className="whitespace-pre-wrap text-[17px] leading-relaxed text-gray-900" />
               );
             })()}
           </div>
