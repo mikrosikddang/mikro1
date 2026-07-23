@@ -28,6 +28,81 @@ async function resolveSecretKey(paymentKey: string): Promise<string> {
   return getTossSecretKey();
 }
 
+export type TossPaymentLookup = {
+  paymentKey: string;
+  orderId: string;
+  status: string;
+  method?: string;
+  totalAmount?: number;
+};
+
+export type TossGetResult =
+  | { ok: true; payment: TossPaymentLookup }
+  | { ok: false; kind: "not_found"; code: string; message: string } // 404 등 — 실존하지 않는 결제
+  | { ok: false; kind: "unavailable"; code: string; message: string }; // 네트워크/5xx — 검증 불가(공격 아님)
+
+/**
+ * Look up a payment on Toss (server-to-server verification).
+ * GET /v1/payments/{paymentKey} — idempotent read, no state change.
+ *
+ * Distinguishes "결제 실존하지 않음"(kind:not_found → 위조 의심)과
+ * "토스 조회 자체 실패"(kind:unavailable → 네트워크/5xx, 공격 아님 → 안전측 보류)를 구분한다.
+ */
+export async function getPayment(paymentKey: string): Promise<TossGetResult> {
+  const secretKey = await resolveSecretKey(paymentKey);
+  if (!secretKey) {
+    return {
+      ok: false,
+      kind: "unavailable",
+      code: "TOSS_NOT_CONFIGURED",
+      message: "Toss API key not configured",
+    };
+  }
+  const encoded = Buffer.from(`${secretKey}:`).toString("base64");
+
+  try {
+    const res = await fetch(
+      `${TOSS_API_BASE}/payments/${encodeURIComponent(paymentKey)}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Basic ${encoded}` },
+      },
+    );
+
+    if (res.ok) {
+      const data = (await res.json()) as TossPaymentLookup;
+      return { ok: true, payment: data };
+    }
+
+    // 4xx (특히 404 NOT_FOUND_PAYMENT) → 실존하지 않는 결제 = 위조 의심
+    if (res.status >= 400 && res.status < 500) {
+      const errBody = (await res.json().catch(() => ({}))) as { code?: string };
+      return {
+        ok: false,
+        kind: "not_found",
+        code: errBody.code ?? `HTTP_${res.status}`,
+        message: "결제 정보를 확인할 수 없습니다.",
+      };
+    }
+
+    // 5xx → 토스 장애, 검증 불가 (공격 아님)
+    return {
+      ok: false,
+      kind: "unavailable",
+      code: `HTTP_${res.status}`,
+      message: "결제 확인 서비스를 일시적으로 사용할 수 없습니다.",
+    };
+  } catch {
+    // 네트워크 오류 → 검증 불가 (공격 아님)
+    return {
+      ok: false,
+      kind: "unavailable",
+      code: "NETWORK_ERROR",
+      message: "결제 확인 서비스를 일시적으로 사용할 수 없습니다.",
+    };
+  }
+}
+
 export type TossCancelResult =
   | { ok: true; paymentKey: string }
   | { ok: false; code: string; message: string };

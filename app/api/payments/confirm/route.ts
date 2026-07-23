@@ -5,9 +5,9 @@ import {
   PaymentStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { cancelPayment } from "@/lib/toss";
+import { cancelPayment, getPayment } from "@/lib/toss";
 import { notifyOrderStatusChange } from "@/lib/notifications";
-import { getTossMode } from "@/lib/tossConfig";
+import { getTossMode, type TossMode } from "@/lib/tossConfig";
 
 export const runtime = "nodejs";
 
@@ -56,6 +56,99 @@ function isPrismaUniqueError(err: unknown): boolean {
     "code" in err &&
     (err as { code: string }).code === "P2002"
   );
+}
+
+// Mask a paymentKey for logging (never log the full key).
+function maskKey(key: string): string {
+  if (key.length <= 8) return "****";
+  return `${key.slice(0, 4)}…${key.slice(-4)}`;
+}
+
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+/**
+ * Record a payment-verification failure (forgery/tampering attempt).
+ * - console.error with a [SECURITY] tag (no secrets, no stack).
+ * - Payment row (status=FAILED) with reason detail, ONLY when the order has no
+ *   settled payment yet — never overwrites a legitimate CONFIRMED/READY record.
+ */
+async function recordVerificationFailure(params: {
+  req: NextRequest;
+  orderId: string;
+  reason: string;
+  providedPaymentKey: string;
+  providedAmount?: number;
+  tossAmount?: number;
+  tossStatus?: string;
+  existingPaymentId?: string | null;
+  existingPaymentStatus?: PaymentStatus | null;
+  amountKrw: number;
+  tossMode: TossMode;
+}) {
+  const ip = clientIp(params.req);
+  const ua = params.req.headers.get("user-agent") ?? "unknown";
+  console.error(
+    "[SECURITY][payment-forgery-attempt]",
+    JSON.stringify({
+      orderId: params.orderId,
+      reason: params.reason,
+      paymentKey: maskKey(params.providedPaymentKey),
+      providedAmount: params.providedAmount,
+      tossAmount: params.tossAmount,
+      tossStatus: params.tossStatus,
+      ip,
+    }),
+  );
+
+  // Don't clobber a legitimate payment record.
+  if (
+    params.existingPaymentStatus === PaymentStatus.CONFIRMED ||
+    params.existingPaymentStatus === PaymentStatus.DONE ||
+    params.existingPaymentStatus === PaymentStatus.READY
+  ) {
+    return;
+  }
+
+  const rawResponse = {
+    failureReason: params.reason,
+    providedPaymentKey: maskKey(params.providedPaymentKey),
+    providedAmount: params.providedAmount ?? null,
+    tossAmount: params.tossAmount ?? null,
+    tossStatus: params.tossStatus ?? null,
+    ip,
+    ua,
+    at: new Date().toISOString(),
+  };
+
+  try {
+    if (params.existingPaymentId) {
+      await prisma.payment.update({
+        where: { id: params.existingPaymentId },
+        data: { status: PaymentStatus.FAILED, mode: params.tossMode, rawResponse },
+      });
+    } else {
+      await prisma.payment.create({
+        data: {
+          orderId: params.orderId,
+          status: PaymentStatus.FAILED,
+          amountKrw: params.amountKrw,
+          mode: params.tossMode,
+          rawResponse,
+          // NOTE: do not set paymentKey here — the provided key is untrusted/forged
+          // and paymentKey is @unique; storing it could block a later legit payment.
+        },
+      });
+    }
+  } catch (err) {
+    // Logging failure must never break the request path.
+    console.error("[SECURITY][payment-forgery-attempt] failed to persist:", err instanceof Error ? err.message : "unknown");
+  }
 }
 
 /* ---------- handler ---------- */
@@ -139,22 +232,102 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Optional amount verification
-  if (amount !== undefined) {
-    if (order.totalPayKrw !== amount) {
+  // 결제 시점 모드 고정 (차후 취소/환불 시 이 모드의 Secret Key 로 요청)
+  const tossMode = await getTossMode();
+
+  /* ---- S2S VERIFICATION: 실제 토스 결제와 대조 (DB 변경 전 필수) ----
+   * 공개 엔드포인트라 클라가 준 paymentKey/amount 를 신뢰할 수 없다.
+   * 토스에 직접 조회하여 (1)실존 (2)승인상태 (3)orderId/checkoutAttempt 바인딩
+   * (4)금액 상한 을 검증. 하나라도 실패 시 PAID 승격 금지 + 공격 기록 + 4xx.
+   * 금액은 쿠폰 할인액이 서버에 영속화되지 않아 정확 등호 대신 상한 비교
+   * (정확 등호는 쿠폰 영속화 후 별건). 정상 결제 회귀 0 최우선. */
+  const lookup = await getPayment(paymentKey);
+
+  if (!lookup.ok) {
+    if (lookup.kind === "unavailable") {
+      // 토스 장애/네트워크 — 공격이 아니므로 기록하지 않고 안전측 보류(PAID 금지).
+      console.warn("[payments/confirm] Toss lookup unavailable:", lookup.code);
       return json(
         {
           ok: false,
-          code: "AMOUNT_MISMATCH",
-          message: `결제 금액 불일치: expected ${order.totalPayKrw}, got ${amount}`,
+          code: "PAYMENT_VERIFY_UNAVAILABLE",
+          message: "결제 확인 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
         },
-        400,
+        502,
       );
     }
+    // not_found — 실존하지 않는 결제 = 위조 시도
+    await recordVerificationFailure({
+      req,
+      orderId,
+      reason: "PAYMENT_NOT_FOUND_ON_TOSS",
+      providedPaymentKey: paymentKey,
+      providedAmount: amount,
+      existingPaymentId: order.payment?.id ?? null,
+      existingPaymentStatus: order.payment?.status ?? null,
+      amountKrw: order.totalPayKrw,
+      tossMode,
+    });
+    return json(
+      { ok: false, code: "PAYMENT_VERIFICATION_FAILED", message: "결제 검증에 실패했습니다." },
+      402,
+    );
   }
 
-  // 결제 시점 모드 고정 (차후 취소/환불 시 이 모드의 Secret Key 로 요청)
-  const tossMode = await getTossMode();
+  const tossPayment = lookup.payment;
+
+  // (2) 승인 상태: 카드/간편 = DONE, 가상계좌 = WAITING_FOR_DEPOSIT
+  const approvedStatuses = new Set(["DONE", "WAITING_FOR_DEPOSIT"]);
+  // (3) orderId 바인딩: 토스 결제의 orderId 는 우리가 보낸 ids[0] (checkout 그룹의 대표 주문).
+  //     그 대표 주문과 이번 confirm 대상 order 가 동일 checkoutAttemptId 그룹인지 확인.
+  const anchorOrder = await prisma.order.findUnique({
+    where: { id: tossPayment.orderId },
+    select: { checkoutAttemptId: true },
+  });
+  const sameGroup =
+    !!anchorOrder &&
+    !!order.checkoutAttemptId &&
+    anchorOrder.checkoutAttemptId === order.checkoutAttemptId;
+
+  // (4) 금액 상한: 토스 청구액 <= 이 checkout 그룹 주문들의 정당 총액 합.
+  //     (쿠폰 할인으로 실제 청구액이 더 작을 수 있으므로 상한 비교. 부풀린 위조는 차단.)
+  let groupTotal = order.totalPayKrw;
+  if (order.checkoutAttemptId) {
+    const agg = await prisma.order.aggregate({
+      where: { checkoutAttemptId: order.checkoutAttemptId },
+      _sum: { totalPayKrw: true },
+    });
+    groupTotal = agg._sum.totalPayKrw ?? order.totalPayKrw;
+  }
+  const tossAmount = tossPayment.totalAmount ?? 0;
+
+  const statusOk = approvedStatuses.has(tossPayment.status);
+  const amountOk = tossAmount <= groupTotal;
+
+  if (!statusOk || !sameGroup || !amountOk) {
+    const reason = !statusOk
+      ? `TOSS_STATUS_NOT_APPROVED:${tossPayment.status}`
+      : !sameGroup
+        ? "ORDER_BINDING_MISMATCH"
+        : "AMOUNT_EXCEEDS_ORDER_TOTAL";
+    await recordVerificationFailure({
+      req,
+      orderId,
+      reason,
+      providedPaymentKey: paymentKey,
+      providedAmount: amount,
+      tossAmount: tossPayment.totalAmount,
+      tossStatus: tossPayment.status,
+      existingPaymentId: order.payment?.id ?? null,
+      existingPaymentStatus: order.payment?.status ?? null,
+      amountKrw: order.totalPayKrw,
+      tossMode,
+    });
+    return json(
+      { ok: false, code: "PAYMENT_VERIFICATION_FAILED", message: "결제 검증에 실패했습니다." },
+      402,
+    );
+  }
 
   /* ---- 가상계좌 분기: 입금 대기 상태로만 기록, 재고 차감 X, PAID 승격 X ---- */
   if (isVirtualAccount && virtualAccount) {
