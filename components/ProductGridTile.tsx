@@ -1,123 +1,54 @@
 /**
- * Seller shop grid tile with two view modes:
- * - list: 4:5 images with title and price (brand commerce style)
- * - feed: square images only (Instagram feed style)
+ * Seller shop grid tile — Instagram-style square image only.
+ * Tapping a tile opens the seller's intermediate feed anchored on this post
+ * (falls back to the product detail page when the seller has no storeSlug).
  */
 
 import Link from "next/link";
 import Image from "next/image";
-import { isArchivePost } from "@/lib/productPostType";
 
 export interface ProductGridTileProps {
   id: string;
   title: string;
-  priceKrw: number;
-  salePriceKrw?: number | null;
-  postType?: "SALE" | "ARCHIVE";
   imageUrl?: string;
-  viewMode?: "list" | "feed";
+  /** Seller storeSlug — when present, tile links to the feed; otherwise to /p/[id]. */
+  storeSlug?: string | null;
   detailEnabled?: boolean;
 }
 
 export default function ProductGridTile({
   id,
   title,
-  priceKrw,
-  salePriceKrw,
-  postType,
   imageUrl,
-  viewMode = "list",
+  storeSlug,
   detailEnabled = true,
 }: ProductGridTileProps) {
-  const hasDiscount = salePriceKrw != null && salePriceKrw < priceKrw;
-  const displayPrice = hasDiscount ? salePriceKrw : priceKrw;
-  const discountRate = hasDiscount ? Math.round((1 - salePriceKrw / priceKrw) * 100) : 0;
-  const archive = isArchivePost(postType);
-
-  // Feed mode: Instagram-style, image only, square
-  if (viewMode === "feed") {
-    const content = (
-      <div className="relative aspect-square bg-gray-100 overflow-hidden">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={title}
-            fill
-            sizes="(max-width: 420px) 50vw, 210px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
-            No Image
-          </div>
-        )}
-      </div>
-    );
-
-    return detailEnabled ? (
-      <Link href={`/p/${id}`} className="block">
-        {content}
-      </Link>
-    ) : (
-      <div className="block">
-        {content}
-      </div>
-    );
-  }
-
   const content = (
-    <>
-      {/* Image - 4:5 aspect ratio */}
-      <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={title}
-            fill
-            sizes="(max-width: 420px) 50vw, 210px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
-            No Image
-          </div>
-        )}
-      </div>
-
-      {/* Title */}
-      <h3 className="mt-2 text-sm font-medium text-black line-clamp-2 leading-snug">
-        {title}
-      </h3>
-
-      {/* Price */}
-      {!archive && (hasDiscount ? (
-        <div className="mt-1">
-          <div className="flex items-baseline gap-1">
-            <span className="text-[14px] font-bold text-red-500">{discountRate}%</span>
-            <span className="text-base font-semibold text-black">
-              {displayPrice.toLocaleString()}원
-            </span>
-          </div>
-          <p className="text-[13px] text-gray-400 line-through">
-            {priceKrw.toLocaleString()}원
-          </p>
-        </div>
+    <div className="relative aspect-square bg-gray-100 overflow-hidden">
+      {imageUrl ? (
+        <Image
+          src={imageUrl}
+          alt={title}
+          fill
+          sizes="(max-width: 420px) 33vw, 140px"
+          className="object-cover"
+        />
       ) : (
-        <p className="mt-1 text-base font-semibold text-black">
-          {priceKrw.toLocaleString()}원
-        </p>
-      ))}
-    </>
+        <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+          No Image
+        </div>
+      )}
+    </div>
   );
 
-  // List mode: Brand commerce style with details
-  return detailEnabled ? (
-    <Link href={`/p/${id}`} className="block">
+  if (!detailEnabled) {
+    return <div className="block">{content}</div>;
+  }
+
+  const href = storeSlug ? `/${storeSlug}/feed?post=${id}` : `/p/${id}`;
+  return (
+    <Link href={href} className="block">
       {content}
     </Link>
-  ) : (
-    <div className="block">
-      {content}
-    </div>
   );
 }

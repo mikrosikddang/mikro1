@@ -137,6 +137,7 @@ export default async function SellerStoreSlugPage({ params, searchParams }: Prop
           initialProducts={initialProducts}
           initialNextCursor={nextCursor}
           isOwner={isOwner}
+          storeSlug={seller.sellerProfile.storeSlug ?? storeSlug}
         />
       </div>
     </>

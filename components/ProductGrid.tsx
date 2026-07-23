@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * Product grid with two view modes: list (with details) and feed (images only)
- * Uses intersection observer to load more products when user scrolls
- * Syncs with global HomeFeedViewMode from burger menu
- * Supports drag-and-drop reorder for shop owner
+ * Seller shop product grid — always the Instagram-style tight square grid.
+ * Tiles link into the seller's intermediate feed (via storeSlug).
+ * Uses an intersection observer to load more products on scroll.
+ * Supports drag-and-drop reorder for the shop owner.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProductGridTile from "./ProductGridTile";
-import { getHomeFeedViewMode } from "@/lib/uiPrefs";
 
 interface Product {
   id: string;
@@ -26,15 +25,16 @@ interface ProductGridProps {
   initialProducts: Product[];
   initialNextCursor: string | null;
   isOwner?: boolean;
+  /** Seller storeSlug — passed to tiles so they can link into the feed. */
+  storeSlug?: string | null;
 }
-
-type ViewMode = "list" | "feed";
 
 export default function ProductGrid({
   sellerId,
   initialProducts,
   initialNextCursor,
   isOwner,
+  storeSlug,
 }: ProductGridProps) {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -47,36 +47,7 @@ export default function ProductGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIndexRef = useRef<number | null>(null);
 
-  // Map global HomeFeedViewMode to local ViewMode
-  // "carrot" (default) → "list", "feed" → "feed"
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") return "list";
-    const globalMode = getHomeFeedViewMode();
-    return globalMode === "feed" ? "feed" : "list";
-  });
-
   const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  // Listen to global view mode changes from burger menu (disabled in reorder mode)
-  useEffect(() => {
-    if (reorderMode) return;
-
-    const handleViewModeChange = (event: CustomEvent<{ mode: "feed" | "carrot" }>) => {
-      setViewMode(event.detail.mode === "feed" ? "feed" : "list");
-    };
-
-    window.addEventListener(
-      "homeFeedViewModeChange",
-      handleViewModeChange as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "homeFeedViewModeChange",
-        handleViewModeChange as EventListener,
-      );
-    };
-  }, [reorderMode]);
 
   // Load more products
   const loadMore = async () => {
@@ -323,26 +294,16 @@ export default function ProductGrid({
         <p className="text-[13px] text-red-500 px-4 mb-3">{reorderError}</p>
       )}
 
-      {/* Product grid */}
+      {/* Product grid — always tight Instagram-style feed grid */}
       {displayProducts.length > 0 ? (
         reorderMode ? (
-          /* Reorder mode: current view with drag handles, links disabled */
-          <div
-            ref={gridRef}
-            className={`select-none ${
-              viewMode === "feed"
-                ? "grid grid-cols-3 gap-[1px]"
-                : "grid grid-cols-3 gap-3 px-4"
-            }`}
-          >
+          /* Reorder mode: drag handles, links disabled */
+          <div ref={gridRef} className="select-none grid grid-cols-3 gap-[1px]">
             {displayProducts.map((product, i) => {
               const imageUrl = product.imageUrl || "/placeholder.png";
 
               return (
-                <div
-                  key={product.id}
-                  className="relative transition-all"
-                >
+                <div key={product.id} className="relative transition-all">
                   {/* Drag handle overlay */}
                   <div
                     className="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg bg-black/50 backdrop-blur-sm flex items-center justify-center cursor-grab"
@@ -359,60 +320,34 @@ export default function ProductGrid({
                     </svg>
                   </div>
 
-                  {viewMode === "feed" ? (
-                    /* Feed mode tile */
-                    <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                      <img
-                        src={imageUrl}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    /* List mode tile */
-                    <>
-                      <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-                        <img
-                          src={imageUrl}
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <h3 className="mt-2 text-sm font-medium text-black line-clamp-1 leading-snug">
-                        {product.title}
-                      </h3>
-                    </>
-                  )}
+                  <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                    <img
+                      src={imageUrl}
+                      alt={product.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
               );
             })}
           </div>
         ) : (
           /* Normal mode */
-          <div
-            className={
-              viewMode === "feed"
-                ? "grid grid-cols-3 gap-[1px]" // Feed: tight grid, no padding
-                : "grid grid-cols-3 gap-3 px-4" // List: breathing room + side padding
-            }
-          >
+          <div className="grid grid-cols-3 gap-[1px]">
             {displayProducts.map((product) => (
               <ProductGridTile
                 key={product.id}
                 id={product.id}
                 title={product.title}
-                priceKrw={product.priceKrw}
-                salePriceKrw={product.salePriceKrw}
-                postType={product.postType}
                 imageUrl={product.imageUrl || undefined}
-                viewMode={viewMode}
+                storeSlug={storeSlug}
               />
             ))}
           </div>
         )
       ) : (
         <div className="py-20 text-center text-gray-400 text-sm">
-          등록된 상품이 없습니다.
+          등록된 게시물이 없습니다.
         </div>
       )}
 
