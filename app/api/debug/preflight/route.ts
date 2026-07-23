@@ -82,25 +82,22 @@ export async function GET(req: NextRequest) {
   warnings.push("FOOTER_RULES_MANUAL_CHECK");
 
   // (6) Variant unique index (DB constraint check)
-  // Use pg_constraint + pg_attribute for robust column-based check
+  // Prisma @@unique is always created as a UNIQUE INDEX (not a pg_constraint of
+  // contype='u'), so check pg_index for a unique index over exactly the three
+  // columns (productId, color, sizeLabel). Column order is compared order-agnostic.
   try {
-    const result = await prisma.$queryRaw<Array<{ has_constraint: boolean }>>`
+    const result = await prisma.$queryRaw<Array<{ has_index: boolean }>>`
       SELECT EXISTS (
-        SELECT 1
-        FROM pg_constraint con
-        INNER JOIN pg_class rel ON rel.oid = con.conrelid
-        INNER JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-        WHERE rel.relname = 'ProductVariant'
-          AND con.contype = 'u'
-          AND array_length(con.conkey, 1) = 3
-          AND con.conkey @> ARRAY[
-            (SELECT attnum FROM pg_attribute WHERE attrelid = rel.oid AND attname = 'productId'),
-            (SELECT attnum FROM pg_attribute WHERE attrelid = rel.oid AND attname = 'color'),
-            (SELECT attnum FROM pg_attribute WHERE attrelid = rel.oid AND attname = 'sizeLabel')
-          ]::smallint[]
-      ) AS has_constraint
+        SELECT 1 FROM pg_index i
+        JOIN pg_class rel ON rel.oid = i.indrelid
+        WHERE rel.relname = 'ProductVariant' AND i.indisunique
+          AND (SELECT array_agg(a.attname::text ORDER BY a.attname::text)
+               FROM pg_attribute a
+               WHERE a.attrelid = rel.oid AND a.attnum = ANY(i.indkey))
+              = ARRAY['color','productId','sizeLabel']
+      ) AS has_index
     `;
-    checks.variantUniqueIndexOk = result[0]?.has_constraint ?? false;
+    checks.variantUniqueIndexOk = result[0]?.has_index ?? false;
     if (!checks.variantUniqueIndexOk) {
       failures.push("VARIANT_UNIQUE_CONSTRAINT_MISSING");
     }
@@ -152,8 +149,8 @@ export async function GET(req: NextRequest) {
   checks.rateLimitWarning = "not_implemented";
   warnings.push("RATE_LIMIT_NOT_IMPLEMENTED");
 
-  // (12) S3 bucket configured
-  checks.hasS3Config = Boolean(process.env.AWS_S3_BUCKET);
+  // (12) S3 bucket configured (앱 실사용 변수는 S3_BUCKET, 레거시 AWS_S3_BUCKET 폴백)
+  checks.hasS3Config = Boolean(process.env.S3_BUCKET || process.env.AWS_S3_BUCKET);
   if (!checks.hasS3Config) {
     warnings.push("S3_BUCKET_NOT_CONFIGURED");
   }
